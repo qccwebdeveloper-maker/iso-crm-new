@@ -20,6 +20,7 @@ const blank = () => ({
   auditorName:'', auditorRole:'', iafCode:'', accreditation:'UAF',
   certNumber:'', issueDate:'', expiryDate:'', surveillanceDate:'',
   surveillanceDate2:'', originalCertDate:'', notes:'',
+  orgTop:19, addressTop:25, scopeTop:51,
 });
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
@@ -85,6 +86,11 @@ function certCardHtml(cert, W, H) {
   // Template already shows "Quality Management System / ISO 9001:2015" — only mask when different.
   const isNine9001  = /9001/.test(standard);
 
+  // Adjustable vertical positions (% from top) — admin can nudge these per certificate
+  const orgTop     = (cert.orgTop     === 0 || cert.orgTop)     ? Number(cert.orgTop)     : 19;
+  const addressTop = (cert.addressTop === 0 || cert.addressTop) ? Number(cert.addressTop) : 25;
+  const scopeTop   = (cert.scopeTop   === 0 || cert.scopeTop)   ? Number(cert.scopeTop)   : 51;
+
   // Details rows rendered as an aligned table so all colons line up (matches the printed design)
   const detailRows = [
     ['Certificate No.',      certNumber],
@@ -104,18 +110,21 @@ function certCardHtml(cert, W, H) {
   <div style="width:${W}px;height:${H}px;background:#fff;position:relative;overflow:hidden;font-family:Arial,Helvetica,sans-serif">
     <img src="${bgUrl}" crossorigin="anonymous" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0"/>
 
-    <div style="position:absolute;z-index:1;text-align:center;top:19%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
+    <div style="position:absolute;z-index:1;text-align:center;top:${orgTop}%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
       <div style="font-size:33px;font-weight:bold;color:#000;line-height:1.25">${orgName}</div>
-      ${address ? `<div style="font-size:20px;font-weight:bold;color:#000;margin-top:12px;line-height:1.55;white-space:pre-line">${address}</div>` : ''}
-      ${additionalSites ? `<div style="font-size:17px;font-weight:bold;color:#000;margin-top:5px;line-height:1.45;white-space:pre-line">${additionalSites}</div>` : ''}
     </div>
+    ${(address || additionalSites) ? `
+    <div style="position:absolute;z-index:1;text-align:center;top:${addressTop}%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
+      ${address ? `<div style="font-size:20px;font-weight:bold;color:#000;line-height:1.55;white-space:pre-line">${address}</div>` : ''}
+      ${additionalSites ? `<div style="font-size:17px;font-weight:bold;color:#000;margin-top:5px;line-height:1.45;white-space:pre-line">${additionalSites}</div>` : ''}
+    </div>` : ''}
 
     ${!isNine9001 ? `
     <div style="position:absolute;z-index:2;top:35.8%;left:11%;right:11%;height:8.4%;background:#fff"></div>
     <div style="position:absolute;z-index:3;text-align:center;left:6%;right:6%;top:36.2%;font-size:32px;font-weight:bold;color:#1a1a1a;line-height:1.1">${msName}</div>
     <div style="position:absolute;z-index:3;text-align:center;left:6%;right:6%;top:39.9%;font-size:54px;font-weight:900;color:#1565c0;letter-spacing:1px;line-height:1.05">${esc(standard)}</div>` : ''}
 
-    <div style="position:absolute;z-index:1;text-align:center;top:51%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
+    <div style="position:absolute;z-index:1;text-align:center;top:${scopeTop}%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
       <div style="font-size:22px;font-weight:bold;color:#000;line-height:1.5;text-transform:uppercase">${scope}</div>
     </div>
 
@@ -265,20 +274,41 @@ function CertForm({ data, set, isEdit }) {
         </FG>
       </div>
 
-      <SectionBand title="Auditor Details" />
+      <SectionBand title="Certificate Layout — Text Position" />
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-        <FG label="Auditor Name">
-          <input className="form-control" value={data.auditorName||''} onChange={e=>set('auditorName',e.target.value)} />
+        <FG label="Organization block — vertical position">
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" title="Move up"
+              onClick={()=>set('orgTop', Math.max(0, Math.round((Number(data.orgTop ?? 19) - 0.5)*10)/10))}>↑</button>
+            <input type="number" step="0.5" className="form-control" style={{ textAlign:'center' }}
+              value={data.orgTop ?? 19} onChange={e=>set('orgTop', e.target.value===''?'':Number(e.target.value))} />
+            <button type="button" className="btn btn-ghost btn-sm" title="Move down"
+              onClick={()=>set('orgTop', Math.min(100, Math.round((Number(data.orgTop ?? 19) + 0.5)*10)/10))}>↓</button>
+          </div>
         </FG>
-        <FG label="Auditor Role">
-          <select className="form-control" value={data.auditorRole||''} onChange={e=>set('auditorRole',e.target.value)}>
-            <option value="">— Select —</option>
-            <option>Lead Auditor</option><option>Auditor</option><option>Technical Expert</option>
-          </select>
+        <FG label="Address block — vertical position">
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" title="Move up"
+              onClick={()=>set('addressTop', Math.max(0, Math.round((Number(data.addressTop ?? 25) - 0.5)*10)/10))}>↑</button>
+            <input type="number" step="0.5" className="form-control" style={{ textAlign:'center' }}
+              value={data.addressTop ?? 25} onChange={e=>set('addressTop', e.target.value===''?'':Number(e.target.value))} />
+            <button type="button" className="btn btn-ghost btn-sm" title="Move down"
+              onClick={()=>set('addressTop', Math.min(100, Math.round((Number(data.addressTop ?? 25) + 0.5)*10)/10))}>↓</button>
+          </div>
         </FG>
-        <FG label="Notes / Remarks" full>
-          <textarea className="form-control" rows={2} value={data.notes||''} onChange={e=>set('notes',e.target.value)} />
+        <FG label="Scope block — vertical position">
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" title="Move up"
+              onClick={()=>set('scopeTop', Math.max(0, Math.round((Number(data.scopeTop ?? 51) - 0.5)*10)/10))}>↑</button>
+            <input type="number" step="0.5" className="form-control" style={{ textAlign:'center' }}
+              value={data.scopeTop ?? 51} onChange={e=>set('scopeTop', e.target.value===''?'':Number(e.target.value))} />
+            <button type="button" className="btn btn-ghost btn-sm" title="Move down"
+              onClick={()=>set('scopeTop', Math.min(100, Math.round((Number(data.scopeTop ?? 51) + 0.5)*10)/10))}>↓</button>
+          </div>
         </FG>
+        <div style={{ gridColumn:'1/-1', fontSize:11.5, color:'var(--gray-500)' }}>
+          Smaller number = higher up on the certificate. Defaults: Organization <b>19</b>, Address <b>25</b>, Scope <b>51</b>. Use ↑ / ↓ to nudge.
+        </div>
       </div>
 
       {isEdit && (data.updatedAt||data.createdAt) && (
@@ -302,6 +332,8 @@ export default function CertificateManagement() {
   const [editModal,   setEditModal]   = useState(null);
   const [viewModal,   setViewModal]   = useState(null);
   const [deleteId,    setDeleteId]    = useState(null);
+  const [clientIdInput, setClientIdInput] = useState('');
+  const [fetching,    setFetching]    = useState(false);
   const [setting,     setSetting]     = useState({
     title:'Certificate of Registration', authority:'QC Certification Pvt Ltd',
     validityYears:3, footerText:'This certificate is subject to certification body regulations.', accreditation:'UAF',
@@ -321,13 +353,34 @@ export default function CertificateManagement() {
   const setM = (k,v) => setManualForm(p=>({...p,[k]:v}));
   const setE = (k,v) => setEditModal(p=>({...p,[k]:v}));
 
+  // Coerce layout position fields to clean numbers before saving
+  const numOr = (v, d) => (v==='' || v===null || v===undefined || isNaN(Number(v))) ? d : Number(v);
+  const withLayout = (f) => ({ ...f, orgTop: numOr(f.orgTop, 19), addressTop: numOr(f.addressTop, 25), scopeTop: numOr(f.scopeTop, 51) });
+
+  const fetchByClientId = async () => {
+    const cid = clientIdInput.trim();
+    if (!cid) return toast.error('Enter a Client ID');
+    setFetching(true);
+    try {
+      const { data } = await axios.get(`/api/certificates/prefill/${encodeURIComponent(cid)}`);
+      setManualForm(p => ({ ...p, ...data.data }));
+      toast.success(
+        data.foundApplication
+          ? `Filled from ${data.client.name}'s application`
+          : `Client ${data.client.name} found (no application — filled basic details)`
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Client not found');
+    } finally { setFetching(false); }
+  };
+
   const issueManual = async () => {
     if (!manualForm.orgName.trim())   return toast.error('Organization name required');
     if (!manualForm.standard)         return toast.error('Standard required');
     if (!manualForm.certNumber.trim()) return toast.error('Certificate number required');
     setSaving(true);
     try {
-      await axios.post('/api/certificates/manual', manualForm);
+      await axios.post('/api/certificates/manual', withLayout(manualForm));
       toast.success('Certificate issued!');
       setManualForm(blank());
       setTab('list');
@@ -340,7 +393,7 @@ export default function CertificateManagement() {
     if (!editModal) return;
     setSaving(true);
     try {
-      await axios.put(`/api/certificates/${editModal._id}`, editModal);
+      await axios.put(`/api/certificates/${editModal._id}`, withLayout(editModal));
       toast.success('Certificate updated!');
       setEditModal(null);
       load();
@@ -515,12 +568,58 @@ export default function CertificateManagement() {
               <div style={{ fontWeight:700, fontSize:14, color:'var(--gray-700)', marginBottom:18, paddingBottom:12, borderBottom:'1.5px solid var(--primary-50)' }}>
                 Issue New Certificate Manually
               </div>
-              <CertForm data={manualForm} set={setM} isEdit={false}/>
-              <div style={{ display:'flex', gap:10, marginTop:22, paddingTop:16, borderTop:'1.5px solid var(--primary-50)' }}>
-                <button className="btn btn-ghost" onClick={()=>setTab('list')}>Cancel</button>
-                <button className="btn btn-primary" onClick={issueManual} disabled={saving}>
-                  <Award size={14}/> {saving?'Issuing…':'Issue Certificate'}
-                </button>
+
+              {/* Fetch details from a client's application by Client ID */}
+              <div style={{ background:'var(--primary-50)', border:'1.5px solid var(--primary-100)', borderRadius:10, padding:'14px 16px', marginBottom:18 }}>
+                <div style={{ fontWeight:700, fontSize:12.5, color:'var(--primary-dark)', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+                  <RefreshCw size={13}/> Auto-fill from Client ID
+                </div>
+                <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+                  <input
+                    className="form-control"
+                    style={{ maxWidth:220 }}
+                    placeholder="Enter Client ID (e.g. 1000)"
+                    value={clientIdInput}
+                    onChange={e=>setClientIdInput(e.target.value)}
+                    onKeyDown={e=>{ if(e.key==='Enter') fetchByClientId(); }}
+                  />
+                  <button className="btn btn-primary btn-sm" onClick={fetchByClientId} disabled={fetching}>
+                    {fetching ? 'Fetching…' : 'Fetch & Fill'}
+                  </button>
+                  <span style={{ fontSize:11.5, color:'var(--gray-500)' }}>
+                    Loads organization, address, standard, scope &amp; contact from the client's latest application.
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) 380px', gap:24, alignItems:'start' }}>
+                {/* Left — form */}
+                <div>
+                  <CertForm data={manualForm} set={setM} isEdit={false}/>
+                  <div style={{ display:'flex', gap:10, marginTop:22, paddingTop:16, borderTop:'1.5px solid var(--primary-50)' }}>
+                    <button className="btn btn-ghost" onClick={()=>setTab('list')}>Cancel</button>
+                    <button className="btn btn-primary" onClick={issueManual} disabled={saving}>
+                      <Award size={14}/> {saving?'Issuing…':'Issue Certificate'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right — live sample preview */}
+                <div style={{ position:'sticky', top:16 }}>
+                  <div style={{ fontWeight:700, fontSize:12.5, color:'var(--primary-dark)', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+                    <Eye size={14}/> Live Sample Preview
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'center', background:'#e7eef6', borderRadius:10, padding:14 }}>
+                    <CertificatePreview cert={manualForm} maxWidth={340} />
+                  </div>
+                  <div style={{ fontSize:11, color:'var(--gray-500)', marginTop:8, textAlign:'center' }}>
+                    Updates live as you edit. Use the ↑ / ↓ position controls to adjust spacing.
+                  </div>
+                  <button className="btn btn-secondary btn-sm" style={{ marginTop:12, width:'100%' }}
+                    onClick={()=>generateCertificate(manualForm)}>
+                    <Download size={13}/> Download Sample JPG
+                  </button>
+                </div>
               </div>
             </div>
           )}

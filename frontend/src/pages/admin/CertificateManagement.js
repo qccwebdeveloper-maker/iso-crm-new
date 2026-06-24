@@ -21,6 +21,7 @@ const blank = () => ({
   certNumber:'', issueDate:'', expiryDate:'', surveillanceDate:'',
   surveillanceDate2:'', originalCertDate:'', notes:'',
   orgTop:19, addressTop:25, scopeTop:51,
+  orgSize:33, addressSize:20, scopeSize:22,
 });
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
@@ -90,6 +91,9 @@ function certCardHtml(cert, W, H) {
   const orgTop     = (cert.orgTop     === 0 || cert.orgTop)     ? Number(cert.orgTop)     : 19;
   const addressTop = (cert.addressTop === 0 || cert.addressTop) ? Number(cert.addressTop) : 25;
   const scopeTop   = (cert.scopeTop   === 0 || cert.scopeTop)   ? Number(cert.scopeTop)   : 51;
+  const orgSize     = Number(cert.orgSize)     > 0 ? Number(cert.orgSize)     : 33;
+  const addressSize = Number(cert.addressSize) > 0 ? Number(cert.addressSize) : 20;
+  const scopeSize   = Number(cert.scopeSize)   > 0 ? Number(cert.scopeSize)   : 22;
 
   // Details rows rendered as an aligned table so all colons line up (matches the printed design)
   const detailRows = [
@@ -111,12 +115,12 @@ function certCardHtml(cert, W, H) {
     <img src="${bgUrl}" crossorigin="anonymous" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0"/>
 
     <div style="position:absolute;z-index:1;text-align:center;top:${orgTop}%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
-      <div style="font-size:33px;font-weight:bold;color:#000;line-height:1.25">${orgName}</div>
+      <div style="font-size:${orgSize}px;font-weight:bold;color:#000;line-height:1.25">${orgName}</div>
     </div>
     ${(address || additionalSites) ? `
     <div style="position:absolute;z-index:1;text-align:center;top:${addressTop}%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
-      ${address ? `<div style="font-size:20px;font-weight:bold;color:#000;line-height:1.55;white-space:pre-line">${address}</div>` : ''}
-      ${additionalSites ? `<div style="font-size:17px;font-weight:bold;color:#000;margin-top:5px;line-height:1.45;white-space:pre-line">${additionalSites}</div>` : ''}
+      ${address ? `<div style="font-size:${addressSize}px;font-weight:bold;color:#000;line-height:1.55;white-space:pre-line">${address}</div>` : ''}
+      ${additionalSites ? `<div style="font-size:${Math.max(10, addressSize - 3)}px;font-weight:bold;color:#000;margin-top:5px;line-height:1.45;white-space:pre-line">${additionalSites}</div>` : ''}
     </div>` : ''}
 
     ${!isNine9001 ? `
@@ -125,7 +129,7 @@ function certCardHtml(cert, W, H) {
     <div style="position:absolute;z-index:3;text-align:center;left:6%;right:6%;top:39.9%;font-size:54px;font-weight:900;color:#1565c0;letter-spacing:1px;line-height:1.05">${esc(standard)}</div>` : ''}
 
     <div style="position:absolute;z-index:1;text-align:center;top:${scopeTop}%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
-      <div style="font-size:22px;font-weight:bold;color:#000;line-height:1.5;text-transform:uppercase">${scope}</div>
+      <div style="font-size:${scopeSize}px;font-weight:bold;color:#000;line-height:1.5;text-transform:uppercase">${scope}</div>
     </div>
 
     <div style="position:absolute;z-index:1;text-align:left;top:63%;left:8%;width:66%;font-size:14px;color:#1a1a1a;line-height:1.95">
@@ -210,7 +214,7 @@ function statusOf(c) {
 }
 
 /* ─── Edit / Issue form (reused in both modal and full tab) ─── */
-function CertForm({ data, set, isEdit }) {
+function CertForm({ data, set, isEdit, onGen }) {
   return (
     <>
       <SectionBand title="Organization Details" />
@@ -247,7 +251,14 @@ function CertForm({ data, set, isEdit }) {
       <SectionBand title="Certificate Details" />
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16 }}>
         <FG label="Certificate Number" required>
-          <input className="form-control" value={data.certNumber||''} onChange={e=>set('certNumber',e.target.value)} placeholder="QCC-2024-001" />
+          <div style={{ display:'flex', gap:6 }}>
+            <input className="form-control" value={data.certNumber||''} onChange={e=>set('certNumber',e.target.value)} placeholder="QCC/65A3B/0226" />
+            {onGen && (
+              <button type="button" className="btn btn-ghost btn-sm" title="Auto-generate number" style={{ whiteSpace:'nowrap' }} onClick={onGen}>
+                <RefreshCw size={13}/> Generate
+              </button>
+            )}
+          </div>
         </FG>
         <FG label="IAF Code">
           <input className="form-control" value={data.iafCode||''} onChange={e=>set('iafCode',e.target.value)} placeholder="e.g. 33" />
@@ -306,8 +317,38 @@ function CertForm({ data, set, isEdit }) {
               onClick={()=>set('scopeTop', Math.min(100, Math.round((Number(data.scopeTop ?? 51) + 0.5)*10)/10))}>↓</button>
           </div>
         </FG>
+        <FG label="Organization — text size">
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" title="Smaller"
+              onClick={()=>set('orgSize', Math.max(8, Number(data.orgSize ?? 33) - 1))}>A−</button>
+            <input type="number" step="1" className="form-control" style={{ textAlign:'center' }}
+              value={data.orgSize ?? 33} onChange={e=>set('orgSize', e.target.value===''?'':Number(e.target.value))} />
+            <button type="button" className="btn btn-ghost btn-sm" title="Bigger"
+              onClick={()=>set('orgSize', Math.min(80, Number(data.orgSize ?? 33) + 1))}>A+</button>
+          </div>
+        </FG>
+        <FG label="Address — text size">
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" title="Smaller"
+              onClick={()=>set('addressSize', Math.max(8, Number(data.addressSize ?? 20) - 1))}>A−</button>
+            <input type="number" step="1" className="form-control" style={{ textAlign:'center' }}
+              value={data.addressSize ?? 20} onChange={e=>set('addressSize', e.target.value===''?'':Number(e.target.value))} />
+            <button type="button" className="btn btn-ghost btn-sm" title="Bigger"
+              onClick={()=>set('addressSize', Math.min(60, Number(data.addressSize ?? 20) + 1))}>A+</button>
+          </div>
+        </FG>
+        <FG label="Scope — text size">
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" title="Smaller"
+              onClick={()=>set('scopeSize', Math.max(8, Number(data.scopeSize ?? 22) - 1))}>A−</button>
+            <input type="number" step="1" className="form-control" style={{ textAlign:'center' }}
+              value={data.scopeSize ?? 22} onChange={e=>set('scopeSize', e.target.value===''?'':Number(e.target.value))} />
+            <button type="button" className="btn btn-ghost btn-sm" title="Bigger"
+              onClick={()=>set('scopeSize', Math.min(60, Number(data.scopeSize ?? 22) + 1))}>A+</button>
+          </div>
+        </FG>
         <div style={{ gridColumn:'1/-1', fontSize:11.5, color:'var(--gray-500)' }}>
-          Smaller number = higher up on the certificate. Defaults: Organization <b>19</b>, Address <b>25</b>, Scope <b>51</b>. Use ↑ / ↓ to nudge.
+          Position: smaller number = higher up (defaults Org <b>19</b>, Address <b>25</b>, Scope <b>51</b>). Text size in px (defaults Org <b>33</b>, Address <b>20</b>, Scope <b>22</b>). Use ↑/↓ and A−/A+.
         </div>
       </div>
 
@@ -355,7 +396,19 @@ export default function CertificateManagement() {
 
   // Coerce layout position fields to clean numbers before saving
   const numOr = (v, d) => (v==='' || v===null || v===undefined || isNaN(Number(v))) ? d : Number(v);
-  const withLayout = (f) => ({ ...f, orgTop: numOr(f.orgTop, 19), addressTop: numOr(f.addressTop, 25), scopeTop: numOr(f.scopeTop, 51) });
+  const withLayout = (f) => ({
+    ...f,
+    orgTop: numOr(f.orgTop, 19), addressTop: numOr(f.addressTop, 25), scopeTop: numOr(f.scopeTop, 51),
+    orgSize: numOr(f.orgSize, 33), addressSize: numOr(f.addressSize, 20), scopeSize: numOr(f.scopeSize, 22),
+  });
+
+  const genCertNumber = async (setter) => {
+    try {
+      const { data } = await axios.get('/api/certificates/gen-number');
+      setter('certNumber', data.certNumber);
+      toast.success('Certificate number generated');
+    } catch { toast.error('Failed to generate number'); }
+  };
 
   const fetchByClientId = async () => {
     const cid = clientIdInput.trim();
@@ -595,7 +648,7 @@ export default function CertificateManagement() {
               <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) 380px', gap:24, alignItems:'start' }}>
                 {/* Left — form */}
                 <div>
-                  <CertForm data={manualForm} set={setM} isEdit={false}/>
+                  <CertForm data={manualForm} set={setM} isEdit={false} onGen={()=>genCertNumber(setM)}/>
                   <div style={{ display:'flex', gap:10, marginTop:22, paddingTop:16, borderTop:'1.5px solid var(--primary-50)' }}>
                     <button className="btn btn-ghost" onClick={()=>setTab('list')}>Cancel</button>
                     <button className="btn btn-primary" onClick={issueManual} disabled={saving}>
@@ -702,7 +755,7 @@ export default function CertificateManagement() {
               <button className="modal-close" onClick={()=>setEditModal(null)}>✕</button>
             </div>
             <div className="modal-body" style={{ maxHeight:'72vh', overflowY:'auto' }}>
-              <CertForm data={editModal} set={setE} isEdit={true}/>
+              <CertForm data={editModal} set={setE} isEdit={true} onGen={()=>genCertNumber(setE)}/>
             </div>
             <div className="modal-foot">
               <button className="btn btn-ghost" onClick={()=>setEditModal(null)}>Cancel</button>

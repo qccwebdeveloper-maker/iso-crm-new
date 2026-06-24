@@ -25,6 +25,10 @@ const certSchema = new mongoose.Schema({
   orgTop:           { type: Number },
   addressTop:       { type: Number },
   scopeTop:         { type: Number },
+  // Layout — font size (px in the 900px render) of text blocks
+  orgSize:          { type: Number },
+  addressSize:      { type: Number },
+  scopeSize:        { type: Number },
   linkedApplication:{ type: mongoose.Schema.Types.ObjectId, ref: 'Application', default: null },
 }, { timestamps: true });
 

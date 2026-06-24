@@ -6,6 +6,29 @@ const User        = require('../models/User');
 const Application = require('../models/Application');
 const { protect, authorize } = require('../middleware/auth');
 
+// ── Certificate number generator — format: QCC/##L##L/MMYY ──
+// matches  ^QCC\/\d{2}[A-Z]\d{2}[A-Z]\/(0[1-9]|1[0-2])\d{2}$
+const randDigits = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join('');
+const randLetter = () => String.fromCharCode(65 + Math.floor(Math.random() * 26));
+async function generateCertNumber() {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');   // 01–12
+  const yy = String(now.getFullYear()).slice(-2);           // 2-digit year
+  for (let i = 0; i < 60; i++) {
+    const middle = `${randDigits(2)}${randLetter()}${randDigits(2)}${randLetter()}`;
+    const num = `QCC/${middle}/${mm}${yy}`;
+    const exists = await Certificate.findOne({ certNumber: num }).select('_id').lean();
+    if (!exists) return num;
+  }
+  return `QCC/${randDigits(2)}${randLetter()}${randDigits(2)}${randLetter()}/${mm}${yy}`;
+}
+
+// GET /api/certificates/gen-number — generate a unique certificate number
+router.get('/gen-number', protect, authorize('admin'), async (req, res) => {
+  try { res.json({ certNumber: await generateCertNumber() }); }
+  catch (err) { res.status(500).json({ message: err.message }); }
+});
+
 // GET /api/certificates/prefill/:clientId — auto-fill certificate fields from a client's application
 router.get('/prefill/:clientId', protect, authorize('admin'), async (req, res) => {
   try {
@@ -29,6 +52,7 @@ router.get('/prefill/:clientId', protect, authorize('admin'), async (req, res) =
       email:          a.emailId || user.email || '',
       accreditation:  a.accreditationBody || 'UAF',
       linkedApplication: app ? app._id : null,
+      certNumber:     await generateCertNumber(),
     };
 
     res.json({

@@ -12,16 +12,30 @@ const ISO_STDS = [
   'ISO 27001:2022','ISO/IEC 27701:2025','ISO/IEC 42001:2023',
   'ISO 22301:2019','ISO 37001:2016','ISO 21001:2018',
 ];
-const ACCRED = ['NABCB','DAkkS','UKAS','NAB','ANAB','JAB','KAN'];
+const ACCRED = ['UAF','UASL'];
 
 const blank = () => ({
   orgName:'', standard:'', scope:'', address:'',
   contactPerson:'', designation:'', contactNumber:'', email:'',
-  auditorName:'', auditorRole:'', iafCode:'', accreditation:'NABCB',
-  certNumber:'', issueDate:'', expiryDate:'', surveillanceDate:'', notes:'',
+  auditorName:'', auditorRole:'', iafCode:'', accreditation:'UAF',
+  certNumber:'', issueDate:'', expiryDate:'', surveillanceDate:'',
+  surveillanceDate2:'', originalCertDate:'', notes:'',
+  orgTop:19, addressTop:25, scopeTop:51,
 });
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+
+/* Long date format used on the printed certificate, e.g. "16 - February - 2026" */
+const fmtLong = (d) => {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (isNaN(dt)) return '—';
+  const day = String(dt.getDate()).padStart(2,'0');
+  const month = dt.toLocaleString('en-US', { month:'long' });
+  return `${day} - ${month} - ${dt.getFullYear()}`;
+};
+
+const esc = (s='') => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 /* ─── ISO management system label ─── */
 function msLabel(standard) {
@@ -38,157 +52,139 @@ function msLabel(standard) {
   return 'Management System';
 }
 
-/* ─── Certificate HTML generator (matches QCC design) ─── */
-function generateCertificate(cert) {
-  const orgName     = cert.orgName || cert.organizationName || 'Your Organization Name';
-  const standard    = cert.standard || '';
-  const scope       = cert.scope || 'Your Organization Scope';
-  const certNumber  = cert.certNumber || 'XXX/XXXX/XXXX';
-  const issueDate   = fmt(cert.issueDate);
-  const expiryDate  = fmt(cert.expiryDate);
-  const origDate    = fmt(cert.originalCertDate || cert.issueDate);
-  const iafCode     = cert.iafCode || '';
-  const address     = cert.address || '';
-  const additionalSites = cert.additionalSites || '';
-  const msName      = msLabel(standard);
-  const bgUrl       = `${window.location.origin}/certificate-bg.jpg`;
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<title>Certificate — ${certNumber}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;background:#dce8f5;display:flex;flex-direction:column;align-items:center;padding:24px 12px;min-height:100vh}
-.no-print{display:flex;gap:10px;margin-bottom:16px}
-.btn-dl{padding:10px 26px;background:#1a3a6b;color:white;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer}
-.btn-cl{padding:10px 20px;background:white;color:#334155;border:1.5px solid #cbd5e1;border-radius:7px;font-size:13px;cursor:pointer}
-
-/* ── Certificate card (image background + overlays) ── */
-.cert{width:620px;aspect-ratio:1591/2263;background:white;position:relative;padding:0;box-shadow:0 6px 32px rgba(0,0,0,.22);overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.cert-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
-.ov{position:absolute;z-index:1;text-align:center}
-
-/* Blue border system */
-.b1{position:absolute;inset:6px;border:3px solid #1a5cb8;pointer-events:none;z-index:20}
-.b2{position:absolute;inset:11px;border:1px solid #5a9af0;pointer-events:none;z-index:20}
-
-/* Inner content area */
-.inner{padding:18px 30px 14px;position:relative;overflow:hidden;min-height:820px}
-
-/* Globe SVG watermark */
-.globe-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:320px;height:320px;opacity:.07;pointer-events:none;z-index:0}
-
-/* QR + title row */
-.top-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px;position:relative;z-index:1}
-.qr-box{width:72px;height:72px;flex-shrink:0}
-.cert-title-wrap{flex:1;text-align:center;padding:0 10px}
-.cert-script{font-family:'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif;font-size:46px;color:#d4790a;font-style:italic;line-height:1;letter-spacing:.02em}
-.top-right{width:72px;text-align:right;font-size:8px;color:#555;line-height:1.5}
-
-/* Certify text */
-.certify-txt{text-align:center;font-size:12.5px;color:#333;margin:8px 0 4px;position:relative;z-index:1}
-
-/* Org name */
-.org-name{text-align:center;font-size:20px;font-weight:bold;color:#1a237e;margin:4px 0;position:relative;z-index:1}
-.org-site{text-align:center;font-size:12px;font-weight:bold;color:#1a237e;margin:2px 0;position:relative;z-index:1}
-
-/* Middle dot */
-.mid-dot{text-align:center;font-size:18px;color:#555;margin:4px 0;position:relative;z-index:1}
-
-/* Compliance line */
-.compliance-txt{text-align:center;font-size:11.5px;color:#333;margin:4px 0;position:relative;z-index:1}
-
-/* MS name */
-.ms-name{text-align:center;font-size:15px;font-weight:bold;color:#1a237e;margin:2px 0;position:relative;z-index:1}
-
-/* Big ISO number */
-.iso-big{text-align:center;font-size:52px;font-weight:900;color:#1565c0;letter-spacing:2px;line-height:1.1;margin:4px 0;position:relative;z-index:1}
-
-/* Scope */
-.scope-lbl{text-align:center;font-size:11.5px;color:#333;margin:4px 0;position:relative;z-index:1}
-.scope-txt{text-align:center;font-size:13px;font-weight:bold;color:#1a237e;margin:4px 30px 12px;line-height:1.5;position:relative;z-index:1}
-
-/* Bottom section */
-.bottom{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 10px 0;position:relative;z-index:1}
-.cert-details{font-size:10px;color:#333;line-height:1.9}
-.cert-details b{font-size:10.5px}
-.verify-txt{font-size:9px;color:#333;margin-top:6px}
-.verify-link{font-size:9px;color:#1565c0;font-style:italic}
-
-/* Signature area */
-.sig-area{text-align:right;font-size:10px;color:#333}
-.sig-line-top{border-top:1px dotted #666;width:170px;margin-left:auto;margin-bottom:3px}
-.sig-heading{font-size:9px;color:#666;text-align:center;width:170px;margin-left:auto}
-.sig-company{font-size:13px;font-weight:bold;color:#d4790a;margin-top:2px}
-.sig-addr{font-size:8.5px;color:#555;line-height:1.5;margin-top:3px}
-
-/* Logo stamps row */
-.stamps{display:flex;justify-content:center;align-items:center;gap:10px;padding:8px 10px 6px;border-top:1px solid #ddd;margin-top:8px}
-.stamp-circle{width:54px;height:54px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:7px;font-weight:bold;text-align:center;line-height:1.3;border:2px solid}
-.stamp-rect{padding:4px 8px;border:2px solid;border-radius:6px;font-size:8px;font-weight:bold;text-align:center;line-height:1.4}
-
-/* Footer */
-.cert-footer{background:#f8fafc;border-top:1px solid #ddd;padding:5px 30px;font-size:7.5px;color:#666;text-align:center;line-height:1.5}
-
-@media print{
-  body{background:none;padding:0}
-  .no-print{display:none}
-  @page{size:A4 portrait;margin:0}
-  .cert{box-shadow:none;width:209mm;height:auto;aspect-ratio:1591/2263;margin:0 auto}
+/* Lazily load html2canvas from CDN (no npm dependency needed) */
+let _h2cPromise = null;
+function loadHtml2Canvas() {
+  if (window.html2canvas) return Promise.resolve(window.html2canvas);
+  if (_h2cPromise) return _h2cPromise;
+  _h2cPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload = () => resolve(window.html2canvas);
+    s.onerror = () => { _h2cPromise = null; reject(new Error('Failed to load html2canvas')); };
+    document.body.appendChild(s);
+  });
+  return _h2cPromise;
 }
-</style>
-</head>
-<body>
 
-<div class="no-print">
-  <button class="btn-dl" onclick="window.print()">⬇ Download / Print PDF</button>
-  <button class="btn-cl" onclick="window.close()">✕ Close</button>
-</div>
+/* Build the certificate card markup (template image background + overlays) */
+function certCardHtml(cert, W, H) {
+  const orgName     = esc(cert.orgName || cert.organizationName || 'Your Organization Name');
+  const standard    = (cert.standard || 'ISO 9001:2015').trim();
+  const scope       = esc(cert.scope || 'Your Organization Scope');
+  const certNumber  = esc(cert.certNumber || 'XXX/XXXX/XXXX');
+  const issueDate   = fmtLong(cert.issueDate);
+  const expiryDate  = fmtLong(cert.expiryDate);
+  const origDate    = fmtLong(cert.originalCertDate || cert.issueDate);
+  const surv1       = fmtLong(cert.surveillanceDate);
+  const surv2       = fmtLong(cert.surveillanceDate2);
+  const address     = esc(cert.address || '');
+  const additionalSites = esc(cert.additionalSites || '');
+  const msName      = esc(msLabel(standard));
+  const bgUrl       = `${window.location.origin}/certificate-bg.jpg`;
+  const statusUrl   = 'https://qccertification.com/Client.aspx';
+  // Template already shows "Quality Management System / ISO 9001:2015" — only mask when different.
+  const isNine9001  = /9001/.test(standard);
 
-<div class="cert">
-  <!-- Certificate background image -->
-  <img class="cert-bg" src="${bgUrl}" alt="Certificate"/>
+  // Adjustable vertical positions (% from top) — admin can nudge these per certificate
+  const orgTop     = (cert.orgTop     === 0 || cert.orgTop)     ? Number(cert.orgTop)     : 19;
+  const addressTop = (cert.addressTop === 0 || cert.addressTop) ? Number(cert.addressTop) : 25;
+  const scopeTop   = (cert.scopeTop   === 0 || cert.scopeTop)   ? Number(cert.scopeTop)   : 51;
 
-  <!-- Organization name (blank area under "This is to Certify that") -->
-  <div class="ov" style="top:21%;left:6%;right:6%">
-    <div style="font-size:23px;font-weight:bold;color:#1a237e;line-height:1.25">${orgName}</div>
-    ${address ? `<div style="font-size:12px;font-weight:bold;color:#1a237e;margin-top:6px;line-height:1.4">${address}</div>` : ''}
-    ${additionalSites ? `<div style="font-size:11px;color:#1a237e;margin-top:3px;line-height:1.4">${additionalSites}</div>` : ''}
-  </div>
+  // Details rows rendered as an aligned table so all colons line up (matches the printed design)
+  const detailRows = [
+    ['Certificate No.',      certNumber],
+    ['Original Issue Date',  origDate],
+    ['Issue Date',           issueDate],
+    ['1st Surveillance Due', surv1],
+    ['2nd Surveillance Due', surv2],
+    ['Expiry Date',          expiryDate],
+  ].map(([label, value]) =>
+    `<div style="display:table-row">
+       <span style="display:table-cell;font-weight:bold;white-space:nowrap;padding-right:12px">${label}</span>
+       <span style="display:table-cell;font-weight:bold;white-space:nowrap">: ${value}</span>
+     </div>`
+  ).join('');
 
-  <!-- Management system type + ISO standard (masks the baked-in text, kept dynamic) -->
-  <div class="ov" style="top:34.3%;left:4%;right:4%;height:10%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2">
-    <div style="font-size:22px;font-weight:bold;color:#222;line-height:1.1">${msName}</div>
-    <div style="font-size:42px;font-weight:900;color:#1f7fd6;letter-spacing:1px;line-height:1.05;margin-top:2px">${standard}</div>
-  </div>
+  return `
+  <div style="width:${W}px;height:${H}px;background:#fff;position:relative;overflow:hidden;font-family:Arial,Helvetica,sans-serif">
+    <img src="${bgUrl}" crossorigin="anonymous" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0"/>
 
-  <!-- Scope (blank area under "for the following scope:") -->
-  <div class="ov" style="top:51%;left:10%;right:10%">
-    <div style="font-size:13px;font-weight:bold;color:#1a237e;line-height:1.55">${scope}</div>
-  </div>
+    <div style="position:absolute;z-index:1;text-align:center;top:${orgTop}%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
+      <div style="font-size:33px;font-weight:bold;color:#000;line-height:1.25">${orgName}</div>
+    </div>
+    ${(address || additionalSites) ? `
+    <div style="position:absolute;z-index:1;text-align:center;top:${addressTop}%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
+      ${address ? `<div style="font-size:20px;font-weight:bold;color:#000;line-height:1.55;white-space:pre-line">${address}</div>` : ''}
+      ${additionalSites ? `<div style="font-size:17px;font-weight:bold;color:#000;margin-top:5px;line-height:1.45;white-space:pre-line">${additionalSites}</div>` : ''}
+    </div>` : ''}
 
-  <!-- Certificate details (bottom-left blank area) -->
-  <div class="ov" style="top:69%;left:7%;width:52%;text-align:left;font-size:10px;color:#222;line-height:1.85">
-    <div><b>Certificate No.</b> : ${certNumber}</div>
-    <div><b>Original Issue Date</b> : ${origDate}</div>
-    <div><b>Issue Date</b> : ${issueDate}</div>
-    <div><b>Expiry Date</b> : ${expiryDate}</div>
-    ${iafCode ? `<div><b>IAF Code</b> : ${iafCode}</div>` : ''}
-    <div style="margin-top:5px;font-size:9px">To verify this certificate visit:</div>
-    <div style="font-size:9px;color:#1565c0;font-style:italic">"http://qcc.in/certifiedorganization.html"</div>
-  </div>
-</div>
-</body>
-</html>`;
+    ${!isNine9001 ? `
+    <div style="position:absolute;z-index:2;top:35.8%;left:11%;right:11%;height:8.4%;background:#fff"></div>
+    <div style="position:absolute;z-index:3;text-align:center;left:6%;right:6%;top:36.2%;font-size:32px;font-weight:bold;color:#1a1a1a;line-height:1.1">${msName}</div>
+    <div style="position:absolute;z-index:3;text-align:center;left:6%;right:6%;top:39.9%;font-size:54px;font-weight:900;color:#1565c0;letter-spacing:1px;line-height:1.05">${esc(standard)}</div>` : ''}
 
-  const win = window.open('', '_blank', 'width=680,height=900,scrollbars=yes');
-  if (win) {
-    win.document.write(html);
-    win.document.close();
-  } else {
-    toast.error('Pop-up blocked — please allow pop-ups for this site.');
+    <div style="position:absolute;z-index:1;text-align:center;top:${scopeTop}%;left:13%;right:13%;font-family:'Times New Roman',Georgia,serif">
+      <div style="font-size:22px;font-weight:bold;color:#000;line-height:1.5;text-transform:uppercase">${scope}</div>
+    </div>
+
+    <div style="position:absolute;z-index:1;text-align:left;top:63%;left:8%;width:66%;font-size:14px;color:#1a1a1a;line-height:1.95">
+      <div style="display:table">${detailRows}</div>
+      <div style="margin-top:8px;font-size:12px;font-weight:bold">To check this certificate status visit:</div>
+      <div style="font-size:12px;color:#1565c0;font-style:italic">"${statusUrl}"</div>
+    </div>
+  </div>`;
+}
+
+/* On-screen certificate preview (scaled to fit) — uses the same template + overlays */
+function CertificatePreview({ cert, maxWidth = 540 }) {
+  const W = 900, H = Math.round((W * 2263) / 1591);
+  const scale = maxWidth / W;
+  return (
+    <div style={{ width: W * scale, height: H * scale, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,.18)' }}>
+      <div
+        style={{ width: W, height: H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+        dangerouslySetInnerHTML={{ __html: certCardHtml(cert, W, H) }}
+      />
+    </div>
+  );
+}
+
+/* Render the certificate off-screen and download it directly as a JPG (no popup) */
+async function generateCertificate(cert) {
+  const fileName = `Certificate-${(cert.certNumber || 'QCC').replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
+  const t = toast.loading('Generating certificate…');
+  // Match the template image's exact aspect ratio (1591×2263) so it is never stretched
+  const W = 900, H = Math.round((W * 2263) / 1591);
+  let wrap;
+  try {
+    const html2canvas = await loadHtml2Canvas();
+
+    wrap = document.createElement('div');
+    wrap.style.cssText = `position:fixed;left:-10000px;top:0;width:${W}px;height:${H}px;z-index:-1;pointer-events:none`;
+    wrap.innerHTML = certCardHtml(cert, W, H);
+    document.body.appendChild(wrap);
+
+    // Wait for the template background image to finish loading
+    const img = wrap.querySelector('img');
+    await new Promise((res) => {
+      if (img.complete) return res();
+      img.onload = res; img.onerror = res;
+    });
+
+    const canvas = await html2canvas(wrap.firstElementChild, {
+      scale: 2, useCORS: true, backgroundColor: '#ffffff',
+    });
+
+    const link = document.createElement('a');
+    link.download = fileName;
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+    toast.success('Certificate downloaded', { id: t });
+  } catch (e) {
+    toast.error('Failed to generate certificate', { id: t });
+  } finally {
+    if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap);
   }
 }
 
@@ -261,31 +257,58 @@ function CertForm({ data, set, isEdit }) {
             {ACCRED.map(a=><option key={a}>{a}</option>)}
           </select>
         </FG>
+        <FG label="Original Issue Date">
+          <input type="date" className="form-control" value={(data.originalCertDate||'').slice(0,10)} onChange={e=>set('originalCertDate',e.target.value)} />
+        </FG>
         <FG label="Issue Date">
           <input type="date" className="form-control" value={(data.issueDate||'').slice(0,10)} onChange={e=>set('issueDate',e.target.value)} />
         </FG>
         <FG label="Expiry Date">
           <input type="date" className="form-control" value={(data.expiryDate||'').slice(0,10)} onChange={e=>set('expiryDate',e.target.value)} />
         </FG>
-        <FG label="Surveillance Date">
+        <FG label="1st Surveillance Due">
           <input type="date" className="form-control" value={(data.surveillanceDate||'').slice(0,10)} onChange={e=>set('surveillanceDate',e.target.value)} />
+        </FG>
+        <FG label="2nd Surveillance Due">
+          <input type="date" className="form-control" value={(data.surveillanceDate2||'').slice(0,10)} onChange={e=>set('surveillanceDate2',e.target.value)} />
         </FG>
       </div>
 
-      <SectionBand title="Auditor Details" />
+      <SectionBand title="Certificate Layout — Text Position" />
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-        <FG label="Auditor Name">
-          <input className="form-control" value={data.auditorName||''} onChange={e=>set('auditorName',e.target.value)} />
+        <FG label="Organization block — vertical position">
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" title="Move up"
+              onClick={()=>set('orgTop', Math.max(0, Math.round((Number(data.orgTop ?? 19) - 0.5)*10)/10))}>↑</button>
+            <input type="number" step="0.5" className="form-control" style={{ textAlign:'center' }}
+              value={data.orgTop ?? 19} onChange={e=>set('orgTop', e.target.value===''?'':Number(e.target.value))} />
+            <button type="button" className="btn btn-ghost btn-sm" title="Move down"
+              onClick={()=>set('orgTop', Math.min(100, Math.round((Number(data.orgTop ?? 19) + 0.5)*10)/10))}>↓</button>
+          </div>
         </FG>
-        <FG label="Auditor Role">
-          <select className="form-control" value={data.auditorRole||''} onChange={e=>set('auditorRole',e.target.value)}>
-            <option value="">— Select —</option>
-            <option>Lead Auditor</option><option>Auditor</option><option>Technical Expert</option>
-          </select>
+        <FG label="Address block — vertical position">
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" title="Move up"
+              onClick={()=>set('addressTop', Math.max(0, Math.round((Number(data.addressTop ?? 25) - 0.5)*10)/10))}>↑</button>
+            <input type="number" step="0.5" className="form-control" style={{ textAlign:'center' }}
+              value={data.addressTop ?? 25} onChange={e=>set('addressTop', e.target.value===''?'':Number(e.target.value))} />
+            <button type="button" className="btn btn-ghost btn-sm" title="Move down"
+              onClick={()=>set('addressTop', Math.min(100, Math.round((Number(data.addressTop ?? 25) + 0.5)*10)/10))}>↓</button>
+          </div>
         </FG>
-        <FG label="Notes / Remarks" full>
-          <textarea className="form-control" rows={2} value={data.notes||''} onChange={e=>set('notes',e.target.value)} />
+        <FG label="Scope block — vertical position">
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" title="Move up"
+              onClick={()=>set('scopeTop', Math.max(0, Math.round((Number(data.scopeTop ?? 51) - 0.5)*10)/10))}>↑</button>
+            <input type="number" step="0.5" className="form-control" style={{ textAlign:'center' }}
+              value={data.scopeTop ?? 51} onChange={e=>set('scopeTop', e.target.value===''?'':Number(e.target.value))} />
+            <button type="button" className="btn btn-ghost btn-sm" title="Move down"
+              onClick={()=>set('scopeTop', Math.min(100, Math.round((Number(data.scopeTop ?? 51) + 0.5)*10)/10))}>↓</button>
+          </div>
         </FG>
+        <div style={{ gridColumn:'1/-1', fontSize:11.5, color:'var(--gray-500)' }}>
+          Smaller number = higher up on the certificate. Defaults: Organization <b>19</b>, Address <b>25</b>, Scope <b>51</b>. Use ↑ / ↓ to nudge.
+        </div>
       </div>
 
       {isEdit && (data.updatedAt||data.createdAt) && (
@@ -309,9 +332,11 @@ export default function CertificateManagement() {
   const [editModal,   setEditModal]   = useState(null);
   const [viewModal,   setViewModal]   = useState(null);
   const [deleteId,    setDeleteId]    = useState(null);
+  const [clientIdInput, setClientIdInput] = useState('');
+  const [fetching,    setFetching]    = useState(false);
   const [setting,     setSetting]     = useState({
     title:'Certificate of Registration', authority:'QC Certification Pvt Ltd',
-    validityYears:3, footerText:'This certificate is subject to certification body regulations.', accreditation:'NABCB',
+    validityYears:3, footerText:'This certificate is subject to certification body regulations.', accreditation:'UAF',
   });
 
   const load = useCallback(() => {
@@ -328,13 +353,34 @@ export default function CertificateManagement() {
   const setM = (k,v) => setManualForm(p=>({...p,[k]:v}));
   const setE = (k,v) => setEditModal(p=>({...p,[k]:v}));
 
+  // Coerce layout position fields to clean numbers before saving
+  const numOr = (v, d) => (v==='' || v===null || v===undefined || isNaN(Number(v))) ? d : Number(v);
+  const withLayout = (f) => ({ ...f, orgTop: numOr(f.orgTop, 19), addressTop: numOr(f.addressTop, 25), scopeTop: numOr(f.scopeTop, 51) });
+
+  const fetchByClientId = async () => {
+    const cid = clientIdInput.trim();
+    if (!cid) return toast.error('Enter a Client ID');
+    setFetching(true);
+    try {
+      const { data } = await axios.get(`/api/certificates/prefill/${encodeURIComponent(cid)}`);
+      setManualForm(p => ({ ...p, ...data.data }));
+      toast.success(
+        data.foundApplication
+          ? `Filled from ${data.client.name}'s application`
+          : `Client ${data.client.name} found (no application — filled basic details)`
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Client not found');
+    } finally { setFetching(false); }
+  };
+
   const issueManual = async () => {
     if (!manualForm.orgName.trim())   return toast.error('Organization name required');
     if (!manualForm.standard)         return toast.error('Standard required');
     if (!manualForm.certNumber.trim()) return toast.error('Certificate number required');
     setSaving(true);
     try {
-      await axios.post('/api/certificates/manual', manualForm);
+      await axios.post('/api/certificates/manual', withLayout(manualForm));
       toast.success('Certificate issued!');
       setManualForm(blank());
       setTab('list');
@@ -347,7 +393,7 @@ export default function CertificateManagement() {
     if (!editModal) return;
     setSaving(true);
     try {
-      await axios.put(`/api/certificates/${editModal._id}`, editModal);
+      await axios.put(`/api/certificates/${editModal._id}`, withLayout(editModal));
       toast.success('Certificate updated!');
       setEditModal(null);
       load();
@@ -522,12 +568,58 @@ export default function CertificateManagement() {
               <div style={{ fontWeight:700, fontSize:14, color:'var(--gray-700)', marginBottom:18, paddingBottom:12, borderBottom:'1.5px solid var(--primary-50)' }}>
                 Issue New Certificate Manually
               </div>
-              <CertForm data={manualForm} set={setM} isEdit={false}/>
-              <div style={{ display:'flex', gap:10, marginTop:22, paddingTop:16, borderTop:'1.5px solid var(--primary-50)' }}>
-                <button className="btn btn-ghost" onClick={()=>setTab('list')}>Cancel</button>
-                <button className="btn btn-primary" onClick={issueManual} disabled={saving}>
-                  <Award size={14}/> {saving?'Issuing…':'Issue Certificate'}
-                </button>
+
+              {/* Fetch details from a client's application by Client ID */}
+              <div style={{ background:'var(--primary-50)', border:'1.5px solid var(--primary-100)', borderRadius:10, padding:'14px 16px', marginBottom:18 }}>
+                <div style={{ fontWeight:700, fontSize:12.5, color:'var(--primary-dark)', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+                  <RefreshCw size={13}/> Auto-fill from Client ID
+                </div>
+                <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+                  <input
+                    className="form-control"
+                    style={{ maxWidth:220 }}
+                    placeholder="Enter Client ID (e.g. 1000)"
+                    value={clientIdInput}
+                    onChange={e=>setClientIdInput(e.target.value)}
+                    onKeyDown={e=>{ if(e.key==='Enter') fetchByClientId(); }}
+                  />
+                  <button className="btn btn-primary btn-sm" onClick={fetchByClientId} disabled={fetching}>
+                    {fetching ? 'Fetching…' : 'Fetch & Fill'}
+                  </button>
+                  <span style={{ fontSize:11.5, color:'var(--gray-500)' }}>
+                    Loads organization, address, standard, scope &amp; contact from the client's latest application.
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) 380px', gap:24, alignItems:'start' }}>
+                {/* Left — form */}
+                <div>
+                  <CertForm data={manualForm} set={setM} isEdit={false}/>
+                  <div style={{ display:'flex', gap:10, marginTop:22, paddingTop:16, borderTop:'1.5px solid var(--primary-50)' }}>
+                    <button className="btn btn-ghost" onClick={()=>setTab('list')}>Cancel</button>
+                    <button className="btn btn-primary" onClick={issueManual} disabled={saving}>
+                      <Award size={14}/> {saving?'Issuing…':'Issue Certificate'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right — live sample preview */}
+                <div style={{ position:'sticky', top:16 }}>
+                  <div style={{ fontWeight:700, fontSize:12.5, color:'var(--primary-dark)', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+                    <Eye size={14}/> Live Sample Preview
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'center', background:'#e7eef6', borderRadius:10, padding:14 }}>
+                    <CertificatePreview cert={manualForm} maxWidth={340} />
+                  </div>
+                  <div style={{ fontSize:11, color:'var(--gray-500)', marginTop:8, textAlign:'center' }}>
+                    Updates live as you edit. Use the ↑ / ↓ position controls to adjust spacing.
+                  </div>
+                  <button className="btn btn-secondary btn-sm" style={{ marginTop:12, width:'100%' }}
+                    onClick={()=>generateCertificate(manualForm)}>
+                    <Download size={13}/> Download Sample JPG
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -571,102 +663,27 @@ export default function CertificateManagement() {
         </div>
       </div>
 
-      {/* ═══ VIEW MODAL ═══ */}
+      {/* ═══ VIEW MODAL — certificate image preview ═══ */}
       {viewModal&&(
         <div className="modal-bg" onClick={()=>setViewModal(null)}>
-          <div className="modal-box" style={{ maxWidth:560 }} onClick={e=>e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth:640 }} onClick={e=>e.stopPropagation()}>
             <div className="modal-head">
               <div className="modal-title">
                 <Eye size={15} style={{ color:'var(--primary)', marginRight:7, verticalAlign:'middle' }}/>
-                Certificate Details
+                Certificate Preview — <span style={{ fontFamily:'monospace' }}>{viewModal.certNumber||'—'}</span>
               </div>
               <button className="modal-close" onClick={()=>setViewModal(null)}>✕</button>
             </div>
-            <div className="modal-body">
-              {/* Header card */}
-              <div style={{ background:'linear-gradient(135deg,#1a3a6b,#2563eb)', borderRadius:10, padding:'16px 20px', marginBottom:16, color:'white' }}>
-                <div style={{ fontSize:11, opacity:.7, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:4 }}>Certificate of Registration</div>
-                <div style={{ fontSize:20, fontWeight:800, marginBottom:2 }}>{viewModal.orgName||viewModal.organizationName||'—'}</div>
-                <div style={{ fontSize:13, opacity:.8 }}>{viewModal.standard}</div>
-                <div style={{ marginTop:10, display:'flex', gap:8, flexWrap:'wrap' }}>
-                  {(() => { const st = statusOf(viewModal); return <span style={{ padding:'3px 12px', borderRadius:20, fontSize:11, fontWeight:700, background:st.bg, color:st.color }}>{st.label}</span>; })()}
-                  <span style={{ padding:'3px 12px', borderRadius:20, fontSize:11, fontWeight:700, background:'rgba(255,255,255,.15)', color:'white' }}>{viewModal.certNumber||'No Cert #'}</span>
-                </div>
-              </div>
-
-              {/* Quick date update */}
-              <div style={{ background:'#fff7ed', border:'1.5px solid #fed7aa', borderRadius:10, padding:'14px 16px', marginBottom:16 }}>
-                <div style={{ fontWeight:700, fontSize:12, color:'var(--primary-dark)', marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
-                  <Clock size={13}/> Quick Update Dates
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                  {[
-                    { label:'Issue Date',        key:'issueDate'        },
-                    { label:'Expiry Date',        key:'expiryDate'       },
-                    { label:'Surveillance Date',  key:'surveillanceDate' },
-                    { label:'Cert Number',        key:'certNumber', type:'text' },
-                  ].map(({ label, key, type }) => (
-                    <div key={key}>
-                      <div style={{ fontSize:10.5, fontWeight:600, color:'var(--gray-500)', marginBottom:4 }}>{label}</div>
-                      <input
-                        type={type||'date'}
-                        className="form-control"
-                        style={{ fontSize:12 }}
-                        value={viewModal[key]||(type?'':(viewModal[key]||'').slice?.(0,10)||'')}
-                        onChange={e=>setViewModal(p=>({...p,[key]:e.target.value}))}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <button
-                  className="btn btn-primary"
-                  style={{ marginTop:12, fontSize:12 }}
-                  onClick={async()=>{
-                    try{
-                      await axios.put(`/api/certificates/${viewModal._id}`, viewModal);
-                      toast.success('Certificate updated!');
-                      setViewModal(null);
-                      load();
-                    }catch{ toast.error('Failed to update'); }
-                  }}>
-                  <Save size={12}/> Save Date Changes
-                </button>
-              </div>
-
-              {/* Detail rows */}
-              {[
-                { label:'Organization',         value: viewModal.orgName||viewModal.organizationName },
-                { label:'ISO Standard',         value: viewModal.standard },
-                { label:'Certificate No.',      value: viewModal.certNumber },
-                { label:'Accreditation Body',   value: viewModal.accreditation },
-                { label:'IAF Code',             value: viewModal.iafCode },
-                { label:'Issue Date',           value: fmt(viewModal.issueDate) },
-                { label:'Expiry Date',          value: fmt(viewModal.expiryDate) },
-                { label:'Surveillance Date',    value: fmt(viewModal.surveillanceDate) },
-                { label:'Address',              value: viewModal.address },
-                { label:'Scope',                value: viewModal.scope },
-                { label:'Contact Person',       value: viewModal.contactPerson },
-                { label:'Designation',          value: viewModal.designation },
-                { label:'Contact Number',       value: viewModal.contactNumber },
-                { label:'Email',                value: viewModal.email },
-                { label:'Auditor',              value: viewModal.auditorName ? `${viewModal.auditorName} (${viewModal.auditorRole||''})` : null },
-                { label:'Notes',                value: viewModal.notes },
-                { label:'Created',              value: fmt(viewModal.createdAt) },
-                { label:'Last Updated',         value: fmt(viewModal.updatedAt) },
-              ].filter(r=>r.value).map(r=>(
-                <div key={r.label} style={{ display:'flex', gap:12, padding:'7px 0', borderBottom:'1px solid var(--primary-50)', alignItems:'flex-start' }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:'var(--gray-500)', minWidth:120, textTransform:'uppercase', letterSpacing:'.04em', flexShrink:0 }}>{r.label}</div>
-                  <div style={{ fontSize:12.5, color:'var(--text-1)', wordBreak:'break-word' }}>{r.value}</div>
-                </div>
-              ))}
+            <div className="modal-body" style={{ display:'flex', justifyContent:'center', background:'#e7eef6', padding:'20px 0' }}>
+              <CertificatePreview cert={viewModal} maxWidth={560} />
             </div>
             <div className="modal-foot">
               <button className="btn btn-ghost" onClick={()=>setViewModal(null)}>Close</button>
-              <button className="btn btn-secondary" onClick={()=>{ setViewModal(null); generateCertificate(viewModal); }}>
-                <Download size={13}/> Download Certificate
+              <button className="btn btn-secondary" onClick={()=>generateCertificate(viewModal)}>
+                <Download size={13}/> Download JPG
               </button>
               <button className="btn btn-primary" onClick={()=>{ setEditModal({ ...viewModal, issueDate:(viewModal.issueDate||'').slice(0,10), expiryDate:(viewModal.expiryDate||'').slice(0,10) }); setViewModal(null); }}>
-                <Edit2 size={13}/> Full Edit
+                <Edit2 size={13}/> Edit
               </button>
             </div>
           </div>

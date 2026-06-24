@@ -2,7 +2,42 @@
 const router      = express.Router();
 const Certificate = require('../models/Certificate');
 const CertSetting = require('../models/CertSetting');
+const User        = require('../models/User');
+const Application = require('../models/Application');
 const { protect, authorize } = require('../middleware/auth');
+
+// GET /api/certificates/prefill/:clientId — auto-fill certificate fields from a client's application
+router.get('/prefill/:clientId', protect, authorize('admin'), async (req, res) => {
+  try {
+    const cid = (req.params.clientId || '').trim();
+    const user = await User.findOne({ clientId: cid });
+    if (!user) return res.status(404).json({ message: `No client found with Client ID "${cid}"` });
+
+    // Most recent application for this client (if any)
+    const app = await Application.findOne({ client: user._id }).sort({ createdAt: -1 });
+    const a = app || {};
+
+    const data = {
+      orgName:        a.organizationName || user.company || user.name || '',
+      standard:       a.isoStandard || (Array.isArray(a.standards) && a.standards[0]) || user.isoStandard || '',
+      scope:          a.scopeOfCertification || a.scope || user.scope || '',
+      address:        [a.address, a.address1, a.city, a.state, a.country, a.pincode].filter(Boolean).join(', ') || user.address || '',
+      additionalSites:a.additionalSites || '',
+      contactPerson:  a.contactPerson || user.name || '',
+      designation:    a.designation || '',
+      contactNumber:  a.contactNumbers || user.phone || '',
+      email:          a.emailId || user.email || '',
+      accreditation:  a.accreditationBody || 'UAF',
+      linkedApplication: app ? app._id : null,
+    };
+
+    res.json({
+      data,
+      foundApplication: !!app,
+      client: { name: user.name, clientId: user.clientId, company: user.company || '' },
+    });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
 
 // GET /api/certificates
 router.get('/', protect, async (req, res) => {

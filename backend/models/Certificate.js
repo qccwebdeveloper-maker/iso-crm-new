@@ -17,9 +17,14 @@ const certSchema = new mongoose.Schema({
   certNumber:       { type: String, required: true, unique: true },
   issueDate:        { type: Date },
   expiryDate:       { type: Date },
-  surveillanceDate: { type: Date },
+  surveillanceDate: { type: Date },   // 1st surveillance due
+  surveillanceDate2:{ type: Date },   // 2nd surveillance due
   originalCertDate: { type: Date },
   notes:            { type: String },
+  // Layout — vertical position (% from top) of text blocks on the certificate
+  orgTop:           { type: Number },
+  addressTop:       { type: Number },
+  scopeTop:         { type: Number },
   linkedApplication:{ type: mongoose.Schema.Types.ObjectId, ref: 'Application', default: null },
 }, { timestamps: true });
 

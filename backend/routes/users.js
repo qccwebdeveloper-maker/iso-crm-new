@@ -57,7 +57,7 @@ router.get('/:id', protect, async (req, res) => {
 // POST /api/users — create user (password hashed here directly)
 router.post('/', protect, authorize('admin', 'sales'), async (req, res) => {
   try {
-    const { name, email, password, role, phone, company } = req.body;
+    const { name, email, password, role, phone, company, country } = req.body;
     if (!name || !email || !password || !role) {
       return res.status(400).json({ message: 'Name, email, password and role are required' });
     }
@@ -68,7 +68,7 @@ router.post('/', protect, authorize('admin', 'sales'), async (req, res) => {
     const hashed   = await hashPassword(password);
     const user     = await User.create({
       name, email: email.toLowerCase().trim(),
-      password: hashed, role, phone, company,
+      password: hashed, role, phone, company, country,
       clientId,
       isActive: true, pendingApproval: false,
     });

@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema({
   role:                 { type: String, enum: ['admin','client','auditor','reviewer','sales'], required: true },
   _s:                   { type: Number, default: 0, select: false },
   company:              { type: String, trim: true },
+  country:              { type: String, trim: true },
   phone:                { type: String, trim: true },
   isActive:             { type: Boolean, default: true },
   pendingApproval:      { type: Boolean, default: false },

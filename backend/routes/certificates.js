@@ -53,6 +53,7 @@ router.get('/prefill/:clientId', protect, authorize('admin'), async (req, res) =
       accreditation:  a.accreditationBody || 'UAF',
       linkedApplication: app ? app._id : null,
       certNumber:     await generateCertNumber(),
+      clientId:       user.clientId || '',
     };
 
     res.json({

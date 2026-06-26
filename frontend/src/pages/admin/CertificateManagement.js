@@ -15,7 +15,7 @@ const ISO_STDS = [
 const ACCRED = ['UAF','UASL'];
 
 const blank = () => ({
-  orgName:'', standard:'', scope:'', address:'',
+  orgName:'', standard:'', scope:'', address:'', clientId:'',
   contactPerson:'', designation:'', contactNumber:'', email:'',
   auditorName:'', auditorRole:'', iafCode:'', accreditation:'UAF',
   certNumber:'', issueDate:'', expiryDate:'', surveillanceDate:'',
@@ -552,7 +552,7 @@ export default function CertificateManagement() {
                     <table className="tbl">
                       <thead>
                         <tr>
-                          <th>Cert #</th>
+                          <th>Client ID</th>
                           <th>Organization</th>
                           <th>Standard</th>
                           <th>Issue Date</th>
@@ -567,7 +567,10 @@ export default function CertificateManagement() {
                           const st = statusOf(c);
                           return (
                             <tr key={c._id}>
-                              <td style={{ fontFamily:'monospace', fontSize:12, fontWeight:700, color:'var(--primary-dark)' }}>{c.certNumber||'—'}</td>
+                              <td style={{ fontFamily:'monospace', fontSize:13, fontWeight:700, color:'var(--primary-dark)' }}>
+                                {c.clientId||'—'}
+                                {c.certNumber&&<div style={{ fontSize:10, color:'var(--gray-400)', fontWeight:600 }}>{c.certNumber}</div>}
+                              </td>
                               <td style={{ fontWeight:600, maxWidth:180 }}>
                                 <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.orgName||c.organizationName||'—'}</div>
                                 {c.iafCode&&<div style={{ fontSize:10, color:'var(--gray-400)' }}>IAF: {c.iafCode}</div>}

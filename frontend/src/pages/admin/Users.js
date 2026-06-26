@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
-import { Plus, Search, Edit, Trash2, CheckCircle, Copy, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, CheckCircle, Copy, RefreshCw, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Pagination from '../../components/common/Pagination';
 
 function genPassword() {
@@ -199,6 +199,83 @@ export default function AdminUsers() {
     );
   };
 
+  // ── Full-page Add / Edit form ──
+  if (modal) {
+    const isAdd = modal === 'add';
+    return (
+      <Layout title={isAdd ? 'Add New User' : 'Edit User'}>
+        <div className="page-hdr">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setModal(null)}><ArrowLeft size={15} /> Back</button>
+            <div>
+              <h1 className="page-title">{isAdd ? 'Add New User' : 'Edit User'}</h1>
+              <p className="page-subtitle">{isAdd ? 'Create a new user account' : 'Update this user account'}</p>
+            </div>
+          </div>
+        </div>
+        <div className="card" style={{ width: '100%', padding: 24 }}>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Full Name *</label>
+              <input className={`form-control${errors.name ? ' input-error' : ''}`} value={form.name} onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setErrors(p => ({ ...p, name: '' })); }} placeholder="Company / Client Name" />
+              {errors.name && <span className="field-error">{errors.name}</span>}
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email *</label>
+              <input type="email" className={`form-control${errors.email ? ' input-error' : ''}`} value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setErrors(p => ({ ...p, email: '' })); }} placeholder="client@company.com" />
+              {errors.email && <span className="field-error">{errors.email}</span>}
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Password{!isAdd ? ' (blank = keep)' : ' *'}</span>
+                {isAdd && form.role === 'client' && (
+                  <button type="button" onClick={() => setForm(p => ({ ...p, password: genPassword() }))}
+                    style={{ background: 'none', border: 'none', color: '#1565c0', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 3, fontWeight: 600 }}>
+                    <RefreshCw size={11} /> Generate
+                  </button>
+                )}
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input type={showPw ? 'text' : 'password'} className="form-control" value={form.password}
+                  onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                  placeholder={isAdd ? 'Required' : '••••••••'}
+                  style={{ paddingRight: 36 }} />
+                <button type="button" onClick={() => setShowPw(v => !v)}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
+                  {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Role *</label>
+              <select className="form-control" value={form.role} onChange={e => setRole(e.target.value)}>
+                {['admin', 'client', 'auditor', 'reviewer', 'sales'].map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Phone</label>
+              <input className="form-control" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+91 9000000000" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Company</label>
+              <input className="form-control" value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))} placeholder="Company Ltd" />
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, borderTop: '1px solid var(--gray-100)', paddingTop: 18 }}>
+            <button className="btn btn-ghost" onClick={() => setModal(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>
+              {saving ? 'Saving…' : isAdd ? <><Plus size={14} /> Create</> : <><Edit size={14} /> Save</>}
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout title="User Management">
       <div className="page-hdr">
@@ -257,86 +334,6 @@ export default function AdminUsers() {
       <div className="card">
         {renderTable()}
       </div>
-
-      {modal && (
-        <div className="modal-bg" onClick={() => setModal(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <div className="modal-head">
-              <div className="modal-title">{modal === 'add' ? 'Add New User' : 'Edit User'}</div>
-              <button className="modal-close" onClick={() => setModal(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Full Name *</label>
-                  <input className={`form-control${errors.name ? ' input-error' : ''}`} value={form.name} onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setErrors(p => ({ ...p, name: '' })); }} placeholder="Company / Client Name" />
-                  {errors.name && <span className="field-error">{errors.name}</span>}
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Email *</label>
-                  <input type="email" className={`form-control${errors.email ? ' input-error' : ''}`} value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setErrors(p => ({ ...p, email: '' })); }} placeholder="client@company.com" />
-                  {errors.email && <span className="field-error">{errors.email}</span>}
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>Password{modal !== 'add' ? ' (blank = keep)' : ' *'}</span>
-                    {modal === 'add' && form.role === 'client' && (
-                      <button type="button" onClick={() => setForm(p => ({ ...p, password: genPassword() }))}
-                        style={{ background: 'none', border: 'none', color: '#1565c0', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 3, fontWeight: 600 }}>
-                        <RefreshCw size={11} /> Generate
-                      </button>
-                    )}
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <input type={showPw ? 'text' : 'password'} className="form-control" value={form.password}
-                      onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                      placeholder={modal === 'add' ? 'Required' : '••••••••'}
-                      style={{ paddingRight: 36 }} />
-                    <button type="button" onClick={() => setShowPw(v => !v)}
-                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
-                      {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Role *</label>
-                  <select className="form-control" value={form.role} onChange={e => setRole(e.target.value)}>
-                    {['admin', 'client', 'auditor', 'reviewer', 'sales'].map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Phone</label>
-                  <input className="form-control" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+91 9000000000" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Company</label>
-                  <input className="form-control" value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))} placeholder="Company Ltd" />
-                </div>
-              </div>
-
-              {modal === 'add' && form.role === 'client' && (
-                <div style={{ background: '#e3f2fd', border: '1.5px solid #90caf9', borderRadius: 10, padding: '12px 14px', marginTop: 4 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1565c0', marginBottom: 4 }}>Client ID — Auto Generated</div>
-                  <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
-                    A unique Client ID in the format <strong style={{ fontFamily: 'monospace', color: '#0d47a1' }}>YEAR + 4 digits</strong> (e.g. <strong style={{ fontFamily: 'monospace' }}>20261234</strong>) will be created automatically.
-                    The Client ID and password will be shown after saving so you can share them with the client.
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="modal-foot">
-              <button className="btn btn-ghost" onClick={() => setModal(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={save} disabled={saving}>
-                {saving ? 'Saving…' : modal === 'add' ? <><Plus size={14} /> Create</> : <><Edit size={14} /> Save</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {credsModal && (
         <div className="modal-bg" onClick={() => setCredsModal(null)}>

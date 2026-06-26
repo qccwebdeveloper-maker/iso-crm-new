@@ -15,6 +15,7 @@ const certSchema = new mongoose.Schema({
   iafCode:          { type: String },
   accreditation:    { type: String, default: 'NABCB' },
   certNumber:       { type: String, required: true, unique: true },
+  clientId:         { type: String },
   issueDate:        { type: Date },
   expiryDate:       { type: Date },
   surveillanceDate: { type: Date },   // 1st surveillance due

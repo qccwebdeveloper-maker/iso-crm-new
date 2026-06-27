@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import axios from 'axios';
 import QMSFormPage, { FormRow, FormField, FInput, FTextarea, FSelect, SectionTitle, DynamicTable, StandardChips } from './QMSFormPage';
 import useStandards, { clausesForStandards, deriveClientStandards } from './useStandards';
+import AuditTeamResponsibilities from './AuditTeamResponsibilities';
 import { FiChevronRight } from 'react-icons/fi';
 
 /* Short code (e.g. "27001") pulled from a standard name for the accordion mark. */
@@ -128,7 +129,8 @@ function Stage2PlanBody({ data, set, clientInfo }) {
   const toggleOpen = name => set('scheduleOpen', { ...openMap, [name]: !isOpen(name) });
 
   const setTeam  = (ri,k,v)=>{ const t=[...(data.auditTeam||[])]; t[ri]={...t[ri],[k]:v}; set('auditTeam',t); };
-  const setSched = (name, ri, k, v) => { const t=[...(schedules[name]||[])]; t[ri]={...t[ri],[k]:v}; set('schedules',{...schedules,[name]:t}); };
+  const setScheduleFor = (name, rows) => set('schedules', { ...(data.schedules || {}), [name]: rows });
+  const setSched = (name, ri, k, v) => { const s=[...(schedules[name]||[])]; s[ri]={...s[ri],[k]:v}; setScheduleFor(name, s); };
   return (
           <div>
             <SectionTitle>1. Plan Information</SectionTitle>
@@ -174,6 +176,8 @@ function Stage2PlanBody({ data, set, clientInfo }) {
               rows={data.auditTeam||[]} onAdd={()=>set('auditTeam',[...(data.auditTeam||[]),{...EMPTY_TEAM}])}
               onRemove={ri=>set('auditTeam',(data.auditTeam||[]).filter((_,i)=>i!==ri))} onCellChange={setTeam} addLabel="Add Team Member" />
 
+            <AuditTeamResponsibilities />
+
             <SectionTitle>Audit Schedule — Stage 2</SectionTitle>
             {stdNames.length === 0 ? (
               <div className="aud3-empty">
@@ -187,7 +191,7 @@ function Stage2PlanBody({ data, set, clientInfo }) {
                   const meta = byName[name];
                   const cols = [
                     { key: 'dayTime',     label: 'Day & Time (From–To)', minWidth: 160 },
-                    { key: 'clauses',     label: 'Clauses',              type: 'textarea', minWidth: 220, readOnly: true },
+                    { key: 'clauses',     label: 'Clauses',              type: 'textarea', minWidth: 220 },
                     { key: 'auditorName', label: 'Auditor Name',         minWidth: 120 },
                   ];
                   return (
@@ -208,9 +212,22 @@ function Stage2PlanBody({ data, set, clientInfo }) {
                           <DynamicTable
                             columns={cols}
                             rows={rows}
-                            hideAdd
-                            hideRemove
+                            onAdd={() => setScheduleFor(name, [...rows, { dayTime: '', clauses: '', auditorName: '' }])}
+                            onRemove={(ri) => setScheduleFor(name, rows.filter((_, i) => i !== ri))}
+                            onMove={(from, to) => {
+                              if (from === to || from == null || to == null) return;
+                              // Read the latest schedules so multi-step drags reorder correctly.
+                              set('schedules', prev => {
+                                const cur = (prev && prev[name]) || [];
+                                if (from >= cur.length || to >= cur.length) return prev;
+                                const next = [...cur];
+                                const [moved] = next.splice(from, 1);
+                                next.splice(to, 0, moved);
+                                return { ...prev, [name]: next };
+                              });
+                            }}
                             onCellChange={(ri, key, val) => setSched(name, ri, key, val)}
+                            addLabel="Add Clause"
                           />
                         </div>
                       )}

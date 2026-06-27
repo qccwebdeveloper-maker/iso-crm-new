@@ -47,6 +47,13 @@ import QMSForm12 from './pages/admin/qms/Form12CARRequest';
 import QMSForm13 from './pages/admin/qms/Form13CARReport';
 import QMSForm14 from './pages/admin/qms/Form14DraftCertificate';
 import QMSForm15 from './pages/admin/qms/Form15FinalReviewReport';
+import QMSForm16 from './pages/admin/qms/Form16SurveillanceApplication';
+import QMSForm17 from './pages/admin/qms/Form17SurveillanceAuditPlan';
+import QMSForm18 from './pages/admin/qms/Form18SurveillanceMeetings';
+import QMSForm19 from './pages/admin/qms/Form19SurveillanceAuditReport';
+import QMSForm20 from './pages/admin/qms/Form20SurveillanceReviewReport';
+import QMSForm21 from './pages/admin/qms/Form21SurveillanceCARReport';
+import QMSForm22 from './pages/admin/qms/Form22LetterOfContinuation';
 
 // ── Client ──
 import ClientDashboard       from './pages/client/Dashboard';
@@ -143,6 +150,13 @@ function AppRoutes() {
       <Route path="/admin/qms/form-13" element={<ProtectedRoute roles={['admin']}><QMSForm13 /></ProtectedRoute>} />
       <Route path="/admin/qms/form-14" element={<ProtectedRoute roles={['admin']}><QMSForm14 /></ProtectedRoute>} />
       <Route path="/admin/qms/form-15" element={<ProtectedRoute roles={['admin']}><QMSForm15 /></ProtectedRoute>} />
+      <Route path="/admin/qms/form-16" element={<ProtectedRoute roles={['admin']}><QMSForm16 /></ProtectedRoute>} />
+      <Route path="/admin/qms/form-17" element={<ProtectedRoute roles={['admin']}><QMSForm17 /></ProtectedRoute>} />
+      <Route path="/admin/qms/form-18" element={<ProtectedRoute roles={['admin']}><QMSForm18 /></ProtectedRoute>} />
+      <Route path="/admin/qms/form-19" element={<ProtectedRoute roles={['admin']}><QMSForm19 /></ProtectedRoute>} />
+      <Route path="/admin/qms/form-20" element={<ProtectedRoute roles={['admin']}><QMSForm20 /></ProtectedRoute>} />
+      <Route path="/admin/qms/form-21" element={<ProtectedRoute roles={['admin']}><QMSForm21 /></ProtectedRoute>} />
+      <Route path="/admin/qms/form-22" element={<ProtectedRoute roles={['admin']}><QMSForm22 /></ProtectedRoute>} />
 
       {/* ── Client ── */}
       <Route path="/client"                  element={<ProtectedRoute roles={['client']}><ClientDashboard /></ProtectedRoute>} />

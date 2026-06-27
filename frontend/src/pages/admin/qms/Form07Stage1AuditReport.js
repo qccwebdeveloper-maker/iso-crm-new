@@ -290,11 +290,20 @@ function Stage1ReportBody({ data, set, clientInfo }) {
               <FormField label="Observations"><FInput value={data.observations} onChange={v=>set('observations',v)} type="number" placeholder="0" /></FormField>
               <FormField label="OFI"><FInput value={data.ofi} onChange={v=>set('ofi',v)} type="number" placeholder="0" /></FormField>
             </FormRow>
-            <FormRow cols={1}>
-              <FormField label="Overall Readiness %"><FInput value={data.overallReadiness} onChange={v=>set('overallReadiness',v)} placeholder="e.g. 85%" /></FormField>
-            </FormRow>
-
             <SectionTitle>ISMS Stage-1 Readiness Review</SectionTitle>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: '#1e40af', borderRadius: 8, padding: '10px 16px', marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Is ISMS Stage-1 Readiness Review applicable?</span>
+              <div style={{ display: 'flex', gap: 16 }}>
+                {['YES','NO'].map(v => (
+                  <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: data.ismsReviewApplicable===v?700:500, color: 'white', fontSize: 12.5 }}>
+                    <input type="radio" name="f07_ismsReviewApplicable" value={v} checked={data.ismsReviewApplicable===v}
+                      onChange={()=>set('ismsReviewApplicable',v)} style={{ accentColor: 'white' }} />
+                    {v}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {data.ismsReviewApplicable==='YES' && (
             <div style={{ overflowX: 'auto', marginBottom: 16 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
@@ -334,6 +343,7 @@ function Stage1ReportBody({ data, set, clientInfo }) {
                 </tbody>
               </table>
             </div>
+            )}
 
             <SectionTitle>Recommendation</SectionTitle>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -351,19 +361,19 @@ function Stage1ReportBody({ data, set, clientInfo }) {
 
             <SectionTitle>3. Non-Conformities Overview</SectionTitle>
             <DynamicTable
-              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'type',label:'Type',type:'select',options:NC_TYPES},{key:'clause',label:'Clause No.',minWidth:80},{key:'details',label:'Details of NC',type:'textarea',minWidth:200}]}
+              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'type',label:'Type',type:'select',options:NC_TYPES},{key:'clause',label:'Clause No.',minWidth:80},{key:'details',label:'Details of NC',type:'textarea',fullRow:true}]}
               rows={data.ncList||[]} onAdd={()=>set('ncList',[...(data.ncList||[]),{sNo:String((data.ncList||[]).length+1),standard:'ISO 9001:2015',type:'Minor NC',clause:'',details:''}])}
               onRemove={ri=>set('ncList',(data.ncList||[]).filter((_,i)=>i!==ri))} onCellChange={setNC} addLabel="Add NC" />
 
             <SectionTitle>Observations Overview</SectionTitle>
             <DynamicTable
-              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'clause',label:'Clause No.',minWidth:80},{key:'details',label:'Details',type:'textarea',minWidth:200}]}
+              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'clause',label:'Clause No.',minWidth:80},{key:'details',label:'Details',type:'textarea',fullRow:true}]}
               rows={data.observationList||[]} onAdd={()=>set('observationList',[...(data.observationList||[]),{sNo:String((data.observationList||[]).length+1),standard:'ISO 9001:2015',clause:'',details:''}])}
               onRemove={ri=>set('observationList',(data.observationList||[]).filter((_,i)=>i!==ri))} onCellChange={setObs} addLabel="Add Observation" />
 
             <SectionTitle>4. Opportunities for Improvement (OFI)</SectionTitle>
             <DynamicTable
-              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'clause',label:'Clause',minWidth:80},{key:'ofi',label:'Opportunity for Improvement',type:'textarea',minWidth:200}]}
+              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'clause',label:'Clause',minWidth:80},{key:'ofi',label:'Opportunity for Improvement',type:'textarea',fullRow:true}]}
               rows={data.ofiList||[]} onAdd={()=>set('ofiList',[...(data.ofiList||[]),{sNo:String((data.ofiList||[]).length+1),standard:'ISO 9001:2015',clause:'',ofi:''}])}
               onRemove={ri=>set('ofiList',(data.ofiList||[]).filter((_,i)=>i!==ri))} onCellChange={setOFI} addLabel="Add OFI" />
 

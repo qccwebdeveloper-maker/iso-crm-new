@@ -343,8 +343,9 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     try {
       const { data: client } = await axios.get(`/api/qms-forms/client/${id}`);
       setClientInfo(client);
+      const cid = client.clientId || id;
       try {
-        const { data: existing } = await axios.get(`/api/qms-forms/by-client/${id}/${formType}`);
+        const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}`);
         setFormData(withAppDefaults(existing.formData || defaultData || {}, client));
         setStatus(existing.status || 'draft');
         setExistingId(existing._id);
@@ -443,15 +444,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     setStatus('draft');
   };
 
-  const openNewForm = () => {
-    setFormData(defaultData || {});
-    setClientInfo(null);
-    setClientIdInput('');
-    setExistingId(null);
-    setStatus('draft');
-    setView('form');
-  };
-
   const statusMeta = STATUS_META[status] || STATUS_META.draft;
 
   return (
@@ -469,21 +461,30 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
               <h2 className="qms-form-title">{formTitle}</h2>
             </div>
           </div>
-          <div className="qms-tab-btns">
-            <button
-              type="button"
-              onClick={() => setView('list')}
-              className={`qms-tab-btn${view === 'list' ? ' active' : ''}`}
-            >
-              <FiList size={14} /> List
-            </button>
-            <button
-              type="button"
-              onClick={openNewForm}
-              className={`qms-tab-btn${view === 'form' ? ' active' : ''}`}
-            >
-              <FiPlusCircle size={14} /> New Form
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+            <form onSubmit={handleClientSearch} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <FiSearch size={13} style={{ position: 'absolute', left: 10, color: 'var(--gray-400)' }} />
+                <input
+                  value={clientIdInput}
+                  onChange={e => setClientIdInput(e.target.value)}
+                  placeholder="Client ID or Company name"
+                  style={{ padding: '8px 12px 8px 30px', border: '1.5px solid var(--gray-200)', borderRadius: 8, fontSize: 13, outline: 'none', width: 220 }}
+                />
+              </div>
+              <button type="submit" disabled={searching} className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }}>
+                {searching ? 'Searching…' : 'Open Form'}
+              </button>
+            </form>
+            <div className="qms-tab-btns">
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                className={`qms-tab-btn${view === 'list' ? ' active' : ''}`}
+              >
+                <FiList size={14} /> List
+              </button>
+            </div>
           </div>
         </div>
 
@@ -495,9 +496,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                 <div className="qms-list-title">All Records — {formCode}</div>
                 <div className="qms-list-subtitle">{listData.length} form{listData.length !== 1 ? 's' : ''} found</div>
               </div>
-              <button type="button" onClick={openNewForm} className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <FiPlusCircle size={12} /> New Form
-              </button>
             </div>
 
             {listLoading ? (
@@ -508,7 +506,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   <FiFileText size={26} color="var(--primary)" />
                 </div>
                 <h3>No forms yet</h3>
-                <p>Click "New Form" to create the first {formCode} entry</p>
+                <p>Use the search above (Client ID or Company name) to open the first {formCode} entry</p>
               </div>
             ) : (
               <div className="qms-tbl-wrap">
@@ -563,36 +561,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
         {/* ═══ FORM VIEW ═══ */}
         {view === 'form' && (
           <div className="qms-form-area">
-
-            {/* Client search */}
-            {!clientInfo && (
-              <div className="qms-client-panel">
-                <div className="qms-client-panel-hdr">
-                  <div className="qms-client-panel-icon">
-                    <FiUser size={18} color="var(--primary)" />
-                  </div>
-                  <div>
-                    <div className="qms-client-panel-title">Find Client</div>
-                    <div className="qms-client-panel-sub">Enter the client ID to load or create a form</div>
-                  </div>
-                </div>
-                <form onSubmit={handleClientSearch} className="qms-search-row">
-                  <div className="qms-search-box">
-                    <FiSearch size={14} className="qms-search-ico" />
-                    <input
-                      value={clientIdInput}
-                      onChange={e => setClientIdInput(e.target.value)}
-                      placeholder="e.g. 20261234"
-                      className="qms-search-inp"
-                      autoFocus
-                    />
-                  </div>
-                  <button type="submit" disabled={searching} className="qms-search-btn">
-                    {searching ? 'Searching…' : 'Open Form'}
-                  </button>
-                </form>
-              </div>
-            )}
 
             {/* Client banner */}
             {clientInfo && (

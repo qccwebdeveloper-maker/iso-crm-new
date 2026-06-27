@@ -1025,6 +1025,20 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
 
           {/* Multi-site Annexure */}
           <SecCard id="f01-multisite-sec" title="Multi-Site Annexure (Annexure-01) — Complete if Applicable">
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',
+              background:'var(--primary)',borderRadius:8,padding:'10px 16px',marginBottom:14}}>
+              <span style={{fontSize:13,fontWeight:700,color:'white'}}>Is this a Multi-Site application?</span>
+              <div style={{display:'flex',gap:16}}>
+                {['YES','NO'].map(v=>(
+                  <label key={v} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontWeight:data.multiSiteApplicable===v?700:500,color:'white',fontSize:12.5}}>
+                    <input type="radio" name="f01_multiSiteApplicable" value={v} checked={data.multiSiteApplicable===v}
+                      onChange={()=>set('multiSiteApplicable',v)} style={{accentColor:'white'}}/>
+                    {v}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {data.multiSiteApplicable==='YES' && (<>
             <div style={{background:'#fffbeb',border:'1px solid #fde68a',borderRadius:8,padding:'10px 14px',marginBottom:14,fontSize:12,color:'#92400e'}}>
               In case of Multi-site, kindly fill this annexure per site.
             </div>
@@ -1126,6 +1140,7 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
             <div style={{fontSize:12,color:'var(--gray-500)',fontStyle:'italic'}}>
               * Please attach detail information about multi-site (Total site no. / size and location of each site).
             </div>
+            </>)}
           </SecCard>
 
           {/* Declaration & Submit */}

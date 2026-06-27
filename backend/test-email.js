@@ -15,7 +15,7 @@ console.log('  Sending to :', TEST_TO);
 console.log('────────────────────────────────────────────────\n');
 
 sendOtpEmail({ to: TEST_TO, name: 'Admin', otp: '123456', expiresInMinutes: 10 })
-  .then(result => {
+  .then(result => {  
     if (result.via === 'gmail') {
       console.log('✅ SUCCESS — Email delivered to', TEST_TO);
       console.log('   Check your inbox (and spam folder)\n');

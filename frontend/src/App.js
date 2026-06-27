@@ -54,6 +54,7 @@ import QMSForm19 from './pages/admin/qms/Form19SurveillanceAuditReport';
 import QMSForm20 from './pages/admin/qms/Form20SurveillanceReviewReport';
 import QMSForm21 from './pages/admin/qms/Form21SurveillanceCARReport';
 import QMSForm22 from './pages/admin/qms/Form22LetterOfContinuation';
+import DownloadForms from './pages/admin/DownloadForms';
 
 // ── Client ──
 import ClientDashboard       from './pages/client/Dashboard';
@@ -157,6 +158,7 @@ function AppRoutes() {
       <Route path="/admin/qms/form-20" element={<ProtectedRoute roles={['admin']}><QMSForm20 /></ProtectedRoute>} />
       <Route path="/admin/qms/form-21" element={<ProtectedRoute roles={['admin']}><QMSForm21 /></ProtectedRoute>} />
       <Route path="/admin/qms/form-22" element={<ProtectedRoute roles={['admin']}><QMSForm22 /></ProtectedRoute>} />
+      <Route path="/admin/qms/download" element={<ProtectedRoute roles={['admin']}><DownloadForms /></ProtectedRoute>} />
 
       {/* ── Client ── */}
       <Route path="/client"                  element={<ProtectedRoute roles={['client']}><ClientDashboard /></ProtectedRoute>} />

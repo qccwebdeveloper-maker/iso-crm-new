@@ -8,7 +8,7 @@ import {
   FiStar, FiMessageSquare, FiAward, FiFolder, FiSettings, FiPlus,
   FiCamera, FiTarget, FiTrendingUp, FiUserCheck, FiBookOpen,
   FiSend, FiAlertTriangle, FiChevronDown, FiActivity,
-  FiSearch, FiCreditCard, FiClipboard
+  FiSearch, FiCreditCard, FiClipboard, FiDownload
 } from 'react-icons/fi';
 
 
@@ -61,6 +61,9 @@ const NAV = {
       { to: '/admin/qms/form-20', icon: FiFileText, label: 'F20 · Report Review' },
       { to: '/admin/qms/form-21', icon: FiFileText, label: 'F21 · Surveillance CAR Report' },
       { to: '/admin/qms/form-22', icon: FiFileText, label: 'F22 · Letter of Continuation' },
+    ]},
+    { sec: 'Tools', items: [
+      { to: '/admin/qms/download', icon: FiDownload, label: 'Download Forms (PDF)' },
     ]},
   ],
   client: [

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../../../components/common/Layout';
 import toast from 'react-hot-toast';
@@ -6,7 +7,7 @@ import useStandards from './useStandards';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
-  FiEye, FiPrinter, FiMoreVertical,
+  FiEye, FiPrinter, FiMoreVertical, FiDownload,
 } from 'react-icons/fi';
 
 const STATUS_META = {
@@ -378,6 +379,31 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
+  // Deep-link support for the "Download Forms" page: when opened as
+  // /admin/qms/form-XX?client=<id>, auto-open this form's read-only preview (which
+  // carries the Download PDF / Print buttons) for that client's saved record.
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const cid = searchParams.get('client');
+    if (!cid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: rec } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}`);
+        if (cancelled || !rec || !rec._id) return;
+        let clientRef = rec.clientRef;
+        if (!clientRef || !clientRef.company) {
+          try {
+            const { data: client } = await axios.get(`/api/qms-forms/client/${cid}`);
+            clientRef = { clientId: cid, ...(clientRef || {}), ...client };
+          } catch { /* keep the lean ref */ }
+        }
+        setPreviewRow({ ...rec, clientRef: clientRef || { clientId: cid } });
+      } catch { /* this form not filled for the client — nothing to preview */ }
+    })();
+    return () => { cancelled = true; };
+  }, [searchParams, formType]); // eslint-disable-line
+
   // Pull data from one or more other QMS forms (e.g. F12 fetching NCs from F07 + F11).
   // `prefillFrom.formTypes` is an array of source form numbers; the fetched form data
   // is passed to `apply(sources, currentFormData)` as an object keyed by form number,
@@ -512,6 +538,19 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     setFormData(defaultData || {});
     setExistingId(null);
     setStatus('draft');
+  };
+
+  // Print → "Save as PDF". Sets the document title first so the browser's print dialog
+  // offers a meaningful PDF filename (e.g. AUD-F-07_Shrey-mills_8008), then restores it.
+  const printPreviewPdf = () => {
+    const prevTitle = document.title;
+    const company = previewRow?.clientRef?.company || previewRow?.clientId || 'form';
+    const name = `${formCode || 'form'}-${company}-${previewRow?.clientId || ''}`
+      .replace(/[^\w.-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    document.title = name;
+    const restore = () => { document.title = prevTitle; window.removeEventListener('afterprint', restore); };
+    window.addEventListener('afterprint', restore);
+    window.print();
   };
 
   const statusMeta = STATUS_META[status] || STATUS_META.draft;
@@ -725,11 +764,19 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button
                   type="button"
+                  onClick={printPreviewPdf}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                >
+                  <FiDownload size={13} /> Download PDF
+                </button>
+                <button
+                  type="button"
                   onClick={() => window.print()}
                   className="btn btn-ghost btn-sm"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
                 >
-                  <FiPrinter size={13} /> Print / Save as PDF
+                  <FiPrinter size={13} /> Print
                 </button>
                 <button
                   type="button"
@@ -776,8 +823,16 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
               <div className="qms-preview-footer">
                 <button
                   type="button"
-                  onClick={() => { setPreviewRow(null); openExisting(previewRow); }}
+                  onClick={printPreviewPdf}
                   className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <FiDownload size={13} /> Download PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPreviewRow(null); openExisting(previewRow); }}
+                  className="btn btn-secondary"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
                   <FiEdit2 size={13} /> Edit This Form

@@ -729,7 +729,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   className="btn btn-ghost btn-sm"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
                 >
-                  <FiPrinter size={13} /> Print
+                  <FiPrinter size={13} /> Print / Save as PDF
                 </button>
                 <button
                   type="button"

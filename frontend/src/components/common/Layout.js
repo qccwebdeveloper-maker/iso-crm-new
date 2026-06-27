@@ -53,6 +53,15 @@ const NAV = {
       { to: '/admin/qms/form-14', icon: FiFileText, label: 'F14 · Draft Certificate' },
       { to: '/admin/qms/form-15', icon: FiFileText, label: 'F15 · Final Review Report' },
     ]},
+    { sec: 'Surveillance / Recertification / Special Audit', items: [
+      { to: '/admin/qms/form-16', icon: FiFileText, label: 'F16 · Application Form' },
+      { to: '/admin/qms/form-17', icon: FiFileText, label: 'F17 · Audit Plan' },
+      { to: '/admin/qms/form-18', icon: FiFileText, label: 'F18 · Meetings' },
+      { to: '/admin/qms/form-19', icon: FiFileText, label: 'F19 · Audit Report' },
+      { to: '/admin/qms/form-20', icon: FiFileText, label: 'F20 · Report Review' },
+      { to: '/admin/qms/form-21', icon: FiFileText, label: 'F21 · Surveillance CAR Report' },
+      { to: '/admin/qms/form-22', icon: FiFileText, label: 'F22 · Letter of Continuation' },
+    ]},
   ],
   client: [
     { sec: 'Overview', items: [

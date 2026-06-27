@@ -270,8 +270,8 @@ export default function Form08Stage1ReviewReport() {
             </table>
           </div>
 
-          {/* ── 3. Review Decision ── */}
-          <SectionTitle>Review Decision</SectionTitle>
+          {/* ── 3. Verified By ── */}
+          <SectionTitle>Verified By</SectionTitle>
 
           {/* "I, [name] verified..." statement */}
           <div style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: 10,

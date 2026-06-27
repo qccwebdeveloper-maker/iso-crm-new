@@ -97,6 +97,17 @@ export default function Form11Stage2AuditReport() {
       formCode="AUD-F-15"
       formTitle="Stage 2 / Surveillance / Recertification Audit Report"
       defaultData={DEFAULT}
+      prefillFrom={{
+        formTypes: [7],
+        apply: (sources, cur) => {
+          const src = sources[7] || {};
+          return {
+            ...cur,
+            ncList:          (cur.ncList && cur.ncList.length)                   ? cur.ncList          : (src.ncList || []),
+            observationList: (cur.observationList && cur.observationList.length) ? cur.observationList : (src.observationList || []),
+          };
+        },
+      }}
     >
       {(props) => <Stage2ReportBody {...props} />}
     </QMSFormPage>
@@ -315,13 +326,13 @@ function Stage2ReportBody({ data, set, clientInfo }) {
 
             <SectionTitle>3. Non-Conformities Overview</SectionTitle>
             <DynamicTable
-              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'type',label:'Type of NC',type:'select',options:NC_TYPES},{key:'clause',label:'Clause No.',minWidth:80},{key:'details',label:'Details of NC',type:'textarea',minWidth:200}]}
+              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'type',label:'Type of NC',type:'select',options:NC_TYPES},{key:'clause',label:'Clause No.',minWidth:80},{key:'details',label:'Details of NC',type:'textarea',fullRow:true}]}
               rows={data.ncList||[]} onAdd={()=>set('ncList',[...(data.ncList||[]),{sNo:String((data.ncList||[]).length+1),standard:'ISO 9001:2015',type:'Minor NC',clause:'',details:''}])}
               onRemove={ri=>set('ncList',(data.ncList||[]).filter((_,i)=>i!==ri))} onCellChange={setNC} addLabel="Add NC" />
 
             <SectionTitle>Observations Overview</SectionTitle>
             <DynamicTable
-              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'clause',label:'Clause No.',minWidth:80},{key:'details',label:'Details',type:'textarea',minWidth:200}]}
+              columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'clause',label:'Clause No.',minWidth:80},{key:'details',label:'Details',type:'textarea',fullRow:true}]}
               rows={data.observationList||[]} onAdd={()=>set('observationList',[...(data.observationList||[]),{sNo:String((data.observationList||[]).length+1),standard:'ISO 9001:2015',clause:'',details:''}])}
               onRemove={ri=>set('observationList',(data.observationList||[]).filter((_,i)=>i!==ri))} onCellChange={setObs} addLabel="Add Observation" />
 

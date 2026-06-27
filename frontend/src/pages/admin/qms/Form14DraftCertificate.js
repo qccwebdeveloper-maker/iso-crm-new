@@ -91,16 +91,6 @@ function CertBody({ data, set, clientInfo }) {
             </FormField>
           </FormRow>
 
-          <SectionTitle>Certificate Details</SectionTitle>
-          <FormRow cols={2}>
-            <FormField label="Certificate Issue Date">
-              <FInput value={data.certIssueDate} onChange={v => set('certIssueDate', v)} type="date" />
-            </FormField>
-            <FormField label="Certificate Number">
-              <FInput value={data.certNo} onChange={v => set('certNo', v)} placeholder="Certificate number" />
-            </FormField>
-          </FormRow>
-
           <SectionTitle>Multi-Site Details (if applicable)</SectionTitle>
           <div style={{ background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#6b7280' }}>
             If you have more than 3 multi locations and/or each location's scope is different, please specify here.

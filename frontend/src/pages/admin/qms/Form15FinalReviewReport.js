@@ -92,7 +92,7 @@ const RECERT_CHECKS = [
   { key: 'laRecommendation',  label: 'What is Lead Auditor recommendation? (Renewal / Suspend / Withdrawal / Reduce/Extend Scope / Retain Certification)' },
 ];
 
-const buildChecks = (arr) => Object.fromEntries(arr.map(c => [c.key, 'NA']));
+const buildChecks = (arr) => Object.fromEntries(arr.map(c => [c.key, '']));
 
 const DEFAULT = {
   orgName: '', standard: '', auditType: 'INITIAL AUDIT', modeOfAudit: '', onlineMeetingLink: '',
@@ -105,6 +105,20 @@ const DEFAULT = {
   reviewerName: '', reviewDate: '',
   hodDecision: '', hodReviewDate: '',
 };
+
+const YNToggle = ({ label, value, onChange }) => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: '#1e40af', borderRadius: 8, padding: '10px 16px', marginBottom: 16 }}>
+    <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>{label}</span>
+    <div style={{ display: 'flex', gap: 16 }}>
+      {['YES', 'NO'].map(v => (
+        <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: value === v ? 700 : 500, color: 'white', fontSize: 12.5 }}>
+          <input type="radio" name={`f15_${label}`} value={v} checked={value === v} onChange={() => onChange(v)} style={{ accentColor: 'white' }} />
+          {v}
+        </label>
+      ))}
+    </div>
+  </div>
+);
 
 const ChecksTable = ({ checks, values, setVal }) => (
   <div style={{ overflowX: 'auto', marginBottom: 16 }}>
@@ -120,7 +134,7 @@ const ChecksTable = ({ checks, values, setVal }) => (
           <tr key={c.key} style={{ borderBottom: '1px solid #f1f5f9', background: i%2===0?'white':'#fafafa' }}>
             <td style={{ padding: '8px 12px', fontSize: 13, color: '#374151' }}>{c.label}</td>
             <td style={{ padding: '6px 8px' }}>
-              <input type="text" value={values?.[c.key] ?? 'NA'} onChange={e => setVal(c.key, e.target.value)}
+              <input type="text" value={values?.[c.key] ?? ''} onChange={e => setVal(c.key, e.target.value)} placeholder="Remarks"
                 style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }} />
             </td>
           </tr>
@@ -145,7 +159,7 @@ export default function Form15FinalReviewReport() {
             <AuditTypeFetcher clientInfo={clientInfo} data={data} set={set} />
             <SectionTitle>Organization Details</SectionTitle>
             <FormRow cols={2}>
-              <FormField label="Organization Name" required>
+              <FormField label="Organization Name">
                 <FInput value={data.orgName} onChange={v => set('orgName', v)} placeholder="Organization name" />
               </FormField>
               <FormField label="Standard">
@@ -170,13 +184,22 @@ export default function Form15FinalReviewReport() {
             <ChecksTable checks={INITIAL_CHECKS} values={data.initialChecks} setVal={(k,v) => setCheck('initialChecks', k, v)} />
 
             <SectionTitle>Multi-site Certification</SectionTitle>
-            <ChecksTable checks={MULTISITE_CHECKS} values={data.multiSiteChecks} setVal={(k,v) => setCheck('multiSiteChecks', k, v)} />
+            <YNToggle label="Is Multi-site Certification applicable?" value={data.multiSiteApplicable} onChange={v => set('multiSiteApplicable', v)} />
+            {data.multiSiteApplicable === 'YES' && (
+              <ChecksTable checks={MULTISITE_CHECKS} values={data.multiSiteChecks} setVal={(k,v) => setCheck('multiSiteChecks', k, v)} />
+            )}
 
             <SectionTitle> Surveillance Audit</SectionTitle>
-            <ChecksTable checks={SURV1_CHECKS} values={data.surv1Checks} setVal={(k,v) => setCheck('surv1Checks', k, v)} />
+            <YNToggle label="Is Surveillance Audit applicable?" value={data.surv1Applicable} onChange={v => set('surv1Applicable', v)} />
+            {data.surv1Applicable === 'YES' && (
+              <ChecksTable checks={SURV1_CHECKS} values={data.surv1Checks} setVal={(k,v) => setCheck('surv1Checks', k, v)} />
+            )}
 
             <SectionTitle>Recertification Audit</SectionTitle>
-            <ChecksTable checks={RECERT_CHECKS} values={data.recertChecks} setVal={(k,v) => setCheck('recertChecks', k, v)} />
+            <YNToggle label="Is Recertification Audit applicable?" value={data.recertApplicable} onChange={v => set('recertApplicable', v)} />
+            {data.recertApplicable === 'YES' && (
+              <ChecksTable checks={RECERT_CHECKS} values={data.recertChecks} setVal={(k,v) => setCheck('recertChecks', k, v)} />
+            )}
 
             <SectionTitle>Review Decision</SectionTitle>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>

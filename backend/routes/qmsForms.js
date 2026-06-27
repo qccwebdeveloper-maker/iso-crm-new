@@ -23,15 +23,27 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
 // GET /api/qms-forms/client/:clientId — fetch client info for pre-fill
 router.get('/client/:clientId', protect, authorize('admin'), async (req, res) => {
   try {
-    const user = await User.findOne({ clientId: req.params.clientId })
-      .select('name company email phone address isoStandard scope clientId');
-    if (!user) return res.status(404).json({ message: 'No client found with this ID' });
+    // Accept either a Client ID or a company name (case-insensitive). Client ID
+    // is tried first; if nothing matches, fall back to an exact company-name match.
+    const term = (req.params.clientId || '').trim();
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const user = await User.findOne({
+      $or: [
+        { clientId: term },
+        { company: new RegExp(`^${escaped}$`, 'i') },
+      ],
+    }).select('name company email phone address isoStandard scope clientId');
+    if (!user) return res.status(404).json({ message: 'No client found with this ID or company name' });
+
+    // Resolve the real Client ID for all downstream lookups (the search term may
+    // have been a company name).
+    const cid = user.clientId;
 
     // The Application Form (F01) is the single source of truth: pull the details
     // entered there so every downstream form can auto-fetch REFNO, the full
     // standards list, address, scope and mode of audit. F01 values win over the
     // bare client record; the client record is the fallback when F01 is empty.
-    const appForm = await QMSForm.findOne({ clientId: req.params.clientId, formType: 1 })
+    const appForm = await QMSForm.findOne({ clientId: cid, formType: 1 })
       .select('formData');
     const fd = appForm?.formData || {};
     const selected = fd.standards;

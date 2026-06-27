@@ -10,14 +10,14 @@ export default function AdminAuditors(){
   const[people,setPeople]=useState([]);const[loading,setLoading]=useState(true);
   const[adding,setAdding]=useState(false);const[saving,setSaving]=useState(false);
   const[showPw,setShowPw]=useState(false);const[errors,setErrors]=useState({});
-  const[form,setForm]=useState({name:'',email:'',password:'',phone:'',country:''});
+  const[form,setForm]=useState({name:'',email:'',password:'',phone:'',country:'',role:'auditor'});
 
   const load=()=>{setLoading(true);axios.get('/api/auditors').then(r=>setPeople(r.data||[])).finally(()=>setLoading(false));};
   useEffect(load,[]);
 
   const aud=people.filter(p=>p.role==='auditor');const rev=people.filter(p=>p.role==='reviewer');
 
-  const openAdd=()=>{setForm({name:'',email:'',password:genPassword(),phone:'',country:''});setErrors({});setShowPw(false);setAdding(true);};
+  const openAdd=()=>{setForm({name:'',email:'',password:genPassword(),phone:'',country:'',role:'auditor'});setErrors({});setShowPw(false);setAdding(true);};
 
   const validate=()=>{
     const e={};
@@ -33,8 +33,8 @@ export default function AdminAuditors(){
     if(Object.keys(errs).length){setErrors(errs);return;}
     setErrors({});setSaving(true);
     try{
-      await axios.post('/api/users',{...form,role:'auditor'});
-      toast.success('Auditor added');
+      await axios.post('/api/users',form);
+      toast.success(`${form.role==='reviewer'?'Reviewer':'Auditor'} added`);
       setAdding(false);load();
     }catch(err){toast.error(err.response?.data?.message||'Error');}
     finally{setSaving(false);}
@@ -63,11 +63,11 @@ export default function AdminAuditors(){
   // ── Full-page Add Auditor form ──
   if(adding){
     return(
-      <Layout title="Add Auditor">
+      <Layout title="Add Team Member">
         <div className="page-hdr">
           <div style={{display:'flex',alignItems:'center',gap:12}}>
             <button className="btn btn-ghost btn-sm" onClick={()=>setAdding(false)}><ArrowLeft size={15}/> Back</button>
-            <div><h1 className="page-title">Add Auditor</h1><p className="page-subtitle">Create a new auditor account</p></div>
+            <div><h1 className="page-title">Add Team Member</h1><p className="page-subtitle">Create a new auditor or reviewer account</p></div>
           </div>
         </div>
         <div className="card" style={{width:'100%',padding:24}}>
@@ -110,10 +110,16 @@ export default function AdminAuditors(){
           </div>
           <div className="form-row">
             <div className="form-group">
+              <label className="form-label">Role *</label>
+              <select className="form-control" value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))}>
+                <option value="auditor">auditor</option>
+                <option value="reviewer">reviewer</option>
+              </select>
+            </div>
+            <div className="form-group">
               <label className="form-label">Country</label>
               <input className="form-control" value={form.country} onChange={e=>setForm(p=>({...p,country:e.target.value}))} placeholder="Country"/>
             </div>
-            <div className="form-group"/>
           </div>
           <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:20,borderTop:'1px solid var(--gray-100)',paddingTop:18}}>
             <button className="btn btn-ghost" onClick={()=>setAdding(false)}>Cancel</button>

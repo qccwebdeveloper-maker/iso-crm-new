@@ -346,7 +346,7 @@ function Stage1Body({ data, set, clientInfo }) {
                   const meta = byName[name];
                   const cols = [
                     { key: 'dayTime',    label: 'Day & Time (From–To)', minWidth: 160 },
-                    { key: 'clauses',    label: 'Clauses',             type: 'textarea', minWidth: 200, readOnly: true },
+                    { key: 'clauses',    label: 'Clauses',             type: 'textarea', minWidth: 200 },
                     { key: 'auditorName',label: 'Auditor Name',        minWidth: 120 },
                     { key: 'activity',   label: 'Activity / Key Documents / Records for Verification', type: 'textarea', minWidth: 240 },
                   ];
@@ -368,9 +368,22 @@ function Stage1Body({ data, set, clientInfo }) {
                           <DynamicTable
                             columns={cols}
                             rows={rows}
-                            hideAdd
-                            hideRemove
+                            onAdd={() => setScheduleFor(name, [...rows, { dayTime: '', clauses: '', auditorName: '', activity: '' }])}
+                            onRemove={(ri) => setScheduleFor(name, rows.filter((_, i) => i !== ri))}
+                            onMove={(from, to) => {
+                              if (from === to || from == null || to == null) return;
+                              // Read the latest schedules so multi-step drags reorder correctly.
+                              set('schedules', prev => {
+                                const cur = (prev && prev[name]) || [];
+                                if (from >= cur.length || to >= cur.length) return prev;
+                                const next = [...cur];
+                                const [moved] = next.splice(from, 1);
+                                next.splice(to, 0, moved);
+                                return { ...prev, [name]: next };
+                              });
+                            }}
                             onCellChange={(ri, key, val) => setSched(name, ri, key, val)}
+                            addLabel="Add Clause"
                           />
                         </div>
                       )}

@@ -6,7 +6,7 @@ import useStandards from './useStandards';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
-  FiEye, FiPrinter,
+  FiEye, FiPrinter, FiMoreVertical,
 } from 'react-icons/fi';
 
 const STATUS_META = {
@@ -204,11 +204,40 @@ export function StandardChips({ value }) {
   );
 }
 
-export function DynamicTable({ columns, rows, onAdd, onRemove, onCellChange, disabled, hideAdd, hideRemove, addLabel = 'Add Row' }) {
+export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellChange, disabled, hideAdd, hideRemove, addLabel = 'Add Row' }) {
   const inlineCols   = columns.filter(c => !c.fullRow);
   const fullRowCols  = columns.filter(c => c.fullRow);
   const showRemove   = !disabled && !hideRemove;
-  const colCount     = inlineCols.length + (showRemove ? 1 : 0);
+  const showMove     = !disabled && typeof onMove === 'function';
+  const colCount     = inlineCols.length + (showMove ? 1 : 0) + (showRemove ? 1 : 0);
+  const [dragIdx, setDragIdx] = useState(null);
+
+  // Press-and-drag reordering: hold the handle and move the mouse anywhere; the row
+  // under the pointer becomes the new position (live).
+  const beginDrag = (ri) => (e) => {
+    e.preventDefault();
+    let cur = ri;
+    setDragIdx(ri);
+    document.body.style.userSelect = 'none';
+    const onMoveDoc = (ev) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const tr = el && el.closest && el.closest('[data-rowidx]');
+      if (!tr) return;
+      const to = Number(tr.getAttribute('data-rowidx'));
+      if (Number.isNaN(to) || to === cur) return;
+      onMove(cur, to);
+      cur = to;
+      setDragIdx(to);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMoveDoc);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+      setDragIdx(null);
+    };
+    document.addEventListener('mousemove', onMoveDoc);
+    document.addEventListener('mouseup', onUp);
+  };
 
   const renderField = (c, row, ri, full) => {
     if (c.type === 'select') {
@@ -263,6 +292,7 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onCellChange, dis
         <table className="qms-dyn-table">
           <thead>
             <tr>
+              {showMove && <th style={{ width: 28 }} />}
               {inlineCols.map(c => <th key={c.key} style={c.width ? { width: c.width } : undefined}>{c.label}</th>)}
               {showRemove && <th style={{ width: 40 }} />}
             </tr>
@@ -270,7 +300,20 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onCellChange, dis
           <tbody>
             {rows.map((row, ri) => (
               <React.Fragment key={ri}>
-                <tr>
+                <tr
+                  data-rowidx={ri}
+                  style={showMove && dragIdx === ri ? { background: 'var(--primary-50)' } : undefined}>
+                  {showMove && (
+                    <td style={{ width: 28, textAlign: 'center' }}>
+                      <span
+                        onMouseDown={beginDrag(ri)}
+                        title="Press and drag to move"
+                        style={{ cursor: dragIdx === ri ? 'grabbing' : 'grab', display: 'inline-flex', alignItems: 'center', color: 'var(--gray-400)', touchAction: 'none' }}>
+                        <FiMoreVertical size={14} style={{ marginRight: -8 }} />
+                        <FiMoreVertical size={14} />
+                      </span>
+                    </td>
+                  )}
                   {inlineCols.map(c => (
                     <td key={c.key} style={c.width ? { width: c.width } : undefined}>{renderField(c, row, ri, false)}</td>
                   ))}
@@ -310,7 +353,7 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onCellChange, dis
 
 // ─── Main page wrapper ────────────────────────────────────────────────────────
 
-export default function QMSFormPage({ formType, formCode, formTitle, defaultData, children }) {
+export default function QMSFormPage({ formType, formCode, formTitle, defaultData, prefillFrom, children }) {
   const [clientIdInput, setClientIdInput] = useState('');
   const [clientInfo,    setClientInfo]    = useState(null);
   const [formData,      setFormData]      = useState(defaultData || {});
@@ -335,6 +378,25 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
+  // Pull data from one or more other QMS forms (e.g. F12 fetching NCs from F07 + F11).
+  // `prefillFrom.formTypes` is an array of source form numbers; the fetched form data
+  // is passed to `apply(sources, currentFormData)` as an object keyed by form number,
+  // e.g. { 7: {...}, 11: {...} }. `apply` should only fill values that are still empty
+  // so saved entries are kept. (A single `formType` is also accepted for convenience.)
+  const applyPrefill = async (cid, base) => {
+    if (!prefillFrom || !cid) return base;
+    const types = prefillFrom.formTypes
+      || (prefillFrom.formType != null ? [prefillFrom.formType] : []);
+    const sources = {};
+    for (const ft of types) {
+      try {
+        const { data: src } = await axios.get(`/api/qms-forms/by-client/${cid}/${ft}`);
+        if (src && src.formData) sources[ft] = src.formData;
+      } catch { /* that source form not created yet — skip it */ }
+    }
+    return prefillFrom.apply(sources, base);
+  };
+
   const handleClientSearch = async (e) => {
     e.preventDefault();
     const id = clientIdInput.trim();
@@ -343,14 +405,16 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     try {
       const { data: client } = await axios.get(`/api/qms-forms/client/${id}`);
       setClientInfo(client);
+      const cid = client.clientId || id;
+      let base, st = 'draft', exId = null;
       try {
-        const { data: existing } = await axios.get(`/api/qms-forms/by-client/${id}/${formType}`);
-        setFormData(withAppDefaults(existing.formData || defaultData || {}, client));
-        setStatus(existing.status || 'draft');
-        setExistingId(existing._id);
+        const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}`);
+        base = withAppDefaults(existing.formData || defaultData || {}, client);
+        st = existing.status || 'draft';
+        exId = existing._id;
         toast.success('Existing form loaded');
       } catch {
-        setFormData({
+        base = {
           ...(defaultData || {}),
           idNo:                 client.clientId      || '',
           refno:                client.refno         || client.clientId || '',
@@ -370,18 +434,22 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
           auditStandards:       client.isoStandard   || '',
           isoStandards:         client.isoStandard   || '',
           standard:             client.isoStandard   || '',
-        });
-        setStatus('draft');
-        setExistingId(null);
+        };
         toast.success('Client found — new form opened with pre-filled details');
       }
+      base = await applyPrefill(cid, base);
+      setFormData(base);
+      setStatus(st);
+      setExistingId(exId);
       setView('form');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Client not found');
     } finally { setSearching(false); }
   };
 
-  const set = (key, val) => setFormData(p => ({ ...p, [key]: val }));
+  // `val` may be a plain value or an updater `(prevValue) => newValue` (so callers
+  // can reorder/append based on the latest state, e.g. drag-reordering a table).
+  const set = (key, val) => setFormData(p => ({ ...p, [key]: typeof val === 'function' ? val(p[key]) : val }));
 
   const handleSave = async (saveStatus) => {
     if (!clientInfo) return;
@@ -428,8 +496,11 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
         const { data: client } = await axios.get(`/api/qms-forms/client/${cid}`);
         setClientInfo(prev => ({ ...(prev || {}), ...client }));
         // Fill any blank shared fields (address, scope, REFNO, ID, mode of audit)
-        // from the application record, preserving anything already entered.
-        setFormData(prev => withAppDefaults(prev, client));
+        // from the application record, preserving anything already entered, then
+        // pull any still-empty linked data (e.g. NCs from F07) via prefillFrom.
+        let base = withAppDefaults(row.formData || {}, client);
+        base = await applyPrefill(cid, base);
+        setFormData(base);
       } catch { /* keep the lean clientRef if the lookup fails */ }
     }
   };
@@ -441,15 +512,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     setFormData(defaultData || {});
     setExistingId(null);
     setStatus('draft');
-  };
-
-  const openNewForm = () => {
-    setFormData(defaultData || {});
-    setClientInfo(null);
-    setClientIdInput('');
-    setExistingId(null);
-    setStatus('draft');
-    setView('form');
   };
 
   const statusMeta = STATUS_META[status] || STATUS_META.draft;
@@ -469,21 +531,30 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
               <h2 className="qms-form-title">{formTitle}</h2>
             </div>
           </div>
-          <div className="qms-tab-btns">
-            <button
-              type="button"
-              onClick={() => setView('list')}
-              className={`qms-tab-btn${view === 'list' ? ' active' : ''}`}
-            >
-              <FiList size={14} /> List
-            </button>
-            <button
-              type="button"
-              onClick={openNewForm}
-              className={`qms-tab-btn${view === 'form' ? ' active' : ''}`}
-            >
-              <FiPlusCircle size={14} /> New Form
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+            <form onSubmit={handleClientSearch} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <FiSearch size={13} style={{ position: 'absolute', left: 10, color: 'var(--gray-400)' }} />
+                <input
+                  value={clientIdInput}
+                  onChange={e => setClientIdInput(e.target.value)}
+                  placeholder="Client ID or Company name"
+                  style={{ padding: '8px 12px 8px 30px', border: '1.5px solid var(--gray-200)', borderRadius: 8, fontSize: 13, outline: 'none', width: 220 }}
+                />
+              </div>
+              <button type="submit" disabled={searching} className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }}>
+                {searching ? 'Searching…' : 'Open Form'}
+              </button>
+            </form>
+            <div className="qms-tab-btns">
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                className={`qms-tab-btn${view === 'list' ? ' active' : ''}`}
+              >
+                <FiList size={14} /> List
+              </button>
+            </div>
           </div>
         </div>
 
@@ -495,9 +566,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                 <div className="qms-list-title">All Records — {formCode}</div>
                 <div className="qms-list-subtitle">{listData.length} form{listData.length !== 1 ? 's' : ''} found</div>
               </div>
-              <button type="button" onClick={openNewForm} className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <FiPlusCircle size={12} /> New Form
-              </button>
             </div>
 
             {listLoading ? (
@@ -508,7 +576,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   <FiFileText size={26} color="var(--primary)" />
                 </div>
                 <h3>No forms yet</h3>
-                <p>Click "New Form" to create the first {formCode} entry</p>
+                <p>Use the search above (Client ID or Company name) to open the first {formCode} entry</p>
               </div>
             ) : (
               <div className="qms-tbl-wrap">
@@ -563,36 +631,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
         {/* ═══ FORM VIEW ═══ */}
         {view === 'form' && (
           <div className="qms-form-area">
-
-            {/* Client search */}
-            {!clientInfo && (
-              <div className="qms-client-panel">
-                <div className="qms-client-panel-hdr">
-                  <div className="qms-client-panel-icon">
-                    <FiUser size={18} color="var(--primary)" />
-                  </div>
-                  <div>
-                    <div className="qms-client-panel-title">Find Client</div>
-                    <div className="qms-client-panel-sub">Enter the client ID to load or create a form</div>
-                  </div>
-                </div>
-                <form onSubmit={handleClientSearch} className="qms-search-row">
-                  <div className="qms-search-box">
-                    <FiSearch size={14} className="qms-search-ico" />
-                    <input
-                      value={clientIdInput}
-                      onChange={e => setClientIdInput(e.target.value)}
-                      placeholder="e.g. 20261234"
-                      className="qms-search-inp"
-                      autoFocus
-                    />
-                  </div>
-                  <button type="submit" disabled={searching} className="qms-search-btn">
-                    {searching ? 'Searching…' : 'Open Form'}
-                  </button>
-                </form>
-              </div>
-            )}
 
             {/* Client banner */}
             {clientInfo && (

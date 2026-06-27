@@ -38,6 +38,8 @@ const DEFAULT = {
   reviewerDeclaration: '',
   reviewerName: '', verificationName: '', reviewDate: '',
   verificationDate: '',
+  // ISO 22000 FSMS Manday Calculation (Ds = TD + TH + TFTE)
+  fsmsCategory: '', fsmsTD: '', fsmsTH: '', fsmsTFTE: '', fsmsDs: '',
   // ISO 27001 ISMS Audit Time Calculation
   ismsPersonsControl: '', ismsBaseAuditTime: '', ismsBusinessComplexity: '', ismsITComplexity: '',
   ismsComplexityAdj: '', ismsAdditiveAdj: '', ismsAdditionalTime: '',
@@ -247,15 +249,6 @@ export default function Form02ApplicationReview() {
               onCellChange={setTeam}
               addLabel="Add Auditor"
             />
-            <FormRow cols={2}>
-              <FormField label="Final Certification Decision by HOD — Name">
-                <FInput value={data.hodName} onChange={v => set('hodName', v)} placeholder="HOD name" />
-              </FormField>
-              <FormField label="HOD Decision">
-                <FSelect value={data.hodDecision} onChange={v => set('hodDecision', v)} placeholder="Select decision"
-                  options={['Approved', 'Approved with conditions', 'Rejected', 'Deferred']} />
-              </FormField>
-            </FormRow>
 
             {/* ── 4. Audit Man-days ── */}
             <SectionTitle>Audit Man-days Summary</SectionTitle>
@@ -271,9 +264,6 @@ export default function Form02ApplicationReview() {
               <FormField label="Total Audit Mandays">
                 <FInput value={data.totalMandays} onChange={v => set('totalMandays', v)} type="number" placeholder="0" />
               </FormField>
-              <FormField label="Adjusted Mandays">
-                <FInput value={data.adjustedMandays} onChange={v => set('adjustedMandays', v)} type="number" placeholder="0" />
-              </FormField>
             </FormRow>
             <FormRow cols={1}>
               <FormField label="Mandays Justification">
@@ -284,22 +274,22 @@ export default function Form02ApplicationReview() {
 
             {/* ── 5. Audit Dates ── */}
             <SectionTitle>Audit Dates (Tentative)</SectionTitle>
-            <FormRow cols={2}>
+            <div className="qms-date-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 100, marginBottom: 40 }}>
               <FormField label="Stage-1 Audit Date From">
                 <FInput value={data.stage1DateFrom} onChange={v => set('stage1DateFrom', v)} type="date" />
               </FormField>
               <FormField label="Stage-1 Audit Date To">
                 <FInput value={data.stage1DateTo} onChange={v => set('stage1DateTo', v)} type="date" />
               </FormField>
-            </FormRow>
-            <FormRow cols={2}>
+            </div>
+            <div className="qms-date-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 100, marginBottom: 40 }}>
               <FormField label="Stage-2 / Other Audit Date From">
                 <FInput value={data.stage2DateFrom} onChange={v => set('stage2DateFrom', v)} type="date" />
               </FormField>
               <FormField label="Stage-2 / Other Audit Date To">
                 <FInput value={data.stage2DateTo} onChange={v => set('stage2DateTo', v)} type="date" />
               </FormField>
-            </FormRow>
+            </div>
 
             {/* ── 6. Reviewer Independence Declaration ── */}
             <SectionTitle>Reviewer Independence Declaration</SectionTitle>
@@ -315,7 +305,7 @@ export default function Form02ApplicationReview() {
                 <FRadioGroup value={data.reviewerDeclaration} onChange={v => set('reviewerDeclaration', v)}
                   options={[
                     { value: 'Confirmed', label: 'Confirmed — I have no conflict of interest' },
-                    { value: 'Conflict', label: 'Conflict exists — details provided below' },
+                    { value: 'Conflict', label: 'Conflict exists' },
                   ]} />
               </FormField>
             </FormRow>
@@ -327,9 +317,13 @@ export default function Form02ApplicationReview() {
                 <FInput value={data.reviewDate} onChange={v => set('reviewDate', v)} type="date" />
               </FormField>
             </FormRow>
-            <FormRow cols={1}>
-              <FormField label="Verification Officer (if applicable)">
-                <FInput value={data.verificationName} onChange={v => set('verificationName', v)} placeholder="Brijesh Kumar" />
+            <FormRow cols={2}>
+              <FormField label="Final Certification Decision by HOD — Name">
+                <FInput value={data.hodName} onChange={v => set('hodName', v)} placeholder="HOD name" />
+              </FormField>
+              <FormField label="HOD Decision">
+                <FSelect value={data.hodDecision} onChange={v => set('hodDecision', v)} placeholder="Select decision"
+                  options={['Approved', 'Approved with conditions', 'Rejected', 'Deferred']} />
               </FormField>
             </FormRow>
             <FormRow cols={1}>
@@ -338,36 +332,22 @@ export default function Form02ApplicationReview() {
               </FormField>
             </FormRow>
 
-            {/* ── 7. ISO 27001 ISMS Audit Time Calculation ── */}
-            <SectionTitle>ISO/IEC 27001:2022 — ISMS Audit Time Calculation (as per ISO/IEC 27006-1:2024)</SectionTitle>
-            <div style={{ background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
-              <div style={{ background: '#4c1d95', color: 'white', padding: '8px 16px', fontSize: 12.5, fontWeight: 700 }}>
-                Manday Calculation — Factors related to IT environment
-              </div>
-              <CalcRow label="Number of Persons Under Organization's Control" value={data.ismsPersonsControl}
-                onChange={v => set('ismsPersonsControl', v)} type="number" placeholder="e.g. 50" />
-              <CalcRow label="Base ISMS Audit Time (as per Table C.1)" value={data.ismsBaseAuditTime}
-                onChange={v => set('ismsBaseAuditTime', v)} placeholder="e.g. 7" unit="Auditor Days" />
-              <CalcRow label="Business Complexity" value={data.ismsBusinessComplexity}
-                onChange={v => set('ismsBusinessComplexity', v)} placeholder="Select or enter" note="High (7–9) / Medium (5–6) / Low (3–4)" />
-              <CalcRow label="IT Complexity" value={data.ismsITComplexity}
-                onChange={v => set('ismsITComplexity', v)} placeholder="Select or enter" note="High (7–9) / Medium (5–6) / Low (3–4)" />
-              <CalcRow label="IT / Business Complexity Adjustment" value={data.ismsComplexityAdj}
-                onChange={v => set('ismsComplexityAdj', v)} placeholder="e.g. +10%" unit="%" />
-              <CalcRow label="Additive / Subtractive Adjustment" value={data.ismsAdditiveAdj}
-                onChange={v => set('ismsAdditiveAdj', v)} placeholder="e.g. +1.5" unit="Auditor Days" />
-              <CalcRow label="Additional Audit Time (if applicable)" value={data.ismsAdditionalTime}
-                onChange={v => set('ismsAdditionalTime', v)} placeholder="0" unit="Auditor Days" />
-              <CalcRow label="Total Final ISMS Audit Time" value={data.ismsTotalFinalTime}
-                onChange={v => set('ismsTotalFinalTime', v)} placeholder="0" unit="Auditor Days" />
-              <CalcRow label="Stage 1 Audit Time" value={data.ismsStage1Time}
-                onChange={v => set('ismsStage1Time', v)} placeholder="0" unit="Auditor Days" />
-              <CalcRow label="Stage 2 Audit Time" value={data.ismsStage2Time}
-                onChange={v => set('ismsStage2Time', v)} placeholder="0" unit="Auditor Days" />
-            </div>
-
             {/* ── 8. IMS Man-Day Calculation (Annex I) ── */}
             <SectionTitle>IMS Man-Day Calculation — Annex I</SectionTitle>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+              background: '#1e40af', borderRadius: 8, padding: '10px 16px', marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Is IMS Man-Day Calculation applicable?</span>
+              <div style={{ display: 'flex', gap: 16 }}>
+                {['YES', 'NO'].map(v => (
+                  <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: data.imsAnnexApplicable === v ? 700 : 500, color: 'white', fontSize: 12.5 }}>
+                    <input type="radio" name="f02_imsAnnexApplicable" value={v} checked={data.imsAnnexApplicable === v}
+                      onChange={() => set('imsAnnexApplicable', v)} style={{ accentColor: 'white' }} />
+                    {v}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {data.imsAnnexApplicable === 'YES' && (<>
 
             {/* 8a. Organization details */}
             <FormRow cols={2}>
@@ -407,21 +387,6 @@ export default function Form02ApplicationReview() {
               ))}
               <CalcRow label="Total Man-days before Integration" value={data.totalMandaysBeforeIntegration}
                 onChange={v => set('totalMandaysBeforeIntegration', v)} placeholder="0.0" unit="Man-days" />
-            </div>
-
-            {/* 8c. ISMS Reduction Calculation */}
-            <div style={{ background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
-              <div style={{ background: '#0f766e', color: 'white', padding: '8px 16px', fontSize: 12.5, fontWeight: 700 }}>
-                ISMS Reduction Calculation
-              </div>
-              <CalcRow label="Business Complexity" value={data.imsBusinessComplexity}
-                onChange={v => set('imsBusinessComplexity', v)} placeholder="High / Medium / Low" />
-              <CalcRow label="IT Complexity" value={data.imsITComplexity}
-                onChange={v => set('imsITComplexity', v)} placeholder="High / Medium / Low" />
-              <CalcRow label="Impact Factor on Audit Time" value={data.imsImpactFactor}
-                onChange={v => set('imsImpactFactor', v)} placeholder="e.g. +10% to +50%" unit="%" />
-              <CalcRow label="ISMS Reduction" value={data.ismsReductionDays}
-                onChange={v => set('ismsReductionDays', v)} placeholder="0.0" unit="Man-days" />
             </div>
 
             {/* 8d. Integrated Man-Day Calculation (as per MD 11 Annex-1) */}
@@ -496,6 +461,7 @@ export default function Form02ApplicationReview() {
               <CalcRow label="Total Integrated Audit Time" value={data.totalIntegratedAuditTime}
                 onChange={v => set('totalIntegratedAuditTime', v)} placeholder="0.0" unit="Man-days" />
             </div>
+            </>)}
 
             {/* ── 9. IAF MD 5 Reference Tables ── */}
             <SectionTitle>Audit Time Reference Tables (IAF MD 5:2023)</SectionTitle>
@@ -564,6 +530,46 @@ export default function Form02ApplicationReview() {
                 ISO/IEC 27001:2022 — ISMS Audit Time (ISO/IEC 27006-1:2024, Table C.1)
               </summary>
               <div style={{ padding: 12 }}>
+                {/* ISMS Audit Time Calculation (editable) */}
+                <div style={{ background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+                  <div style={{ background: '#4c1d95', color: 'white', padding: '8px 16px', fontSize: 12.5, fontWeight: 700 }}>
+                    Manday Calculation — Factors related to IT environment
+                  </div>
+                  <CalcRow label="Number of Persons Under Organization's Control" value={data.ismsPersonsControl}
+                    onChange={v => set('ismsPersonsControl', v)} type="number" placeholder="e.g. 50" />
+                  <CalcRow label="Base ISMS Audit Time (as per Table C.1)" value={data.ismsBaseAuditTime}
+                    onChange={v => set('ismsBaseAuditTime', v)} placeholder="e.g. 7" unit="Auditor Days" />
+                  <CalcRow label="Business Complexity" value={data.ismsBusinessComplexity}
+                    onChange={v => set('ismsBusinessComplexity', v)} placeholder="Select or enter" note="High (7–9) / Medium (5–6) / Low (3–4)" />
+                  <CalcRow label="IT Complexity" value={data.ismsITComplexity}
+                    onChange={v => set('ismsITComplexity', v)} placeholder="Select or enter" note="High (7–9) / Medium (5–6) / Low (3–4)" />
+                  <CalcRow label="IT / Business Complexity Adjustment" value={data.ismsComplexityAdj}
+                    onChange={v => set('ismsComplexityAdj', v)} placeholder="e.g. +10%" unit="%" />
+                  <CalcRow label="Additive / Subtractive Adjustment" value={data.ismsAdditiveAdj}
+                    onChange={v => set('ismsAdditiveAdj', v)} placeholder="e.g. +1.5" unit="Auditor Days" />
+                  <CalcRow label="Additional Audit Time (if applicable)" value={data.ismsAdditionalTime}
+                    onChange={v => set('ismsAdditionalTime', v)} placeholder="0" unit="Auditor Days" />
+                  <CalcRow label="Total Final ISMS Audit Time" value={data.ismsTotalFinalTime}
+                    onChange={v => set('ismsTotalFinalTime', v)} placeholder="0" unit="Auditor Days" />
+                  <CalcRow label="Stage 1 Audit Time" value={data.ismsStage1Time}
+                    onChange={v => set('ismsStage1Time', v)} placeholder="0" unit="Auditor Days" />
+                  <CalcRow label="Stage 2 Audit Time" value={data.ismsStage2Time}
+                    onChange={v => set('ismsStage2Time', v)} placeholder="0" unit="Auditor Days" />
+                </div>
+                {/* ISMS Reduction Calculation (editable) */}
+                <div style={{ background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+                  <div style={{ background: '#0f766e', color: 'white', padding: '8px 16px', fontSize: 12.5, fontWeight: 700 }}>
+                    ISMS Reduction Calculation
+                  </div>
+                  <CalcRow label="Business Complexity" value={data.imsBusinessComplexity}
+                    onChange={v => set('imsBusinessComplexity', v)} placeholder="High / Medium / Low" />
+                  <CalcRow label="IT Complexity" value={data.imsITComplexity}
+                    onChange={v => set('imsITComplexity', v)} placeholder="High / Medium / Low" />
+                  <CalcRow label="Impact Factor on Audit Time" value={data.imsImpactFactor}
+                    onChange={v => set('imsImpactFactor', v)} placeholder="e.g. +10% to +50%" unit="%" />
+                  <CalcRow label="ISMS Reduction" value={data.ismsReductionDays}
+                    onChange={v => set('ismsReductionDays', v)} placeholder="0.0" unit="Man-days" />
+                </div>
                 <div style={{ marginBottom: 10, fontSize: 12, color: '#4c1d95', fontWeight: 600 }}>Business Complexity × IT Complexity Adjustment Matrix</div>
                 <RefTable
                   headers={['Business Complexity ↓ / IT Complexity →', 'Low IT (3–4)', 'Medium IT (5–6)', 'High IT (7–9)']}
@@ -598,19 +604,98 @@ export default function Form02ApplicationReview() {
                 ISO 22000:2018 — FSMS Audit Time (ISO 22003-1:2022, Table B.1)
               </summary>
               <div style={{ padding: 12 }}>
-                <div style={{ fontSize: 12, color: '#92400e', marginBottom: 8, fontWeight: 600 }}>
-                  Ds = TD + TH + TFTE &nbsp;|&nbsp; TD = Basic site audit duration &nbsp;|&nbsp; TH = Additional HACCP study days &nbsp;|&nbsp; TFTE = Days per FTE
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e', textAlign: 'center', marginBottom: 2 }}>Audit Time Determination For ISO 22000:2018</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', textAlign: 'center', marginBottom: 10 }}>Table B.1 — Variables for Calculation of Minimum Audit Duration</div>
+                <div style={{ overflowX: 'auto', marginBottom: 14 }}>
+                  <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '6px 10px', background: '#fde68a', border: '1px solid #d1a054', fontSize: 11.5, fontWeight: 700, color: '#92400e', textAlign: 'center' }}>Category or Subcategory</th>
+                        <th style={{ padding: '6px 10px', background: '#fde68a', border: '1px solid #d1a054', fontSize: 11.5, fontWeight: 700, color: '#92400e', textAlign: 'center' }}>Basic Site Audit Duration, in Audit Days<br />(TD)</th>
+                        <th style={{ padding: '6px 10px', background: '#fde68a', border: '1px solid #d1a054', fontSize: 11.5, fontWeight: 700, color: '#92400e', textAlign: 'center' }}>No. of Audit Days for Each Additional HACCP Study<br />(TH)</th>
+                        <th style={{ padding: '6px 10px', background: '#fde68a', border: '1px solid #d1a054', fontSize: 11.5, fontWeight: 700, color: '#92400e', textAlign: 'center' }}>Effective Number FTE<br />(TFTE)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ['AI', '1,0', '0,25'], ['AII', '1,0', '0,25'], ['BI', '1,0', '0,25'], ['BII', '1,0', '0,25'], ['BIII', '1,0', '0,25'],
+                        ['C0', '2,0', '0,50'], ['CI', '2,0', '0,50'], ['CII', '2,0', '0,50'], ['CIII', '2,0', '0,50'], ['CIV', '2,0', '0,50'],
+                        ['D', '1,0', '0,50'], ['E', '1,5', '0,50'], ['FI', '1,0', '0,50'], ['FII', '1,0', '0,5'],
+                        ['G', '1,5', '0,25'], ['H', '1,5', '0,25'], ['I', '1,5', '0,50'], ['J', '1,5', '0,50'], ['K', '2,0', '0,5'],
+                      ].map((r, ri) => (
+                        <tr key={ri} style={{ background: ri % 2 === 0 ? 'white' : '#f8fafc' }}>
+                          <td style={{ padding: '5px 10px', border: '1px solid #e2e8f0', fontSize: 12, color: '#92400e', fontWeight: 700, textAlign: 'center' }}>{r[0]}</td>
+                          <td style={{ padding: '5px 10px', border: '1px solid #e2e8f0', fontSize: 12, color: '#374151', textAlign: 'center' }}>{r[1]}</td>
+                          <td style={{ padding: '5px 10px', border: '1px solid #e2e8f0', fontSize: 12, color: '#374151', textAlign: 'center' }}>{r[2]}</td>
+                          {ri === 0 && (
+                            <td rowSpan={19} style={{ padding: '5px 14px', border: '1px solid #e2e8f0', fontSize: 12, color: '#374151', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'pre-line', lineHeight: 2 }}>
+                              {'1 to 5 = 0\n6 to 49 = 0,5\n50 to 99 = 1,0\n100 to 199 = 1,5\n200 to 499 = 2,0\n500 to 999 = 2,5\n> 1 000 = 3'}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <RefTable
-                  headers={['Category', 'TD (Basic Site Days)', 'TH (Per extra HACCP)', 'TFTE (FTE Employees)']}
-                  rows={[
-                    ['AI','1.0','0.25','1–5: 0 | 6–49: 0.5 | 50–99: 1.0 | 100–199: 1.5 | 200–499: 2.0 | 500–999: 2.5 | >1000: 3'],
-                    ['AII','1.0','0.25',''],['BI','1.0','0.25',''],['BII','1.0','0.25',''],['BIII','1.0','0.25',''],
-                    ['C0','2.0','0.50',''],['CI','2.0','0.50',''],['CII','2.0','0.50',''],['CIII','2.0','0.50',''],['CIV','2.0','0.50',''],
-                    ['D','1.0','0.50',''],['E','1.5','0.50',''],['FI','1.0','0.50',''],['FII','1.0','0.50',''],
-                    ['G','1.5','0.25',''],['H','1.5','0.25',''],['I','1.5','0.50',''],['J','1.5','0.50',''],['K','2.0','0.50',''],
-                  ]}
-                />
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+                    <tbody>
+                      <tr>
+                        <td colSpan={2} style={{ background: '#fde68a', color: '#92400e', fontWeight: 800, fontSize: 12.5, textAlign: 'center', padding: '7px 10px', border: '1px solid #d1a054' }}>MANDAY CALCULATION</td>
+                      </tr>
+                      <tr>
+                        <td colSpan={2} style={{ padding: '7px 12px', border: '1px solid #d1a054', fontSize: 12, color: '#92400e', fontWeight: 600, textAlign: 'center' }}>The minimum initial certification audit duration for FSMS certification audits shall be given as Ds, expressed in days, which is calculated, considering Table B.1: from ISO 22003-1:2022</td>
+                      </tr>
+                      {[
+                        ['where', ''],
+                        ['Ds', 'is the total audit duration;'],
+                        ['TD', 'is the basic site audit duration for (sub) category and scope of certification (includes one HACCP study), in days;'],
+                        ['TH', 'is the number of audit days for additional HACCP studies;'],
+                        ['TFTE', 'is the number of audit days per number of FTE employees.'],
+                        ['Ds = (TD + TH + TFTE)', ''],
+                      ].map((r, ri) => (
+                        <tr key={ri}>
+                          <td style={{ padding: '6px 12px', border: '1px solid #d1a054', fontSize: 12, color: '#92400e', fontWeight: 700, width: '32%', whiteSpace: 'nowrap' }}>{r[0]}</td>
+                          <td style={{ padding: '6px 12px', border: '1px solid #d1a054', fontSize: 12, color: '#374151' }}>{r[1]}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Editable FSMS Manday Calculation */}
+                <div style={{ overflowX: 'auto', marginTop: 14 }}>
+                  <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+                    <tbody>
+                      <tr>
+                        <td colSpan={2} style={{ background: '#0f766e', color: 'white', fontWeight: 800, fontSize: 12.5, textAlign: 'center', padding: '7px 10px', border: '1px solid #0f766e' }}>FSMS Manday Calculation — Enter Values</td>
+                      </tr>
+                      {(() => {
+                        const fsmsTotal = (Number(data.fsmsTD) || 0) + (Number(data.fsmsTH) || 0) + (Number(data.fsmsTFTE) || 0);
+                        return [
+                          { key: 'fsmsCategory', label: 'Category / Subcategory', ph: 'e.g. CIII', type: 'text' },
+                          { key: 'fsmsTD', label: 'TD — Basic Site Audit Duration (incl. one HACCP study)', ph: 'e.g. 2.0', unit: 'Days' },
+                          { key: 'fsmsTH', label: 'TH — Audit Days for Additional HACCP Studies', ph: 'e.g. 0.5', unit: 'Days' },
+                          { key: 'fsmsTFTE', label: 'TFTE — Audit Days per Number of FTE Employees', ph: 'e.g. 1.5', unit: 'Days' },
+                          { key: 'fsmsDs', label: 'Ds — Total Audit Duration  (Ds = TD + TH + TFTE)', ph: '0.0', unit: 'Days', computed: true },
+                        ].map(({ key, label, ph, unit, type, computed }) => (
+                          <tr key={key}>
+                            <td style={{ padding: '6px 12px', border: '1px solid #99f6e4', fontSize: 12, color: '#0f766e', fontWeight: 700, width: '55%' }}>{label}</td>
+                            <td style={{ padding: '6px 12px', border: '1px solid #99f6e4' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <input type={type === 'text' ? 'text' : 'number'} readOnly={computed}
+                                  value={computed ? (fsmsTotal ? fsmsTotal : '') : (data[key] || '')}
+                                  onChange={e => set(key, e.target.value)} placeholder={ph}
+                                  style={{ flex: 1, padding: '6px 8px', border: '1.5px solid #5eead4', borderRadius: 7, fontSize: 13, outline: 'none', background: computed ? '#ccfbf1' : '#fff', fontWeight: computed ? 800 : 400, color: computed ? '#0f766e' : 'inherit' }} />
+                                {unit && <span style={{ fontSize: 11.5, color: '#0f766e', fontWeight: 600, whiteSpace: 'nowrap' }}>{unit}</span>}
+                              </div>
+                            </td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </details>
 

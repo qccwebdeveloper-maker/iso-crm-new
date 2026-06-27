@@ -97,6 +97,17 @@ export default function Form11Stage2AuditReport() {
       formCode="AUD-F-15"
       formTitle="Stage 2 / Surveillance / Recertification Audit Report"
       defaultData={DEFAULT}
+      prefillFrom={{
+        formTypes: [7],
+        apply: (sources, cur) => {
+          const src = sources[7] || {};
+          return {
+            ...cur,
+            ncList:          (cur.ncList && cur.ncList.length)                   ? cur.ncList          : (src.ncList || []),
+            observationList: (cur.observationList && cur.observationList.length) ? cur.observationList : (src.observationList || []),
+          };
+        },
+      }}
     >
       {(props) => <Stage2ReportBody {...props} />}
     </QMSFormPage>

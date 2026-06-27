@@ -345,16 +345,6 @@ function Stage1ReportBody({ data, set, clientInfo }) {
             </div>
             )}
 
-            <SectionTitle>Recommendation</SectionTitle>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {REC_OPTS.map(o => (
-                <label key={o.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${data.recommendation===o.value?'var(--primary)':'#e2e8f0'}`, background: data.recommendation===o.value?'#fff7ed':'white', cursor: 'pointer', fontSize: 13 }}>
-                  <input type="radio" value={o.value} checked={data.recommendation===o.value} onChange={()=>set('recommendation',o.value)} style={{marginTop:2}} />
-                  {o.label}
-                </label>
-              ))}
-            </div>
-
             <div style={{ margin: '16px 0', padding: '12px 16px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, fontSize: 12, color: '#78350f', lineHeight: 1.6 }}>
               <strong>Disclaimer:</strong> This audit has been conducted on a sampling basis of the available information, documents, records, processes and activities reviewed during the audit. The audit findings are based only on the evidence verified at the time of audit and do not guarantee detection of all possible nonconformities or system weaknesses.
             </div>
@@ -376,6 +366,16 @@ function Stage1ReportBody({ data, set, clientInfo }) {
               columns={[{key:'sNo',label:'S.No.',minWidth:50},{key:'standard',label:'MS Standard',minWidth:120},{key:'clause',label:'Clause',minWidth:80},{key:'ofi',label:'Opportunity for Improvement',type:'textarea',fullRow:true}]}
               rows={data.ofiList||[]} onAdd={()=>set('ofiList',[...(data.ofiList||[]),{sNo:String((data.ofiList||[]).length+1),standard:'ISO 9001:2015',clause:'',ofi:''}])}
               onRemove={ri=>set('ofiList',(data.ofiList||[]).filter((_,i)=>i!==ri))} onCellChange={setOFI} addLabel="Add OFI" />
+
+            <SectionTitle>Recommendation</SectionTitle>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {REC_OPTS.map(o => (
+                <label key={o.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${data.recommendation===o.value?'var(--primary)':'#e2e8f0'}`, background: data.recommendation===o.value?'#fff7ed':'white', cursor: 'pointer', fontSize: 13 }}>
+                  <input type="radio" value={o.value} checked={data.recommendation===o.value} onChange={()=>set('recommendation',o.value)} style={{marginTop:2}} />
+                  {o.label}
+                </label>
+              ))}
+            </div>
 
             <SectionTitle>5. Stage-1 Audit Checklist</SectionTitle>
             <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 10 }}>

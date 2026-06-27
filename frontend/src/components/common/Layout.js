@@ -36,7 +36,7 @@ const NAV = {
     { sec: 'Leads', items: [
       { to: '/admin/leads', icon: FiTarget, label: 'Lead Management', badge: 'NEW' },
     ]},
-    { sec: 'QMS Forms', items: [
+    { sec: 'Initial Audit', items: [
       { to: '/admin/qms/form-01', icon: FiFileText, label: 'F01 · Application Form' },
       { to: '/admin/qms/form-02', icon: FiFileText, label: 'F02 · Application Review' },
       { to: '/admin/qms/form-03', icon: FiFileText, label: 'F03 · Audit Planning 3yr' },

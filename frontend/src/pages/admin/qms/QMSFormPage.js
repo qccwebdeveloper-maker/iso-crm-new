@@ -7,7 +7,7 @@ import useStandards from './useStandards';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
-  FiEye, FiPrinter, FiMoreVertical, FiDownload,
+  FiEye, FiPrinter, FiMoreVertical,
 } from 'react-icons/fi';
 
 const STATUS_META = {
@@ -765,14 +765,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                 <button
                   type="button"
                   onClick={printPreviewPdf}
-                  className="btn btn-primary btn-sm"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                >
-                  <FiDownload size={13} /> Download PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.print()}
                   className="btn btn-ghost btn-sm"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
                 >
@@ -823,16 +815,8 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
               <div className="qms-preview-footer">
                 <button
                   type="button"
-                  onClick={printPreviewPdf}
-                  className="btn btn-primary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                >
-                  <FiDownload size={13} /> Download PDF
-                </button>
-                <button
-                  type="button"
                   onClick={() => { setPreviewRow(null); openExisting(previewRow); }}
-                  className="btn btn-secondary"
+                  className="btn btn-primary"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
                   <FiEdit2 size={13} /> Edit This Form

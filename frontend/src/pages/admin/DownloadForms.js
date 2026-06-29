@@ -144,7 +144,7 @@ export default function DownloadForms() {
               })}
             </div>
             <div style={{ marginTop: 14, padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12, color: 'var(--gray-500)' }}>
-              <strong>Tip:</strong> Click <em>Open &amp; Download</em> to open a form's print-ready preview, then use <em>Download PDF</em> there (choose “Save as PDF” as the destination). Each form downloads as its own PDF file.
+              <strong>Tip:</strong> Click <em>Open &amp; Download</em> to open a form's print-ready preview, then use <em>Print</em> there and choose “Save as PDF” as the destination. Each form downloads as its own PDF file.
             </div>
           </>
         )}

@@ -1,5 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import QMSFormPage, { FormRow, FormField, FInput, FTextarea, SectionTitle, StandardChips } from './QMSFormPage';
+
+/* Sets the letter Reference No. to the client ID only (the 4-digit number, no
+   prefix/sign), when still blank — e.g. 8006. */
+function RefNoFiller({ clientInfo, data, set }) {
+  const cid = clientInfo?.clientId;
+  const refNo = data.refNo;
+  useEffect(() => {
+    if (!cid) return;
+    if (refNo && String(refNo).trim()) return; // keep a value already entered / saved
+    set('refNo', String(cid));
+  }, [cid, refNo]); // eslint-disable-line
+  return null;
+}
 
 const DEFAULT = {
   refNo: '', letterDate: '',
@@ -20,11 +33,12 @@ export default function Form22LetterOfContinuation() {
       formTitle="Letter of Continuation"
       defaultData={DEFAULT}
     >
-      {({ data, set }) => (
+      {({ data, set, clientInfo }) => (
         <div>
+          <RefNoFiller clientInfo={clientInfo} data={data} set={set} />
           <SectionTitle>Letter Reference</SectionTitle>
           <FormRow cols={2}>
-            <FormField label="Reference No."><FInput value={data.refNo} onChange={v => set('refNo', v)} placeholder="QCC/.../01/26" /></FormField>
+            <FormField label="Reference No."><FInput value={data.refNo} onChange={v => set('refNo', v)} placeholder="e.g. 8006" /></FormField>
             <FormField label="Date"><FInput value={data.letterDate} onChange={v => set('letterDate', v)} type="date" /></FormField>
           </FormRow>
 

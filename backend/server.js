@@ -46,6 +46,7 @@ app.use('/api/feedback',      require('./routes/feedback'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/leads',         require('./routes/leads'));
 app.use('/api/payments',      require('./routes/payments'));
+app.use('/api/invoices',      require('./routes/invoices'));
 app.use('/api/standards',     require('./routes/standards'));
 app.use('/api/roles',         require('./routes/roles'));
 app.use('/api/observations',  require('./routes/observations'));

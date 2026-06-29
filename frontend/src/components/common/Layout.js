@@ -80,6 +80,7 @@ const NAV = {
     { sec: 'Documents', items: [
       { to: '/client/documents',    icon: FiFolder, label: 'Documents & Forms' },
       { to: '/client/certificates', icon: FiAward,  label: 'My Certificates' },
+      { to: '/client/invoices',     icon: FiCreditCard, label: 'My Invoices' },
     ]},
     { sec: 'Support', items: [
       { to: '/client/feedback', icon: FiMessageSquare, label: 'Feedback' },

@@ -39,7 +39,6 @@ function withAppDefaults(saved, client) {
     address:              client.address       || '',
     scopeOfCertification: client.scope         || '',
     modeOfAudit:          client.modeOfWorking || '',
-    standard:             client.isoStandard   || '',
   };
   for (const [k, v] of Object.entries(shared)) {
     const cur = out[k];
@@ -47,10 +46,13 @@ function withAppDefaults(saved, client) {
   }
   // Standards display always mirrors the CURRENT application selection, so every
   // form shows exactly the standards picked in F01 — one if one is selected, two
-  // if two — even when reopening a form saved with an earlier selection.
+  // if two — even when reopening a form saved with an earlier selection. `standard`
+  // (read by StandardChips on F06/F08/F10/F12/…) must mirror too, not just fill when
+  // blank, or a form saved before a standard was picked stays stuck showing "—".
   if (client.isoStandard) {
     out.auditStandards = client.isoStandard;
     out.isoStandards   = client.isoStandard;
+    out.standard       = client.isoStandard;
   }
   // Contact person always reflects F01's contact person (when entered there), so a
   // form saved earlier with the company name is corrected to the real contact.

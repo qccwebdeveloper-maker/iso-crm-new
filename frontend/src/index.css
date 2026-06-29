@@ -1692,4 +1692,13 @@ select.qms-inp { cursor: pointer; }
   .qms-form-row, .qms-field, .aud3-std, table tr { break-inside: avoid; }
   .qms-section-title { break-after: avoid; }
   img, svg { max-width: 100% !important; }
+
+  /* Client invoice → print only the invoice document. */
+  body.printing-invoice * { visibility: hidden !important; }
+  body.printing-invoice .inv-doc, body.printing-invoice .inv-doc * { visibility: visible !important; }
+  body.printing-invoice .inv-doc {
+    position: absolute !important; left: 0; top: 0; width: 100% !important;
+    box-shadow: none !important; padding: 0 !important;
+  }
+  .no-print { display: none !important; }
 }

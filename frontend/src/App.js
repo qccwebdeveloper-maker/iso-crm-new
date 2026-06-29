@@ -64,6 +64,7 @@ import ClientApplicationForm  from './pages/client/ApplicationForm';
 import ClientNewApplication   from './pages/client/NewApplicationForm';
 import ClientDocuments       from './pages/client/Documents';
 import ClientCertificates    from './pages/client/Certificates';
+import ClientInvoices        from './pages/client/Invoices';
 import ClientFeedback        from './pages/client/Feedback';
 import ClientTeamReports     from './pages/client/TeamReports';
 
@@ -169,6 +170,7 @@ function AppRoutes() {
       <Route path="/client/applications/:id" element={<ProtectedRoute roles={['client']}><ClientApplicationDetail /></ProtectedRoute>} />
       <Route path="/client/documents"        element={<ProtectedRoute roles={['client']}><ClientDocuments /></ProtectedRoute>} />
       <Route path="/client/certificates"     element={<ProtectedRoute roles={['client']}><ClientCertificates /></ProtectedRoute>} />
+      <Route path="/client/invoices"         element={<ProtectedRoute roles={['client']}><ClientInvoices /></ProtectedRoute>} />
       <Route path="/client/feedback"           element={<ProtectedRoute roles={['client']}><ClientFeedback /></ProtectedRoute>} />
       <Route path="/client/team-reports"     element={<ProtectedRoute roles={['client']}><ClientTeamReports /></ProtectedRoute>} />
 

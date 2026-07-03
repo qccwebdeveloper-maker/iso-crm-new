@@ -4,6 +4,8 @@ import QMSFormPage, { FormRow, FormField, FInput, SectionTitle, DynamicTable, St
 
 const EMPTY_P = { sNo: '', name: '', position: '', openingMeeting: '', closingMeeting: '' };
 const YN_OPTS = ['Yes','No'];
+// Only these two roles from F02's Audit Team Details are pulled into Participants.
+const AUDITOR_ROLES = ['Lead Auditor', 'Auditor'];
 
 const DEFAULT = {
   auditDateFrom: '', auditDateTo: '', standard: '',
@@ -30,8 +32,11 @@ function Form06Body({ data, set, clientInfo }) {
     set('participants', p);
   };
 
-  // Fetch the Stage-1 audit dates from F02 (Application Review) and fill them here
-  // when still blank, without overwriting dates already entered on this form.
+  // Fetch from F02 (Application Review): the Stage-1 audit dates, plus the Lead
+  // Auditor / Auditor from the Audit Team Details — carried into Participants
+  // (name → Name, role → Position). Only those two roles are pulled; other roles
+  // (Reviewer, Technical Expert, HOD, Guide, Observer) are skipped. Anything already
+  // entered on this form is preserved and auditors are never duplicated.
   useEffect(() => {
     const cid = clientInfo?.clientId;
     if (!cid) return;
@@ -44,6 +49,22 @@ function Form06Body({ data, set, clientInfo }) {
         Object.entries(map).forEach(([k, v]) => {
           if (v && !(data[k] && String(data[k]).trim())) set(k, v);
         });
+        // Auditor / Lead Auditor rows from F02, deduped against what's already here.
+        const auditors = (fd.auditTeam || [])
+          .filter(m => m && AUDITOR_ROLES.includes(m.role) && m.name && String(m.name).trim())
+          .map(m => ({ name: String(m.name).trim(), role: m.role }));
+        if (!auditors.length) return;
+        const rows = [...(data.participants || [])];
+        const has = n => rows.some(r => (r.name || '').trim().toLowerCase() === n.toLowerCase());
+        let changed = false;
+        auditors.forEach(a => {
+          if (has(a.name)) return;
+          const blankRow = rows.find(r => !(r.name || '').trim() && !(r.position || '').trim());
+          if (blankRow) { blankRow.name = a.name; blankRow.position = a.role; }
+          else rows.push({ ...EMPTY_P, name: a.name, position: a.role });
+          changed = true;
+        });
+        if (changed) set('participants', rows.map((r, i) => ({ ...r, sNo: String(i + 1) })));
       })
       .catch(() => { /* no F02 yet — keep defaults */ });
     return () => { cancelled = true; };

@@ -4,6 +4,7 @@ const Certificate = require('../models/Certificate');
 const CertSetting = require('../models/CertSetting');
 const User        = require('../models/User');
 const Application = require('../models/Application');
+const QMSForm     = require('../models/QMSForm');
 const { protect, authorize } = require('../middleware/auth');
 
 // ── Certificate number generator — format: QCC/##L##L/MMYY ──
@@ -40,17 +41,30 @@ router.get('/prefill/:clientId', protect, authorize('admin'), async (req, res) =
     const app = await Application.findOne({ client: user._id }).sort({ createdAt: -1 });
     const a = app || {};
 
+    // The CRM's primary source of client details is the F01 QMS Application Form
+    // (scope, address, standards, contact, … are entered there). Prefer it, then
+    // fall back to the legacy Application document, then the bare client record.
+    const f01 = await QMSForm.findOne({ clientId: cid, formType: 1 }).select('formData').lean();
+    const fd = f01?.formData || {};
+    const fdStandards = Array.isArray(fd.standards) ? fd.standards.filter(Boolean) : [];
+    // Prepend the country code only when the number doesn't already carry one,
+    // so a mobile saved as "+91 98…" isn't turned into "+91 +91 98…".
+    const fdMobile = (fd.mobileNumber || '').trim();
+    const fdPhone = !fdMobile ? ''
+      : fdMobile.startsWith('+') ? fdMobile
+      : `${fd.countryCode || ''} ${fdMobile}`.trim();
+
     const data = {
-      orgName:        a.organizationName || user.company || user.name || '',
-      standard:       a.isoStandard || (Array.isArray(a.standards) && a.standards[0]) || user.isoStandard || '',
-      scope:          a.scopeOfCertification || a.scope || user.scope || '',
-      address:        [a.address, a.address1, a.city, a.state, a.country, a.pincode].filter(Boolean).join(', ') || user.address || '',
-      additionalSites:a.additionalSites || '',
-      contactPerson:  a.contactPerson || user.name || '',
-      designation:    a.designation || '',
-      contactNumber:  a.contactNumbers || user.phone || '',
-      email:          a.emailId || user.email || '',
-      accreditation:  a.accreditationBody || 'UAF',
+      orgName:        fd.organizationName || a.organizationName || user.company || user.name || '',
+      standard:       fdStandards[0] || a.isoStandard || (Array.isArray(a.standards) && a.standards[0]) || user.isoStandard || '',
+      scope:          fd.scopeOfCertification || a.scopeOfCertification || a.scope || user.scope || '',
+      address:        fd.address || [a.address, a.address1, a.city, a.state, a.country, a.pincode].filter(Boolean).join(', ') || user.address || '',
+      additionalSites:fd.additionalSites || a.additionalSites || '',
+      contactPerson:  fd.contactPerson || a.contactPerson || user.name || '',
+      designation:    fd.designation || a.designation || '',
+      contactNumber:  fdPhone || a.contactNumbers || user.phone || '',
+      email:          fd.emailId || a.emailId || user.email || '',
+      accreditation:  fd.accreditationBody || a.accreditationBody || 'UAF',
       linkedApplication: app ? app._id : null,
       certNumber:     await generateCertNumber(),
       clientId:       user.clientId || '',
@@ -58,7 +72,7 @@ router.get('/prefill/:clientId', protect, authorize('admin'), async (req, res) =
 
     res.json({
       data,
-      foundApplication: !!app,
+      foundApplication: !!app || !!f01,
       client: { name: user.name, clientId: user.clientId, company: user.company || '' },
     });
   } catch (err) { res.status(500).json({ message: err.message }); }

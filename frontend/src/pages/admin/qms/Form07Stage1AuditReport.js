@@ -148,10 +148,11 @@ function Stage1ReportBody({ data, set, clientInfo }) {
         });
         // Type of Audit is a read-only mirror of F02 — always reflect its value.
         if (fd.auditType !== undefined) set('auditType', fd.auditType || '');
-        // Audit team — carry the auditors from F02 (name, role, Stage-1 man-days)
-        // when none have been entered here yet.
+        // Audit team — carry over from F02 only the Lead Auditor, Auditor and HOD
+        // (with a name); other roles are skipped. Fills only when none entered here yet.
+        const KEEP_ROLES = ['Lead Auditor', 'Auditor', 'HOD'];
         const team = (fd.auditTeam || [])
-          .filter(m => (m.name && m.name.trim()) || (m.role && m.role.trim()));
+          .filter(m => m && KEEP_ROLES.includes(m.role) && m.name && String(m.name).trim());
         const hasTeam = (data.auditTeam || []).some(m => m.name && m.name.trim());
         if (team.length && !hasTeam) {
           set('auditTeam', team.map(m => ({

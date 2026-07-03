@@ -16,7 +16,7 @@ const CAR_COLUMNS = [
   { key: 'ncrDetail',      label: 'NCR Detail',     type: 'textarea', fullRow: true },
   { key: 'writingDate',    label: 'Writing Date',   type: 'date' },
   { key: 'processDept',    label: 'Process / Dept.', minWidth: 120 },
-  { key: 'acceptedBy',     label: 'Accepted By',    minWidth: 140 },
+  { key: 'acceptedBy',     label: 'Accepted By Representative', minWidth: 140 },
   { key: 'leadAuditorName',label: 'Lead Auditor',   minWidth: 140 },
 ];
 
@@ -37,7 +37,7 @@ export default function Form12CARRequest() {
       formTitle="Request for Corrective Action (CAR)"
       defaultData={DEFAULT}
       prefillFrom={{
-        formTypes: [7, 11],
+        formTypes: [1, 2, 7, 11],
         apply: (sources, cur) => {
           const out = { ...cur };
           // Stage 1 ← F07 NCs (only when the Stage-1 table is still empty)
@@ -48,6 +48,24 @@ export default function Form12CARRequest() {
           const s2 = sources[11]?.ncList || [];
           const s2HasData = (cur.carEntriesStage2 || []).some(e => e.ncrDetail || e.clauseRef);
           if (s2.length && !s2HasData) out.carEntriesStage2 = s2.map(ncToCar);
+          // Accepted By Representative ← F01's Representative Name.
+          // Lead Auditor ← F02's Audit Team (the member with role "Lead Auditor").
+          // Both fill every row that is still blank; typed values are kept.
+          // F01 shows representativeName but falls back to contactPerson on screen,
+          // so mirror that here — otherwise a rep that was never typed reads as blank.
+          const rep = (sources[1]?.representativeName || sources[1]?.contactPerson || '').trim();
+          const lead = ((sources[2]?.auditTeam || [])
+            .find(m => m && m.role === 'Lead Auditor' && m.name && String(m.name).trim())?.name || '').trim();
+          if (rep || lead) {
+            const fill = list => (list || []).map(e => {
+              const next = { ...e };
+              if (rep  && !(e.acceptedBy      && String(e.acceptedBy).trim()))      next.acceptedBy      = rep;
+              if (lead && !(e.leadAuditorName && String(e.leadAuditorName).trim())) next.leadAuditorName = lead;
+              return next;
+            });
+            out.carEntries      = fill(out.carEntries);
+            out.carEntriesStage2 = fill(out.carEntriesStage2);
+          }
           return out;
         },
       }}

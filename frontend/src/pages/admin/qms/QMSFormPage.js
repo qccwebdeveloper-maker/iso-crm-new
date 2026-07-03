@@ -17,9 +17,11 @@ const STATUS_META = {
 };
 
 // Fields every QMS form mirrors from the Application Form (F01) / client record.
-// Returns a copy of `saved` with any BLANK shared field auto-filled from the
-// client record, so address, scope, REFNO, ID and mode of audit are fetched on
-// every form — without clobbering values already entered on this form.
+// The Application Form is the single source of truth: whenever a shared field is
+// updated in F01, every form for that client ID reflects the new value. So these
+// fields ALWAYS mirror the client record (when F01 has a value), overriding any
+// snapshot saved earlier on the form. Form-specific fields (participants, remarks,
+// dates typed per form, …) are NOT in this list and are never touched.
 function withAppDefaults(saved, client) {
   const out = { ...(saved || {}) };
   if (!client) return out;
@@ -40,9 +42,11 @@ function withAppDefaults(saved, client) {
     scopeOfCertification: client.scope         || '',
     modeOfAudit:          client.modeOfWorking || '',
   };
+  // Always override with the F01 value when it exists, so an edit in the
+  // Application Form propagates to every form for this client. Only fall back to
+  // the form's own saved value when F01 has nothing for that field.
   for (const [k, v] of Object.entries(shared)) {
-    const cur = out[k];
-    if (v && (cur === undefined || cur === null || cur === '')) out[k] = v;
+    if (v) out[k] = v;
   }
   // Standards display always mirrors the CURRENT application selection, so every
   // form shows exactly the standards picked in F01 — one if one is selected, two

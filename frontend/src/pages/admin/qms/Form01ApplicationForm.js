@@ -1166,9 +1166,6 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
               </div>
             </div>
             <div style={{border:'1.5px solid var(--primary-200)',borderRadius:10,overflow:'hidden',marginBottom:20}}>
-              <div style={{background:'#fffbeb',borderBottom:'1px solid var(--primary-100)',padding:'9px 16px',fontSize:12.5,color:'#92400e',fontStyle:'italic',textAlign:'center'}}>
-                In case, if you have more site's, kindly fill this annexure per site.
-              </div>
               <div style={{background:'#e8f0fe',borderBottom:'1px solid var(--primary-200)',padding:'11px 16px',fontSize:12.5,fontWeight:600,color:'#1e3a5f',textAlign:'center',lineHeight:1.5}}>
                 Application submission: I declare that above information is true as per my best knowledge &amp; QCC can use for ISO Certification purposes
               </div>
@@ -1207,6 +1204,9 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
             <div className="form-group">
               <label className="form-label">Internal Notes (Admin only)</label>
               <textarea className="form-control" rows={3} placeholder="Any internal notes…" value={data.adminNotes||''} onChange={e=>set('adminNotes',e.target.value)}/>
+              <div style={{marginTop:8,fontSize:11.5,fontStyle:'italic',color:'var(--gray-600)'}}>
+                <b style={{fontStyle:'normal',color:'var(--gray-700)'}}>Note:</b> In case, if you have more site&rsquo;s, kindly fill this annexure per site.
+              </div>
             </div>
           </SecCard>
 

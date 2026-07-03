@@ -27,10 +27,12 @@ function AuditTypeFetcher({ clientInfo, data, set }) {
         if (mapped) set('auditType', mapped);
         if (fd.onlineMeetingLink && !(data.onlineMeetingLink && String(data.onlineMeetingLink).trim())) set('onlineMeetingLink', fd.onlineMeetingLink);
 
-        // Auditor(s) approved for Stage 1 — names of team members assigned Stage-1 man-days
+        // Auditor(s) approved for Stage 1 — the Lead Auditor / Auditor names from
+        // F02's Audit Team Details (other roles are skipped), filled when blank here.
         const blank = v => !(v && String(v).trim());
+        const AUDITOR_ROLES = ['Lead Auditor', 'Auditor'];
         const stage1Auditors = (fd.auditTeam || [])
-          .filter(a => a && a.name && String(a.name).trim() && a.stage1Days && String(a.stage1Days).trim() && String(a.stage1Days).trim() !== '0')
+          .filter(a => a && AUDITOR_ROLES.includes(a.role) && a.name && String(a.name).trim())
           .map(a => String(a.name).trim());
         if (stage1Auditors.length && blank(data.auditorNames)) set('auditorNames', stage1Auditors.join(', '));
 

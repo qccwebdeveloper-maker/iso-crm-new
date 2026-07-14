@@ -1520,7 +1520,11 @@ select.qms-inp { cursor: pointer; }
   margin: 4px 12px 0; padding: 10px 12px; font-size: 12.5px; font-weight: 800; letter-spacing: .02em;
   color: var(--primary-dark); background: var(--primary-50); border: 1px solid var(--primary-100); border-radius: 8px 8px 0 0;
 }
-.aud3-ctl-table { min-width: 640px; }
+.aud3-ctl-split { display: flex; align-items: flex-start; gap: 16px; }
+.aud3-ctl-split .aud3-ctl-table { flex: 1 1 0; }
+.aud3-ctl-table { min-width: 460px; }
+.aud3-ctl-table thead th.col-area { min-width: 60px; text-align: center; }
+.aud3-ctl-table td.area { text-align: center; }
 .aud3-grouphead td {
   text-align: left; background: var(--gray-100); color: var(--gray-600); font-size: 11px; font-weight: 800;
   letter-spacing: .04em; text-transform: uppercase; padding: 7px 12px; border-bottom: 1px solid var(--gray-200);

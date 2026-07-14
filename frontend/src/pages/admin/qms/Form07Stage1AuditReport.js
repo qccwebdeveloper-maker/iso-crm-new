@@ -29,6 +29,66 @@ const REC_OPTS = [
 ];
 const CONFORMITY = ['C','NC','O','OFI','N/A'];
 
+/* ISO/IEC 27001 Annex A — Information Security Controls appendix, matching the
+   fixed "Information Security Controls" sheet on the AUD-F-09 template (93 controls). */
+const INFO_SEC_CONTROLS = [
+  { group: 'A.5 Organizational Controls', items: [
+    ['5.1','Policies for information security'], ['5.2','Information security roles and responsibilities'],
+    ['5.3','Segregation of duties'], ['5.4','Management responsibilities'],
+    ['5.5','Contact with authorities'], ['5.6','Contact with special interest groups'],
+    ['5.7','Threat intelligence'], ['5.8','Information security in project management'],
+    ['5.9','Inventory of information and other associated assets'], ['5.10','Acceptable use of information and other associated assets'],
+    ['5.11','Return of assets'], ['5.12','Classification of information'],
+    ['5.13','Labelling of information'], ['5.14','Information transfer'],
+    ['5.15','Access control'], ['5.16','Identity management'],
+    ['5.17','Authentication information'], ['5.18','Access rights'],
+    ['5.19','Information security in supplier relationships'], ['5.20','Addressing information security within supplier agreements'],
+    ['5.21','Managing information security in the information and communication technology (ICT) supply chain'], ['5.22','Monitoring, review and change management of supplier services'],
+    ['5.23','Information security for use of cloud services'], ['5.24','Information security incident management planning and preparation'],
+    ['5.25','Assessment and decision on information security events'], ['5.26','Response to information security incidents'],
+    ['5.27','Learning from information security incidents'], ['5.28','Collection of evidence'],
+    ['5.29','Information security during disruption'], ['5.30','ICT readiness for business continuity'],
+    ['5.31','Legal, statutory, regulatory and contractual requirements'], ['5.32','Intellectual property rights'],
+    ['5.33','Protection of records'], ['5.34','Privacy and protection of personal identifiable information (PII)'],
+    ['5.35','Independent review of information security'], ['5.36','Compliance with policies, rules and standards for information security'],
+    ['5.37','Documented operating procedures'],
+  ]},
+  { group: '6 Peoples Controls', items: [
+    ['6.1','Screening'], ['6.2','Terms and conditions of employment'],
+    ['6.3','Information security awareness, education and training'], ['6.4','Disciplinary process'],
+    ['6.5','Responsibilities after termination or change of employment'], ['6.6','Confidentiality or non-disclosure agreements'],
+    ['6.7','Remote working'], ['6.8','Information security event reporting'],
+  ]},
+  { group: '7.0 Physical Controls', items: [
+    ['7.1','Physical security perimeters'], ['7.2','Physical entry'],
+    ['7.3','Securing offices, rooms and facilities'], ['7.4','Physical security monitoring'],
+    ['7.5','Protecting against physical and environmental threats'], ['7.6','Working in secure areas'],
+    ['7.7','Clear desk and clear screen'], ['7.8','Equipment siting and protection'],
+    ['7.9','Security of assets off-premises'], ['7.10','Storage media'],
+    ['7.11','Supporting utilities'], ['7.12','Cabling security'],
+    ['7.13','Equipment maintenance'], ['7.14','Secure disposal or re-use of equipment'],
+  ]},
+  { group: '8. Technological controls', items: [
+    ['8.1','User end point devices'], ['8.2','Privileged access rights'],
+    ['8.3','Information access restriction'], ['8.4','Access to source code'],
+    ['8.5','Secure authentication'], ['8.6','Capacity management'],
+    ['8.7','Protection against malware'], ['8.8','Management of technical vulnerabilities'],
+    ['8.9','Configuration management'], ['8.10','Information deletion'],
+    ['8.11','Data masking'], ['8.12','Data leakage prevention'],
+    ['8.13','Information backup'], ['8.14','Redundancy of information processing facilities'],
+    ['8.15','Logging'], ['8.16','Monitoring activities'],
+    ['8.17','Clock synchronization'], ['8.18','Use of privileged utility programs'],
+    ['8.19','Installation of software on operational systems'], ['8.20','Networks security'],
+    ['8.21','Security of network services'], ['8.22','Segregation of networks'],
+    ['8.23','Web filtering'], ['8.24','Use of cryptography'],
+    ['8.25','Secure development life cycle'], ['8.26','Application security requirements'],
+    ['8.27','Secure system architecture and engineering principles'], ['8.28','Secure coding'],
+    ['8.29','Security testing in development and acceptance'], ['8.30','Outsourced development'],
+    ['8.31','Separation of development, test and production environments'], ['8.32','Change management'],
+    ['8.33','Test information'], ['8.34','Protection of information systems during audit testing'],
+  ]},
+];
+
 const ISMS_REVIEW_QUESTIONS = [
   'Are complex controls such as cryptography, cloud security, network security, access control, backup and monitoring reviewed for audit planning?',
   'Has the organization clearly defined the type of activity or process covered under the ISMS?',
@@ -91,6 +151,9 @@ The audit objectives include:
   // Stage-1 checklist is kept per selected standard:
   //   { [standardName]: [ { clause, description, conformity, finding }, ... ] }
   checklists: {},
+  // Information Security Controls (ISO/IEC 27001 Annex A appendix), per selected standard:
+  //   { [standardName]: { [clauseNo]: { conformity, finding } } }
+  iscChecklists: {},
 };
 
 export default function Form07Stage1AuditReport() {
@@ -189,6 +252,12 @@ function Stage1ReportBody({ data, set, clientInfo }) {
   const setObs  = (ri, k, v) => { const t=[...(data.observationList||[])]; t[ri]={...t[ri],[k]:v}; set('observationList',t); };
   const setOFI  = (ri, k, v) => { const t=[...(data.ofiList||[])]; t[ri]={...t[ri],[k]:v}; set('ofiList',t); };
   const setCL   = (name, ri, k, v) => { const t=[...(checklists[name]||[])]; t[ri]={...t[ri],[k]:v}; set('checklists',{...checklists,[name]:t}); };
+  const iscChecklists = data.iscChecklists || {};
+  const setISC  = (name, no, k, v) => {
+    const forStd = { ...(iscChecklists[name] || {}) };
+    forStd[no] = { ...(forStd[no] || {}), [k]: v };
+    set('iscChecklists', { ...iscChecklists, [name]: forStd });
+  };
   return (
           <div>
             <SectionTitle>1. Organization & Audit Details</SectionTitle>
@@ -439,6 +508,58 @@ function Stage1ReportBody({ data, set, clientInfo }) {
                                         style={{ padding: '8px 10px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', width: '100%', resize: 'none', overflow: 'hidden', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }} />
                                     </td>
                                   </tr>
+                                </React.Fragment>
+                              ))}
+                            </tbody>
+                          </table>
+
+                          {/* Information Security Controls (ISO/IEC 27001 Annex A) — fixed
+                              appendix matching the AUD-F-09 "Information Security Controls" sheet. */}
+                          <div style={{ marginTop: 20, fontSize: 12.5, fontWeight: 800, color: 'var(--primary-dark)', background: 'var(--primary-50)', border: '1px solid var(--primary-100)', borderRadius: '8px 8px 0 0', padding: '10px 12px' }}>
+                            Information Security Controls
+                          </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                            <thead>
+                              <tr style={{ background: '#f8fafc' }}>
+                                {['Clause','Description','C/NC/O/OFI'].map(h => (
+                                  <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0' }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {INFO_SEC_CONTROLS.map(section => (
+                                <React.Fragment key={section.group}>
+                                  <tr>
+                                    <td colSpan={3} style={{ padding: '7px 10px', textAlign: 'left', background: '#f1f5f9', color: '#475569', fontSize: 11, fontWeight: 800, letterSpacing: '.02em', borderBottom: '1px solid #e2e8f0' }}>{section.group}</td>
+                                  </tr>
+                                  {section.items.map(([no, text]) => {
+                                    const cv = (iscChecklists[name] || {})[no] || {};
+                                    return (
+                                      <React.Fragment key={no}>
+                                        <tr style={{ background: 'white' }}>
+                                          <td style={{ padding: '6px 10px', fontWeight: 600, color: 'var(--primary-dark)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{no}</td>
+                                          <td style={{ padding: '6px 10px', fontSize: 12, whiteSpace: 'pre-line', lineHeight: 1.55, minWidth: 220, verticalAlign: 'top' }}>{text}</td>
+                                          <td style={{ padding: '6px 8px', verticalAlign: 'top' }}>
+                                            <select value={cv.conformity || 'N/A'} onChange={e => setISC(name, no, 'conformity', e.target.value)}
+                                              style={{ padding: '4px 6px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', background: 'white' }}>
+                                              {CONFORMITY.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                          </td>
+                                        </tr>
+                                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                          <td colSpan={3} style={{ padding: '0 10px 10px' }}>
+                                            <textarea value={cv.finding || ''}
+                                              onChange={e => setISC(name, no, 'finding', e.target.value)}
+                                              onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+                                              ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                                              rows={2}
+                                              placeholder="Finding / evidence / notes..."
+                                              style={{ padding: '8px 10px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', width: '100%', resize: 'none', overflow: 'hidden', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }} />
+                                          </td>
+                                        </tr>
+                                      </React.Fragment>
+                                    );
+                                  })}
                                 </React.Fragment>
                               ))}
                             </tbody>

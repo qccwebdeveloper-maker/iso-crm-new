@@ -114,8 +114,30 @@ const CONTROL_STAGES = [
   { id: 'ra',     label: 'Recertification (RA)' },
 ];
 
-/* ISO/IEC 27001 is the only standard with an Annex A control set. */
-const isIsms = (stdKey) => /27001/.test(String(stdKey || ''));
+/* The AUD-F-03A "Information Security Controls" sheet prints the 93 controls
+   as two side-by-side Clause|Stage-1|Stage-2|SA1|SA2|RA blocks (a print-width
+   trick — 48 controls left, 45 right, splitting mid "Physical Controls").
+   Reproduce that exact split here instead of one long vertical list. */
+function splitControls(sections, at) {
+  let seen = 0;
+  const left = [];
+  const right = [];
+  for (const section of sections) {
+    const remaining = at - seen;
+    if (remaining <= 0) {
+      right.push(section);
+    } else if (section.items.length <= remaining) {
+      left.push(section);
+      seen += section.items.length;
+    } else {
+      left.push({ group: section.group, items: section.items.slice(0, remaining) });
+      right.push({ group: section.group, items: section.items.slice(remaining) });
+      seen += remaining;
+    }
+  }
+  return [left, right];
+}
+const [ANNEX_A_LEFT, ANNEX_A_RIGHT] = splitControls(ANNEX_A_CONTROLS, 48);
 
 const blankStd = () => ({ open: true, cols: COLUMNS.map(c => c.id), values: {}, notes: {}, controls: {} });
 
@@ -317,60 +339,65 @@ function StandardCard({ stdKey, meta, st, setStd }) {
             </table>
           </div>
 
-          {/* Information Security Controls (ISO/IEC 27001 Annex A) */}
-          {isIsms(stdKey) && (
-            <>
-              <div className="aud3-ctl-hd">Information Security Controls</div>
-              <div className="aud3-tscroll">
-                <table className="aud3-table aud3-ctl-table">
-                  <thead>
-                    <tr>
-                      <th className="col-area">Clause</th>
-                      {CONTROL_STAGES.map(s => (
-                        <th key={s.id} className="aud3-colhead col-check">{s.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ANNEX_A_CONTROLS.map(section => (
-                      <React.Fragment key={section.group}>
-                        <tr className="aud3-grouphead">
-                          <td colSpan={1 + CONTROL_STAGES.length}>{section.group}</td>
-                        </tr>
-                        {section.items.map(([no, text]) => {
-                          const cv = st.controls[no] || {};
-                          return (
-                            <tr key={no}>
-                              <td className="area">
-                                <div className="aud3-clause">
-                                  <span className="aud3-cnum">{no}</span>
-                                  <span><span className="aud3-ct">{text}</span></span>
-                                </div>
-                              </td>
-                              {CONTROL_STAGES.map(s => (
-                                <td key={s.id} className="col-check">
-                                  <input
-                                    type="checkbox"
-                                    className="aud3-cbx"
-                                    checked={!!cv[s.id]}
-                                    onChange={e => setControlCheck(no, s.id, e.target.checked)}
-                                    aria-label={`${no} — ${s.label}`}
-                                  />
-                                </td>
-                              ))}
-                            </tr>
-                          );
-                        })}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+          {/* Information Security Controls (ISO/IEC 27001 Annex A) — shown on every
+              standard's accordion, matching the fixed appendix on the AUD-F-03A sheet.
+              Reproduced as the same two side-by-side blocks the source sheet prints. */}
+          <div className="aud3-ctl-hd">Information Security Controls</div>
+          <div className="aud3-tscroll">
+            <div className="aud3-ctl-split">
+              <ControlsBlock sections={ANNEX_A_LEFT} controls={st.controls} onCheck={setControlCheck} />
+              <ControlsBlock sections={ANNEX_A_RIGHT} controls={st.controls} onCheck={setControlCheck} />
+            </div>
+          </div>
         </div>
       )}
     </section>
+  );
+}
+
+/* One Clause|Stage-1|Stage-2|SA1|SA2|RA block of the Annex A controls table. */
+function ControlsBlock({ sections, controls, onCheck }) {
+  return (
+    <table className="aud3-table aud3-ctl-table">
+      <thead>
+        <tr>
+          <th className="col-area">Clause</th>
+          {CONTROL_STAGES.map(s => (
+            <th key={s.id} className="aud3-colhead col-check">{s.label}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {sections.map(section => (
+          <React.Fragment key={section.group}>
+            <tr className="aud3-grouphead">
+              <td colSpan={1 + CONTROL_STAGES.length}>{section.group}</td>
+            </tr>
+            {section.items.map(([no, text]) => {
+              const cv = controls[no] || {};
+              return (
+                <tr key={no} title={text}>
+                  <td className="area">
+                    <span className="aud3-cnum">{no}</span>
+                  </td>
+                  {CONTROL_STAGES.map(s => (
+                    <td key={s.id} className="col-check">
+                      <input
+                        type="checkbox"
+                        className="aud3-cbx"
+                        checked={!!cv[s.id]}
+                        onChange={e => onCheck(no, s.id, e.target.checked)}
+                        aria-label={`${no} — ${s.label}`}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

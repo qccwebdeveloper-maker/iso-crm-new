@@ -61,8 +61,14 @@ router.post('/', protect, authorize('admin', 'sales'), async (req, res) => {
     if (!name || !email || !password || !role) {
       return res.status(400).json({ message: 'Name, email, password and role are required' });
     }
-    const exists = await User.findOne({ email: email.toLowerCase().trim() });
-    if (exists) return res.status(400).json({ message: 'Email already in use' });
+    // Staff accounts (admin/sales/auditor/reviewer) log in by email, so those must
+    // stay unique. Clients also have a unique Client ID to log in with, so the same
+    // email can be reused across multiple client records (e.g. one contact managing
+    // several certifications) — each new one just gets its own Client ID.
+    if (role !== 'client') {
+      const exists = await User.findOne({ email: email.toLowerCase().trim() });
+      if (exists) return res.status(400).json({ message: 'Email already in use' });
+    }
 
     const clientId = role === 'client' ? await generateClientId() : undefined;
     const hashed   = await hashPassword(password);

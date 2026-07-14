@@ -32,8 +32,11 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Default body-parser limit is 100kb, which is too small for QMS forms with long,
+// free-typed audit findings across many clauses — raise it so there's no practical
+// limit on how much an auditor can write.
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use('/uploads', express.static(uploadsDir));
 
 // ── Routes ──────────────────────────────────────────

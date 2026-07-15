@@ -77,7 +77,7 @@ function Form04Inner({ data, set, clientInfo }) {
           { key: 'name',      label: 'Name',      minWidth: 160 },
           { key: 'role',      label: 'Role',      type: 'select', options: ROLES },
           { key: 'date',      label: 'Date',      type: 'date' },
-          { key: 'signature', label: 'Signature (Text)', minWidth: 160 },
+          { key: 'signature', label: 'Signature', type: 'signature', minWidth: 220 },
         ]}
         rows={data.signatories || []}
         onAdd={() => set('signatories', [...(data.signatories || []), { ...EMPTY_SIG }])}

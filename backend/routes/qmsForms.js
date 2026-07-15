@@ -1,9 +1,25 @@
 const express  = require('express');
 const router   = express.Router();
+const multer   = require('multer');
+const fs       = require('fs');
+const path     = require('path');
 const QMSForm     = require('../models/QMSForm');
 const User        = require('../models/User');
 const Application = require('../models/Application');
 const { protect, authorize } = require('../middleware/auth');
+const { uploadToS3 } = require('../utils/s3');
+
+const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const signatureUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpe?g)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Signature must be a PNG or JPG image'), false);
+  },
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+});
 
 // GET /api/qms-forms?formType=1&status=draft
 router.get('/', protect, authorize('admin'), async (req, res) => {
@@ -113,6 +129,25 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
     console.error('[POST /api/qms-forms]', err.message);
     res.status(500).json({ message: err.message });
   }
+});
+
+// POST /api/qms-forms/upload-signature — upload a signature image (PNG/JPG), returns { url }
+router.post('/upload-signature', protect, authorize('admin'), signatureUpload.single('signature'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+    let url;
+    try {
+      const result = await uploadToS3(req.file.buffer, 'iso-crm/signatures', req.file.originalname, req.file.mimetype);
+      url = result.secure_url;
+    } catch (cloudErr) {
+      console.warn('S3 unavailable, saving signature to local disk:', cloudErr.message);
+      const safeName = `${Date.now()}-${req.file.originalname.replace(/\s+/g, '_')}`;
+      fs.writeFileSync(path.join(UPLOADS_DIR, safeName), req.file.buffer);
+      url = `/uploads/${safeName}`;
+    }
+    res.json({ url });
+  } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
 // ─── Client self-service: a client can only read/write their OWN form ───

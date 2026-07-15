@@ -214,10 +214,18 @@ export function StandardChips({ value }) {
 
 // Signature cell: upload a PNG/JPG (stored server-side, e.g. S3), show a thumbnail once
 // set, and allow replace/remove. Read-only (preview/print) just renders the image.
+// Forms saved before this feature existed may have a plain typed name in the
+// signature field instead of an uploaded image — only treat it as an image if it
+// actually looks like one of our upload paths.
+const looksLikeSignatureUrl = v => /^(https?:\/\/|\/uploads\/|\/api\/files\/)/i.test(v || '');
+
 function SignatureCell({ value, onChange, disabled }) {
   const [uploading, setUploading] = useState(false);
   const [zoomed, setZoomed] = useState(false);
+  const [imgBroken, setImgBroken] = useState(false);
   const inputRef = useRef(null);
+
+  useEffect(() => { setImgBroken(false); }, [value]);
 
   const handleFile = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -260,13 +268,14 @@ function SignatureCell({ value, onChange, disabled }) {
     </div>
   );
 
-  if (value) {
+  if (value && looksLikeSignatureUrl(value) && !imgBroken) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <img
           src={value}
           alt="Signature"
           onClick={() => setZoomed(true)}
+          onError={() => setImgBroken(true)}
           title="Click to preview"
           style={{ height: 46, width: 'auto', maxWidth: 150, objectFit: 'contain', objectPosition: 'left center', border: '1px solid var(--gray-200)', borderRadius: 4, background: 'white', cursor: 'pointer', pointerEvents: 'auto' }}
         />
@@ -282,6 +291,36 @@ function SignatureCell({ value, onChange, disabled }) {
           </>
         )}
         {lightbox && createPortal(lightbox, document.body)}
+      </div>
+    );
+  }
+
+  // Legacy plain-text signature (typed before this feature existed) or an image
+  // URL that failed to load (e.g. deleted/unreachable file) — show the raw text
+  // instead of a broken-image icon, with the option to replace it with a real upload.
+  if (value) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <span
+          title={value}
+          style={{
+            fontSize: 12, fontStyle: 'italic', color: 'var(--gray-600)',
+            maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}
+        >
+          {imgBroken ? '(image unavailable)' : value}
+        </span>
+        {!disabled && (
+          <>
+            <button type="button" onClick={() => inputRef.current?.click()} className="qms-del-row-btn" title="Upload signature image" style={{ color: 'var(--primary)' }}>
+              <FiUpload size={12} />
+            </button>
+            <button type="button" onClick={() => onChange('')} className="qms-del-row-btn" title="Remove signature">
+              <FiX size={12} />
+            </button>
+            <input ref={inputRef} type="file" accept="image/png,image/jpeg" onChange={handleFile} style={{ display: 'none' }} />
+          </>
+        )}
       </div>
     );
   }

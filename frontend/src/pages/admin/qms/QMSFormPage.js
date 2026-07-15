@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../../../components/common/Layout';
@@ -7,7 +8,7 @@ import useStandards from './useStandards';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
-  FiEye, FiPrinter, FiMoreVertical,
+  FiEye, FiPrinter, FiMoreVertical, FiUpload,
 } from 'react-icons/fi';
 
 const STATUS_META = {
@@ -211,6 +212,98 @@ export function StandardChips({ value }) {
   );
 }
 
+// Signature cell: upload a PNG/JPG (stored server-side, e.g. S3), show a thumbnail once
+// set, and allow replace/remove. Read-only (preview/print) just renders the image.
+function SignatureCell({ value, onChange, disabled }) {
+  const [uploading, setUploading] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
+  const inputRef = useRef(null);
+
+  const handleFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('signature', file);
+      const { data } = await axios.post('/api/qms-forms/upload-signature', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onChange(data.url);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Signature upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const lightbox = zoomed && (
+    <div
+      onClick={() => setZoomed(false)}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(15,23,42,.72)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      }}
+    >
+      <div style={{ background: 'white', borderRadius: 12, padding: 16, maxWidth: '90vw', maxHeight: '90vh', boxShadow: '0 20px 50px rgba(0,0,0,.3)' }}>
+        <img src={value} alt="Signature preview" style={{ maxWidth: '80vw', maxHeight: '78vh', objectFit: 'contain', display: 'block' }} />
+        <button
+          type="button"
+          onClick={() => setZoomed(false)}
+          className="btn btn-ghost btn-sm"
+          style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+        >
+          <FiX size={13} /> Close
+        </button>
+      </div>
+    </div>
+  );
+
+  if (value) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <img
+          src={value}
+          alt="Signature"
+          onClick={() => setZoomed(true)}
+          title="Click to preview"
+          style={{ height: 46, width: 'auto', maxWidth: 150, objectFit: 'contain', objectPosition: 'left center', border: '1px solid var(--gray-200)', borderRadius: 4, background: 'white', cursor: 'pointer', pointerEvents: 'auto' }}
+        />
+        {!disabled && (
+          <>
+            <button type="button" onClick={() => inputRef.current?.click()} className="qms-del-row-btn" title="Replace signature" style={{ color: 'var(--primary)' }}>
+              <FiEdit2 size={12} />
+            </button>
+            <button type="button" onClick={() => onChange('')} className="qms-del-row-btn" title="Remove signature">
+              <FiX size={12} />
+            </button>
+            <input ref={inputRef} type="file" accept="image/png,image/jpeg" onChange={handleFile} style={{ display: 'none' }} />
+          </>
+        )}
+        {lightbox && createPortal(lightbox, document.body)}
+      </div>
+    );
+  }
+
+  if (disabled) {
+    return <span style={{ color: 'var(--gray-400)', fontSize: 12 }}>—</span>;
+  }
+
+  return (
+    <label
+      className="qms-dyn-inp"
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        cursor: uploading ? 'default' : 'pointer', minWidth: 120, color: 'var(--gray-500)', fontSize: 12,
+      }}
+    >
+      {uploading ? 'Uploading…' : <><FiUpload size={12} /> Upload</>}
+      <input type="file" accept="image/png,image/jpeg" onChange={handleFile} disabled={uploading} style={{ display: 'none' }} />
+    </label>
+  );
+}
+
 export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellChange, disabled, hideAdd, hideRemove, addLabel = 'Add Row' }) {
   const inlineCols   = columns.filter(c => !c.fullRow);
   const fullRowCols  = columns.filter(c => c.fullRow);
@@ -247,6 +340,15 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellCha
   };
 
   const renderField = (c, row, ri, full) => {
+    if (c.type === 'signature') {
+      return (
+        <SignatureCell
+          value={row[c.key] || ''}
+          onChange={val => onCellChange(ri, c.key, val)}
+          disabled={disabled}
+        />
+      );
+    }
     if (c.type === 'select') {
       return (
         <select

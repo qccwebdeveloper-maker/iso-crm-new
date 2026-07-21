@@ -219,7 +219,7 @@ export function StandardChips({ value }) {
 // actually looks like one of our upload paths.
 const looksLikeSignatureUrl = v => /^(https?:\/\/|\/uploads\/|\/api\/files\/)/i.test(v || '');
 
-function SignatureCell({ value, onChange, disabled }) {
+function SignatureCell({ value, onChange, disabled, emptyLabel }) {
   const [uploading, setUploading] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [imgBroken, setImgBroken] = useState(false);
@@ -326,7 +326,7 @@ function SignatureCell({ value, onChange, disabled }) {
   }
 
   if (disabled) {
-    return <span style={{ color: 'var(--gray-400)', fontSize: 12 }}>—</span>;
+    return <span style={{ color: 'var(--gray-400)', fontSize: 12, fontStyle: emptyLabel ? 'italic' : 'normal' }}>{emptyLabel || '—'}</span>;
   }
 
   return (
@@ -384,7 +384,8 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellCha
         <SignatureCell
           value={row[c.key] || ''}
           onChange={val => onCellChange(ri, c.key, val)}
-          disabled={disabled}
+          disabled={disabled || c.readOnly}
+          emptyLabel={c.readOnly ? 'No signature on file' : undefined}
         />
       );
     }

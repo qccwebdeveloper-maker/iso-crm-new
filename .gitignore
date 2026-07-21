@@ -31,3 +31,6 @@ Thumbs.db
 
 # Uploads (runtime data)
 backend/uploads/
+
+# Excel lock files (created while a workbook is open)
+~$*.xlsx

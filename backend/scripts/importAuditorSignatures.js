@@ -22,6 +22,7 @@ const mongoose = require('mongoose');
 
 const connectDB = require('../config/db');
 const AuditorSignature = require('../models/AuditorSignature');
+const { uploadToS3 } = require('../utils/s3');
 
 // Some signatures were pasted into Excel as an embedded OLE object rather than a
 // plain picture, and their preview image is a legacy .wmf/.emf (Windows Metafile)
@@ -191,15 +192,22 @@ function main() {
           }
         }
         if (buf) {
+          const mimetype = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
           const safeName = `${Date.now()}-${name.replace(/\s+/g, '_').replace(/[^\w.-]/g, '')}${ext}`;
-          // Written into the tracked `assets/` folder (not `uploads/`, and not S3)
-          // so the image ships with the deployed code itself. This is bulk-imported
-          // *roster* data, not a runtime user upload — S3 or local /uploads would
-          // both leave it depending on either credentials being set wherever this
-          // script runs, or a disk that survives the next deploy. Neither is
-          // guaranteed, and got it wrong the first time around.
-          fs.writeFileSync(path.join(ASSETS_DIR, safeName), buf);
-          signatureUrl = `/assets/auditor-signatures/${safeName}`;
+          // Signatures now live in S3 — the same store every other upload in the
+          // app (and the admin "Auditor Signatures" page) uses — so this bulk
+          // import and a one-by-one admin upload end up served identically. If
+          // this script is run somewhere without AWS credentials, fall back to
+          // the tracked `assets/` folder so the image still ships with the
+          // deployed code rather than being silently dropped.
+          try {
+            const result = await uploadToS3(buf, 'iso-crm/auditor-signatures', safeName, mimetype);
+            signatureUrl = result.secure_url;
+          } catch (s3Err) {
+            console.warn(`  ⚠ ${name}: S3 upload failed (${s3Err.message}) — saving to tracked assets/ instead`);
+            fs.writeFileSync(path.join(ASSETS_DIR, safeName), buf);
+            signatureUrl = `/assets/auditor-signatures/${safeName}`;
+          }
           withImage++;
         }
       }

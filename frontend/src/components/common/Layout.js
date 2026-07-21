@@ -8,7 +8,7 @@ import {
   FiStar, FiMessageSquare, FiAward, FiFolder, FiSettings, FiPlus,
   FiCamera, FiTarget, FiTrendingUp, FiUserCheck, FiBookOpen,
   FiSend, FiAlertTriangle, FiChevronDown, FiActivity,
-  FiSearch, FiCreditCard, FiClipboard, FiDownload
+  FiSearch, FiCreditCard, FiClipboard, FiDownload, FiPenTool
 } from 'react-icons/fi';
 
 
@@ -21,6 +21,7 @@ const NAV = {
     { sec: 'Master', collapsible: true, key: 'master', items: [
       { to: '/admin/standards',     icon: FiBookOpen,   label: 'Standards' },
       { to: '/admin/auditors',      icon: FiClipboard,  label: 'Auditors' },
+      { to: '/admin/auditor-signatures', icon: FiPenTool, label: 'Auditor Signatures' },
       { to: '/admin/users',         icon: FiUsers,      label: 'Users' },
       { to: '/admin/roles',         icon: MdShield,     label: 'Roles' },
     ]},

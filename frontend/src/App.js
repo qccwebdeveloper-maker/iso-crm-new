@@ -15,6 +15,7 @@ import AdminNewApplication   from './pages/admin/NewApplication';
 import AdminUsers            from './pages/admin/Users';
 import AdminUserDetail       from './pages/admin/UserDetail';
 import AdminAuditors         from './pages/admin/Auditors';
+import AdminAuditorSignatures from './pages/admin/AuditorSignatures';
 import AdminReports          from './pages/admin/AdminReports';
 import AdminFeedback         from './pages/admin/Feedback';
 import AdminLeads            from './pages/admin/Leads';
@@ -118,6 +119,7 @@ function AppRoutes() {
       <Route path="/admin/users"             element={<ProtectedRoute roles={['admin']}><AdminUsers /></ProtectedRoute>} />
       <Route path="/admin/users/:id"         element={<ProtectedRoute roles={['admin']}><AdminUserDetail /></ProtectedRoute>} />
       <Route path="/admin/auditors"          element={<ProtectedRoute roles={['admin']}><AdminAuditors /></ProtectedRoute>} />
+      <Route path="/admin/auditor-signatures" element={<ProtectedRoute roles={['admin']}><AdminAuditorSignatures /></ProtectedRoute>} />
       <Route path="/admin/reports"           element={<ProtectedRoute roles={['admin']}><AdminAnalysisReports /></ProtectedRoute>} />
       <Route path="/admin/admin-reports"     element={<ProtectedRoute roles={['admin']}><AdminReports /></ProtectedRoute>} />
       <Route path="/admin/feedback"          element={<ProtectedRoute roles={['admin']}><AdminFeedback /></ProtectedRoute>} />

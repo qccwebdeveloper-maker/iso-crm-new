@@ -22,7 +22,6 @@ const mongoose = require('mongoose');
 
 const connectDB = require('../config/db');
 const AuditorSignature = require('../models/AuditorSignature');
-const { uploadToS3 } = require('../utils/s3');
 
 // Some signatures were pasted into Excel as an embedded OLE object rather than a
 // plain picture, and their preview image is a legacy .wmf/.emf (Windows Metafile)
@@ -57,8 +56,8 @@ function convertLegacyMetafileToPng(buf) {
 }
 
 const SHEET_NAME = 'List-03';
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+const ASSETS_DIR = path.join(__dirname, '..', 'assets', 'auditor-signatures');
+if (!fs.existsSync(ASSETS_DIR)) fs.mkdirSync(ASSETS_DIR, { recursive: true });
 
 const xlsxPath = process.argv[2]
   ? path.resolve(process.argv[2])
@@ -192,15 +191,15 @@ function main() {
           }
         }
         if (buf) {
-          const mimetype = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
           const safeName = `${Date.now()}-${name.replace(/\s+/g, '_').replace(/[^\w.-]/g, '')}${ext}`;
-          try {
-            const result = await uploadToS3(buf, 'iso-crm/auditor-signatures', safeName, mimetype);
-            signatureUrl = result.secure_url;
-          } catch {
-            fs.writeFileSync(path.join(UPLOADS_DIR, safeName), buf);
-            signatureUrl = `/uploads/${safeName}`;
-          }
+          // Written into the tracked `assets/` folder (not `uploads/`, and not S3)
+          // so the image ships with the deployed code itself. This is bulk-imported
+          // *roster* data, not a runtime user upload — S3 or local /uploads would
+          // both leave it depending on either credentials being set wherever this
+          // script runs, or a disk that survives the next deploy. Neither is
+          // guaranteed, and got it wrong the first time around.
+          fs.writeFileSync(path.join(ASSETS_DIR, safeName), buf);
+          signatureUrl = `/assets/auditor-signatures/${safeName}`;
           withImage++;
         }
       }

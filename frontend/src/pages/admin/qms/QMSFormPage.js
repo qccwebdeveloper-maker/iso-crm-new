@@ -217,7 +217,7 @@ export function StandardChips({ value }) {
 // Forms saved before this feature existed may have a plain typed name in the
 // signature field instead of an uploaded image — only treat it as an image if it
 // actually looks like one of our upload paths.
-const looksLikeSignatureUrl = v => /^(https?:\/\/|\/uploads\/|\/api\/files\/)/i.test(v || '');
+const looksLikeSignatureUrl = v => /^(https?:\/\/|\/uploads\/|\/assets\/|\/api\/files\/)/i.test(v || '');
 
 function SignatureCell({ value, onChange, disabled, emptyLabel }) {
   const [uploading, setUploading] = useState(false);

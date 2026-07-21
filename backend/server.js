@@ -14,6 +14,11 @@ const app = express();
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
+// Static, version-controlled assets (e.g. the imported auditor-signature roster
+// images) — unlike /uploads, this ships with the deployed code itself, so it
+// survives every deploy/restart on hosts with an ephemeral filesystem.
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
+
 const allowedOrigins = [
   'https://iso-crm-new-r6ca.vercel.app',
   'http://crm.qccertification.com',

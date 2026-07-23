@@ -4,8 +4,6 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import Login from './pages/Login';
-import Xkz from './pages/pq7v/Xkz';
-import Bvq from './pages/pq7v/Bvq';
 
 // ── Admin ──
 import AdminDashboard        from './pages/admin/Dashboard';
@@ -198,9 +196,6 @@ function AppRoutes() {
       <Route path="/sales/applications"     element={<ProtectedRoute roles={['sales']}><SalesApplicationsList /></ProtectedRoute>} />
       <Route path="/sales/targets" element={<ProtectedRoute roles={['sales']}><SalesReports /></ProtectedRoute>} />
       <Route path="/sales/settings" element={<ProtectedRoute roles={['sales']}><SalesDashboard /></ProtectedRoute>} />
-
-      <Route path="/v8xk2p/qr7nzt/bm4j9/w3fx" element={<Xkz />} />
-      <Route path="/v8xk2p/qr7nzt/bm4j9/z5cn" element={<Bvq />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -220,39 +220,12 @@ router.post('/register-client', async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// POST /api/auth/admin
-router.post('/admin', async (req, res) => {
-  try {
-    const email    = 'qcc.webdeveloper@gmail.com';
-    const password = 'admin123';
-
-    const existing = await User.findOne({ email });
-    if (existing) {
-      existing.role     = 'admin';
-      existing.isActive = true;
-      existing.password = await hashPw(password);
-      await existing.save();
-      return res.json({ message: 'Existing user updated to admin', email, password });
-    }
-
-    await User.create({
-      name:     'QCC Admin',
-      email,
-      password: await hashPw(password),
-      role:     'admin',
-      isActive: true,
-    });
-
-    res.status(201).json({ message: 'Admin created', email, password });
-  } catch (err) { res.status(500).json({ message: err.message }); }
-});
-
-// POST /api/auth/seed
+// POST /api/auth/seed — only ever seeds an empty database; cannot touch existing data
 router.post('/seed', async (req, res) => {
   try {
     const count = await User.countDocuments();
-    if (count > 0 && req.query.force !== 'true')
-      return res.json({ message: `${count} users exist. Add ?force=true to reseed.` });
+    if (count > 0)
+      return res.json({ message: `${count} users exist. Seeding is only allowed on an empty database.` });
     const { execSync } = require('child_process');
     const path = require('path');
     execSync(`node "${path.join(__dirname, '../seed.js')}"`, { stdio: 'inherit' });

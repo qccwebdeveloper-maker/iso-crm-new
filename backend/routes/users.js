@@ -89,7 +89,7 @@ router.post('/', protect, authorize('admin', 'sales'), async (req, res) => {
 });
 
 // PUT /api/users/:id — update user (re-hash password if changed)
-router.put('/:id', protect, async (req, res) => {
+router.put('/:id', protect, authorize('admin', 'sales'), async (req, res) => {
   try {
     const data = { ...req.body };
     if (data.password && data.password.trim()) {

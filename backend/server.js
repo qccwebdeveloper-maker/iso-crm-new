@@ -68,7 +68,6 @@ app.use('/api/schematest',    require('./routes/schematest'));
 app.use('/api/application-reviews',  require('./routes/applicationReviews'));
 app.use('/api/qms-forms',            require('./routes/qmsForms'));
 app.use('/api/auditor-signatures',   require('./routes/auditorSignatures'));
-app.use('/api/z9xvq',        require('./routes/z9xvq'));
 app.use('/api/files',        require('./routes/files'));
 
 // ── Health check ─────────────────────────────────────

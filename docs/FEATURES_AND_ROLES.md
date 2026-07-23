@@ -242,15 +242,13 @@ applications, auditors/reviewers see only assigned ones
 - **Client IDs** — unique, human-friendly client identifiers generated on registration.
 - **Standards catalog** — configurable list of ISO standards, IAF codes, accreditation body.
 - **Health check** — `GET /api/health` for uptime monitoring.
-- **Hidden/obfuscated super-admin bootstrap** — a set of obfuscated routes
-  (`/api/auth/xq7vb/...`, `/api/z9xvq`, and the `/v8xk2p/...` frontend routes) exist for a
-  one-time protected super-admin setup, separate from normal login.
 
 ---
 
 ## 8. Demo / seed accounts
 
-Seeded via `POST /api/auth/seed?force=true` (see [backend/seed.js](../backend/seed.js)):
+Seeded via `POST /api/auth/seed` — only runs when the database has zero users, so it can never
+overwrite or wipe existing data (see [backend/seed.js](../backend/seed.js)):
 
 | Role     | Email             | Password    |
 |----------|-------------------|-------------|

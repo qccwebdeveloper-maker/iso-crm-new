@@ -114,7 +114,20 @@ const SURV_CHECKS = [
 ];
 
 /* Fixed, non-editable Stage-2 audit objective wording. */
-const AUDIT_OBJECTIVES = 'To verify the effective implementation, adequacy, conformity and performance of the organization’s Management System during Stage–2 audit. The audit objective is to determine whether the implemented management system is capable of consistently meeting customer requirements, statutory and regulatory requirements, applicable legal obligations, and the organization’s own policies and objectives. The audit shall also evaluate process effectiveness, risk-based thinking, achievement of objectives, operational controls, monitoring and measurement results, internal audit effectiveness, management review outputs, corrective actions, continual improvement, and overall readiness for certification decision.';
+const AUDIT_OBJECTIVES = `The objectives of the Stage-2 Certification Audit are to determine whether the organization’s implemented Management System conforms to the requirements of the applicable management system standard(s), is effectively implemented and maintained, and is capable of consistently achieving its intended outcomes.
+
+The audit objectives include:
+
+• To verify the effective implementation and conformity of the Management System with the applicable standard requirements.
+• To evaluate the effectiveness of the organization’s processes in achieving planned results, objectives, and intended outcomes.
+• To verify that the Management System is consistently implemented across all relevant functions, processes, and locations within the defined certification scope.
+• To assess the effectiveness of operational controls, monitoring and measurement activities, and risk-based thinking in managing organizational processes.
+• To verify compliance with applicable statutory, regulatory, legal, and customer/contractual requirements.
+• To evaluate the effectiveness of internal audits, management reviews, corrective actions, and continual improvement activities.
+• To confirm that identified risks, opportunities, and objectives are effectively managed and monitored.
+• To verify the competence, awareness, communication, documented information, and availability of adequate resources supporting the Management System.
+• To evaluate the organization’s capability to consistently provide products and/or services that meet customer and applicable statutory and regulatory requirements.
+• To determine whether the Management System is suitable, adequate, effective, and capable of supporting certification.`;
 
 /* Fixed, non-editable Stage-2 audit criteria wording. */
 const AUDIT_CRITERIA = 'Applicable requirements of organization’s documented policies, manuals, procedures, SOPs, work instructions, process flow charts, risk assessments, objectives and targets; applicable statutory, regulatory, legal and contractual requirements; customer requirements; operational control requirements; monitoring and measurement records; internal audit reports; management review records; corrective action records; performance evaluation results; applicable IAF mandatory documents and accreditation requirements; and other relevant normative references applicable to the organization’s scope of certification.';
@@ -134,7 +147,8 @@ const DEFAULT = {
   minorNC: '0', majorNC: '0', observations: '0', ofi: '0',
   recommendation: '',
   proposedNextAuditDate: '',
-  resultsEvaluation: '',
+  auditSubmissionRemark: '',
+  scopeRecommendation: '',
   ncList: [],
   observationList: [],
   ofiList: [],
@@ -413,12 +427,30 @@ function Stage2ReportBody({ data, set, clientInfo }) {
               onRemove={ri=>set('ofiList',(data.ofiList||[]).filter((_,i)=>i!==ri))} onCellChange={setOFI} addLabel="Add OFI" />
 
             <SectionTitle>Results of Evaluation of Management System Documents and Implementation</SectionTitle>
-            <FormRow cols={1}>
-              <FormField label="Results of the evaluation of management system documents and their implementation">
-                <FTextarea value={data.resultsEvaluation} onChange={v=>set('resultsEvaluation',v)} rows={4}
-                  placeholder="Summarise findings from evaluation of management system documents and observed implementation..." />
-              </FormField>
-            </FormRow>
+            <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, border: '1px solid #e2e8f0' }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, borderRight: '1px solid #e2e8f0', minWidth: 320 }}>
+                      I carried out this audit as above and submit this report to QCC report reviewer. I hereby submit the audit report of the organization and my recommendation for:
+                    </td>
+                    <td style={{ padding: '6px 8px', minWidth: 200 }}>
+                      <input type="text" value={data.auditSubmissionRemark || ''} onChange={e=>set('auditSubmissionRemark', e.target.value)}
+                        style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 12px', fontSize: 13, borderRight: '1px solid #e2e8f0' }}>
+                      Reduce / Extend scope of standard certificate to the above-mentioned organization.
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>
+                      <input type="text" value={data.scopeRecommendation || ''} onChange={e=>set('scopeRecommendation', e.target.value)}
+                        style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
  
  

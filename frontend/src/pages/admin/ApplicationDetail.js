@@ -4,6 +4,7 @@ import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import{ArrowLeft,Download,Upload,FileText,CheckCircle,Star,User,Building,Globe,Send,Edit2,Save,X}from 'lucide-react';
+import { localMobileNumber } from '../../utils/phone';
 
 /* ── constants (mirror NewApplication) ── */
 const FL          = ['draft','submitted','under_review','audit_stage1','audit_stage2','approved','certified'];
@@ -306,7 +307,7 @@ export default function AdminApplicationDetail(){
                   <select className="form-control" value={ef.countryCode||'+91'} onChange={e=>set('countryCode',e.target.value)}>
                     {COUNTRY_CODES.map(c=><option key={c.code+c.country} value={c.code}>{c.code} {c.country}</option>)}
                   </select>
-                  <input className="form-control" placeholder="9000000000" value={ef.mobileNumber||''}
+                  <input className="form-control" placeholder="9000000000" value={localMobileNumber(ef.mobileNumber, ef.countryCode)}
                     onChange={e=>set('mobileNumber',e.target.value.replace(/\D/g,'').slice(0,15))}/>
                 </div>
               </FG>
@@ -595,7 +596,7 @@ export default function AdminApplicationDetail(){
       {tab==='overview'&&(
         <div className="dash-grid">
           <div className="card"><div className="card-hdr"><div className="card-title"><Building size={14} style={{color:'var(--primary)'}}/>Organization</div></div><div className="card-body">
-            {[['Name',app.organizationName],['Address',app.address],['Mobile',app.mobileNumber?(app.countryCode||'')+' '+app.mobileNumber:null],['Email',app.emailId],['Contact Person',app.contactPerson],['Designation',app.designation],['Submitted',app.submittedAt?new Date(app.submittedAt).toLocaleDateString():'—']].map(([l,v])=>v?<div key={l} className="info-row"><span className="ir-label">{l}</span><span className="ir-value">{v}</span></div>:null)}
+            {[['Name',app.organizationName],['Address',app.address],['Mobile',app.mobileNumber?(app.countryCode||'')+' '+localMobileNumber(app.mobileNumber, app.countryCode):null],['Email',app.emailId],['Contact Person',app.contactPerson],['Designation',app.designation],['Submitted',app.submittedAt?new Date(app.submittedAt).toLocaleDateString():'—']].map(([l,v])=>v?<div key={l} className="info-row"><span className="ir-label">{l}</span><span className="ir-value">{v}</span></div>:null)}
           </div></div>
           <div className="card"><div className="card-hdr"><div className="card-title"><Globe size={14} style={{color:'var(--primary)'}}/>ISO Details</div></div><div className="card-body">
             {[['Standard',(app.standards||[app.isoStandard]).filter(Boolean).join(', ')],['Scope',app.scopeOfCertification||app.scope],['App. Type',app.applicationType],['Accreditation',app.accreditationBody],['Mode',app.modeOfWorking],['Employees',app.employeeCount?.total]].map(([l,v])=>v?<div key={l} className="info-row"><span className="ir-label">{l}</span><span className="ir-value">{v}</span></div>:null)}

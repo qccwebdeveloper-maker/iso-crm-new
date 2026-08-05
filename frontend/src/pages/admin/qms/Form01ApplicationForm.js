@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Save, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import QMSFormPage from './QMSFormPage';
 import useStandards from './useStandards';
+import { localMobileNumber } from '../../../utils/phone';
 const APP_TYPES = ['Initial','Surveillance','Re-certification','Un-Announced','Follow-up', 'Special Audit'];
 const ACCRED = ['UAF','UASL'];
 const COUNTRY_CODES = [
@@ -140,15 +141,16 @@ const TCell = ({children, head}) => (
     textAlign:head?'center':'left', whiteSpace:head?'pre-wrap':'normal', lineHeight:1.3,
   }}>{children}</td>
 );
-const YNRow = ({label, field, form, set}) => (
+const YN_COLOR = v => v==='YES' ? 'var(--green)' : v==='NO' ? 'var(--red)' : 'var(--blue)';
+const YNRow = ({label, field, form, set, options=['YES','NO']}) => (
   <div style={{display:'flex',alignItems:'center',padding:'9px 14px',borderBottom:'1px solid var(--primary-50)',gap:12,flexWrap:'wrap'}}>
     <span style={{flex:1,fontSize:12.5,color:'var(--text-1)'}}>{label}</span>
     <div style={{display:'flex',gap:12}}>
-      {['YES','NO'].map(v=>(
+      {options.map(v=>(
         <label key={v} style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontWeight:form[field]===v?700:500,
-          color:form[field]===v?(v==='YES'?'var(--green)':'var(--red)'):'var(--gray-400)',fontSize:12.5}}>
+          color:form[field]===v?YN_COLOR(v):'var(--gray-400)',fontSize:12.5}}>
           <input type="radio" name={'f01_'+field} value={v} checked={form[field]===v}
-            onChange={()=>set(field,v)} style={{accentColor:v==='YES'?'var(--green)':'var(--red)'}}/>
+            onChange={()=>set(field,v)} style={{accentColor:YN_COLOR(v)}}/>
           {v}
         </label>
       ))}
@@ -327,7 +329,7 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
                   <select className="form-control" value={data.countryCode||'+91'} onChange={e=>set('countryCode',e.target.value)}>
                     {COUNTRY_CODES.map(c=><option key={c.code+c.country} value={c.code}>{c.code} {c.country}</option>)}
                   </select>
-                  <input className="form-control" placeholder="9000000000" value={data.mobileNumber||''}
+                  <input className="form-control" placeholder="9000000000" value={localMobileNumber(data.mobileNumber, data.countryCode)}
                     onChange={e=>set('mobileNumber',e.target.value.replace(/\D/g,'').slice(0,15))}/>
                 </div>
               </FG>
@@ -590,9 +592,9 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
                     <FG label="Usage of hazardous chemical substances?"><select className="form-control" value={data.hazardousChemicals||''} onChange={e=>set('hazardousChemicals',e.target.value)}><option value="">Select</option><option>YES</option><option>NO</option></select></FG>
                   </Row>
                   {[
-                    {label:'Does you have Pollution Clearance from local authorities?',field:'pollutionClearance'},
+                    {label:'Does you have Pollution Clearance from local authorities?',field:'pollutionClearance',options:['YES','NO','N/A']},
                     {label:'Does you have more than 5 critical environmental aspect or OHSAS risks?',field:'criticalAspectsOHSAS'},
-                  ].map(({label,field})=>(<YNRow key={field} label={label} field={field} form={data} set={set}/>))}
+                  ].map(({label,field,options})=>(<YNRow key={field} label={label} field={field} form={data} set={set} options={options}/>))}
                   {[
                     {label:'Details of the Environmental Aspects (if More Than 5 critical aspect)',field:'envAspectDetails'},
                     {label:'How many no. of personnel working on site?',field:'personnelOnSite'},

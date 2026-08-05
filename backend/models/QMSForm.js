@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const qmsFormSchema = new mongoose.Schema({
   clientId:  { type: String, required: true },
   clientRef: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  formType:  { type: Number, required: true, min: 1, max: 22 },
+  formType:  { type: Number, required: true, min: 1, max: 23 },
   formCode:  { type: String },
   formName:  { type: String },
   status:    { type: String, enum: ['draft', 'saved', 'completed'], default: 'draft' },

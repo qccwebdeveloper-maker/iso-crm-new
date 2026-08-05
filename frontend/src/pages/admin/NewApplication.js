@@ -5,6 +5,7 @@ import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, FileText, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { localMobileNumber } from '../../utils/phone';
 
 /* ── constants ── */
 const ISO_LIST = [
@@ -357,7 +358,7 @@ export default function AdminNewApplication() {
                     <select className="form-control" value={form.countryCode} onChange={e=>set('countryCode',e.target.value)}>
                       {COUNTRY_CODES.map(c=><option key={c.code+c.country} value={c.code}>{c.code} {c.country}</option>)}
                     </select>
-                    <input className="form-control" placeholder="9000000000" value={form.mobileNumber}
+                    <input className="form-control" placeholder="9000000000" value={localMobileNumber(form.mobileNumber, form.countryCode)}
                       onChange={e=>set('mobileNumber',e.target.value.replace(/\D/g,'').slice(0,15))}/>
                   </div>
                 </FG>

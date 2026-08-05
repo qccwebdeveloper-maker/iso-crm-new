@@ -139,6 +139,7 @@ The audit objectives include:
 8. To collect sufficient information regarding the management system, processes, locations, and activities to facilitate effective planning of the Stage-2 Audit.`,
   auditCriteria: 'Client QMS Manual, policies, procedures, SOPs, process flow, risk assessment, legal register, objectives, internal audit records, management review records, operational control records, compliance obligations, customer/contractual requirements, and applicable site-specific requirements.',
   briefAboutOrg: '',
+  hasChangesSummary: '',
   auditDurationChange: '', employeeDetailChange: '', employeeDetailChangeDetails: '',
   scopeChange: '', scopeChangeDetails: '', additionalInfo: '',
   nonConformitiesRaised: '',
@@ -320,7 +321,14 @@ function Stage1ReportBody({ data, set, clientInfo }) {
             <SectionTitle>Brief About the Organization</SectionTitle>
             <FTextarea value={data.briefAboutOrg} onChange={v=>set('briefAboutOrg',v)} rows={4} placeholder="Brief organizational overview..." />
 
-            <SectionTitle>Changes & Summary</SectionTitle>
+            <div className="qms-section-title" style={{ justifyContent: 'space-between' }}>
+              <span>Changes & Summary</span>
+              <span style={{ textTransform: 'none', letterSpacing: 'normal', fontWeight: 600 }}>
+                <FRadioGroup value={data.hasChangesSummary} onChange={v=>set('hasChangesSummary',v)} options={[{value:'Yes',label:'Yes'},{value:'No',label:'No'}]} />
+              </span>
+            </div>
+            {data.hasChangesSummary==='Yes' && (
+            <>
             <FormRow cols={2}>
               <FormField label="Audit Duration for Stage 1"><FInput value={data.auditDurationChange} onChange={v=>set('auditDurationChange',v)} /></FormField>
               <FormField label="Non-Conformities Raised"><FInput value={data.nonConformitiesRaised} onChange={v=>set('nonConformitiesRaised',v)} /></FormField>
@@ -352,6 +360,8 @@ function Stage1ReportBody({ data, set, clientInfo }) {
             <FormRow cols={1}>
               <FormField label="Additional Information"><FTextarea value={data.additionalInfo} onChange={v=>set('additionalInfo',v)} rows={2} /></FormField>
             </FormRow>
+            </>
+            )}
 
             <SectionTitle>Non-Conformity / Observation Summary</SectionTitle>
             <FormRow cols={4}>
@@ -513,8 +523,10 @@ function Stage1ReportBody({ data, set, clientInfo }) {
                             </tbody>
                           </table>
 
-                          {/* Information Security Controls (ISO/IEC 27001 Annex A) — fixed
-                              appendix matching the AUD-F-09 "Information Security Controls" sheet. */}
+                          {/* Information Security Controls (ISO/IEC 27001 Annex A) — only
+                              shown when this is the ISO 45001:2018 standard's accordion. */}
+                          {stdCode(name) === '45001' && (
+                          <>
                           <div style={{ marginTop: 20, fontSize: 12.5, fontWeight: 800, color: 'var(--primary-dark)', background: 'var(--primary-50)', border: '1px solid var(--primary-100)', borderRadius: '8px 8px 0 0', padding: '10px 12px' }}>
                             Information Security Controls
                           </div>
@@ -564,6 +576,8 @@ function Stage1ReportBody({ data, set, clientInfo }) {
                               ))}
                             </tbody>
                           </table>
+                          </>
+                          )}
                         </div>
                       )}
                     </section>

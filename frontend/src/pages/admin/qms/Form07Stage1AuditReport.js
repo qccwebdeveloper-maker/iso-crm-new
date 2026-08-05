@@ -524,8 +524,8 @@ function Stage1ReportBody({ data, set, clientInfo }) {
                           </table>
 
                           {/* Information Security Controls (ISO/IEC 27001 Annex A) — only
-                              shown when this is the ISO 45001:2018 standard's accordion. */}
-                          {stdCode(name) === '45001' && (
+                              shown when this is the ISO/IEC 27001:2022 standard's accordion. */}
+                          {stdCode(name) === '27001' && (
                           <>
                           <div style={{ marginTop: 20, fontSize: 12.5, fontWeight: 800, color: 'var(--primary-dark)', background: 'var(--primary-50)', border: '1px solid var(--primary-100)', borderRadius: '8px 8px 0 0', padding: '10px 12px' }}>
                             Information Security Controls

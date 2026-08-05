@@ -340,10 +340,10 @@ function StandardCard({ stdKey, meta, st, setStd }) {
           </div>
 
           {/* Information Security Controls (ISO/IEC 27001 Annex A) — only shown on the
-              ISO 45001:2018 standard's accordion, matching the fixed appendix on the
+              ISO/IEC 27001:2022 standard's accordion, matching the fixed appendix on the
               AUD-F-03A sheet. Reproduced as the same two side-by-side blocks the source
               sheet prints. */}
-          {code === '45001' && (
+          {code === '27001' && (
           <>
           <div className="aud3-ctl-hd">Information Security Controls</div>
           <div className="aud3-tscroll">

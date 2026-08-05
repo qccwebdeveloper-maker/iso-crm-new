@@ -45,6 +45,7 @@ const NAV = {
       { to: '/admin/qms/form-05', icon: FiFileText, label: 'F05&F06 S1Plan&Schedule' },
       { to: '/admin/qms/form-06', icon: FiFileText, label: 'F07 S1Opening&Closing Meeting' },
       { to: '/admin/qms/form-07', icon: FiFileText, label: 'F09A S1Report' },
+      { to: '/admin/qms/form-23', icon: FiFileText, label: 'AUD-F-09-B_OFI_O Sheet' },
       { to: '/admin/qms/form-08', icon: FiFileText, label: 'AUD-F-22-REVIEW REPORT (A)' },
       { to: '/admin/qms/form-09', icon: FiFileText, label: 'F11&F12 S2Plan&Schedule' },
       { to: '/admin/qms/form-10', icon: FiFileText, label: 'F07 S2 Open&Clos Meeting' },

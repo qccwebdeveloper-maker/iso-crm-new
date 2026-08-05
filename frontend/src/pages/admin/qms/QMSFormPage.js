@@ -409,17 +409,35 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellCha
         el.style.height = 'auto';
         el.style.height = `${el.scrollHeight}px`;
       };
+      const val = row[c.key] || '';
+      const wordCount = val.trim() ? val.trim().split(/\s+/).length : 0;
+      const handleChange = e => {
+        let next = e.target.value;
+        if (c.maxWords) {
+          const words = next.split(/\s+/).filter(Boolean);
+          if (words.length > c.maxWords) next = words.slice(0, c.maxWords).join(' ');
+        }
+        autoGrow(e.target);
+        onCellChange(ri, c.key, next);
+      };
       return (
-        <textarea
-          ref={autoGrow}
-          value={row[c.key] || ''}
-          onChange={e => { autoGrow(e.target); onCellChange(ri, c.key, e.target.value); }}
-          disabled={disabled}
-          readOnly={c.readOnly}
-          rows={full ? 3 : 2}
-          className="qms-dyn-inp"
-          style={{ resize: 'vertical', minWidth: 140, width: full ? '100%' : undefined, overflow: 'hidden', ...(c.readOnly ? { background: 'var(--gray-50)', cursor: 'default' } : null) }}
-        />
+        <div style={full ? undefined : { minWidth: 140 }}>
+          <textarea
+            ref={autoGrow}
+            value={val}
+            onChange={handleChange}
+            disabled={disabled}
+            readOnly={c.readOnly}
+            rows={full ? 3 : 2}
+            className="qms-dyn-inp"
+            style={{ resize: 'vertical', minWidth: 140, width: full ? '100%' : undefined, overflow: 'hidden', ...(c.readOnly ? { background: 'var(--gray-50)', cursor: 'default' } : null) }}
+          />
+          {c.maxWords > 0 && (
+            <div style={{ fontSize: 10, color: wordCount >= c.maxWords ? 'var(--red)' : 'var(--gray-400)', textAlign: 'right', marginTop: 2 }}>
+              {wordCount} / {c.maxWords} words
+            </div>
+          )}
+        </div>
       );
     }
     return (

@@ -4,6 +4,7 @@ import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import{ArrowLeft,Upload,Download,Eye,Send,Star,FileText,CheckCircle,PenLine,Edit2,Save,X}from 'lucide-react';
+import { localMobileNumber } from '../../utils/phone';
 
 const FL=['draft','submitted','under_review','audit_stage1','audit_stage2','approved','certified'];
 const ISO_LIST=['ISO 9001:2015','ISO 14001:2015','ISO 45001:2018','ISO 22000:2018','ISO 27001:2022','ISO/IEC 27701:2025','ISO/IEC 42001:2023','ISO 22301:2019','ISO 37001:2016','ISO 21001:2018'];
@@ -238,7 +239,7 @@ export default function ClientApplicationDetail(){
       {/* ═══ OVERVIEW TAB ═══ */}
       {tab==='overview'&&<div className="dash-grid">
         <div className="card"><div className="card-hdr"><div className="card-title">Organization</div></div><div className="card-body">
-          {[['Name',app.organizationName],['Address',[app.address1,app.city,app.state,app.country].filter(Boolean).join(', ')||app.address],['Mobile',app.mobileNumber?(app.countryCode||'')+' '+app.mobileNumber:null],['Email',app.emailId],['Contact Person',app.contactPerson],['Designation',app.designation],['Website',app.website]].map(([l,v])=>v?<div key={l} className="info-row"><span className="ir-label">{l}</span><span className="ir-value">{v}</span></div>:null)}
+          {[['Name',app.organizationName],['Address',[app.address1,app.city,app.state,app.country].filter(Boolean).join(', ')||app.address],['Mobile',app.mobileNumber?(app.countryCode||'')+' '+localMobileNumber(app.mobileNumber, app.countryCode):null],['Email',app.emailId],['Contact Person',app.contactPerson],['Designation',app.designation],['Website',app.website]].map(([l,v])=>v?<div key={l} className="info-row"><span className="ir-label">{l}</span><span className="ir-value">{v}</span></div>:null)}
         </div></div>
         <div className="card"><div className="card-hdr"><div className="card-title">ISO Details</div></div><div className="card-body">
           {[['Standard',(app.standards||[app.isoStandard]).filter(Boolean).join(', ')],['Scope',app.scopeOfCertification||app.scope],['App. Type',app.applicationType],['Accreditation',app.accreditationBody],['Mode',app.modeOfWorking],['Employees',app.employeeCount?.total]].map(([l,v])=>v?<div key={l} className="info-row"><span className="ir-label">{l}</span><span className="ir-value">{v}</span></div>:null)}
@@ -285,7 +286,7 @@ export default function ClientApplicationDetail(){
                   <select className="form-control" value={ef.countryCode||'+91'} onChange={e=>set('countryCode',e.target.value)}>
                     {COUNTRY_CODES.map(c=><option key={c.code+c.country} value={c.code}>{c.code} {c.country}</option>)}
                   </select>
-                  <input className="form-control" placeholder="9000000000" value={ef.mobileNumber||''}
+                  <input className="form-control" placeholder="9000000000" value={localMobileNumber(ef.mobileNumber, ef.countryCode)}
                     onChange={e=>set('mobileNumber',e.target.value.replace(/\D/g,'').slice(0,15))}/>
                 </div>
               </FG>

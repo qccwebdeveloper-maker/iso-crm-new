@@ -490,8 +490,10 @@ function Stage2ReportBody({ data, set, clientInfo }) {
                             </tbody>
                           </table>
 
-                          {/* Information Security Controls (ISO/IEC 27001 Annex A) — fixed
-                              appendix matching the AUD-F-09 "Information Security Controls" sheet. */}
+                          {/* Information Security Controls (ISO/IEC 27001 Annex A) — only
+                              shown when this is the ISO 45001:2018 standard's accordion. */}
+                          {stdCode(name) === '45001' && (
+                          <>
                           <div style={{ marginTop: 20, fontSize: 12.5, fontWeight: 800, color: 'var(--primary-dark)', background: 'var(--primary-50)', border: '1px solid var(--primary-100)', borderRadius: '8px 8px 0 0', padding: '10px 12px' }}>
                             Information Security Controls
                           </div>
@@ -541,6 +543,8 @@ function Stage2ReportBody({ data, set, clientInfo }) {
                               ))}
                             </tbody>
                           </table>
+                          </>
+                          )}
                         </div>
                       )}
                     </section>

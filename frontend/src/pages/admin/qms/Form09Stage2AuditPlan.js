@@ -16,7 +16,20 @@ const ROLES = ['Lead Auditor','Auditor','Technical Expert','Application & Report
 const EMPTY_TEAM  = { name: '', role: '', stage2Days: '' };
 
 // Fixed standard statement — displayed read-only, not editable.
-const AUDIT_OBJECTIVES = 'To verify the effective implementation, adequacy, conformity and performance of the organization’s Management System during Stage–2 audit. The audit objective is to determine whether the implemented management system is capable of consistently meeting customer requirements, statutory and regulatory requirements, applicable legal obligations, and the organization’s own policies and objectives. The audit shall also evaluate process effectiveness, risk-based thinking, achievement of objectives, operational controls, monitoring and measurement results, internal audit effectiveness, management review outputs, corrective actions, continual improvement, and overall readiness for certification decision.';
+const AUDIT_OBJECTIVES = `The objectives of the Stage-2 Certification Audit are to determine whether the organization’s implemented Management System conforms to the requirements of the applicable management system standard(s), is effectively implemented and maintained, and is capable of consistently achieving its intended outcomes.
+
+The audit objectives include:
+
+• To verify the effective implementation and conformity of the Management System with the applicable standard requirements.
+• To evaluate the effectiveness of the organization’s processes in achieving planned results, objectives, and intended outcomes.
+• To verify that the Management System is consistently implemented across all relevant functions, processes, and locations within the defined certification scope.
+• To assess the effectiveness of operational controls, monitoring and measurement activities, and risk-based thinking in managing organizational processes.
+• To verify compliance with applicable statutory, regulatory, legal, and customer/contractual requirements.
+• To evaluate the effectiveness of internal audits, management reviews, corrective actions, and continual improvement activities.
+• To confirm that identified risks, opportunities, and objectives are effectively managed and monitored.
+• To verify the competence, awareness, communication, documented information, and availability of adequate resources supporting the Management System.
+• To evaluate the organization’s capability to consistently provide products and/or services that meet customer and applicable statutory and regulatory requirements.
+• To determine whether the Management System is suitable, adequate, effective, and capable of supporting certification.`;
 
 const DEFAULT = {
   idNo: '', orgName: '', address: '', contactPerson: '', contactDetails: '',

@@ -56,12 +56,32 @@ const RECERT_CHECKS = [
   { key: 'laRecommendation',    label: 'What is Lead Auditor recommendation? (Renewal / Suspend / Withdrawal / Reduce/Extend Scope / Retain Certification)' },
 ];
 
+const SPECIAL_CHECKS = [
+  { key: 'siteChange',       label: 'Is there any change at the client’s site/address, certification scope or key management personnel?' },
+  { key: 'auditorApproved',  label: 'What is the name of the auditor(s) approved for the Special / Follow-Up Audit?' },
+  { key: 'decSigned',        label: 'Is the Auditor Declaration Form (AD-F-03) signed by the auditor(s)?' },
+  { key: 'reasonObjective',  label: 'What is the reason and objective of the Special / Follow-Up Audit?' },
+  { key: 'withinTimeframe',  label: 'Was the Special / Follow-Up Audit conducted within the stipulated timeframe?' },
+  { key: 'planCommunicated', label: 'Was the Special / Follow-Up Audit Plan and Schedule communicated to the client before the audit?' },
+  { key: 'planPrepared',     label: 'Was the audit plan prepared in accordance with the applicable audit-planning procedure and the purpose of the Special / Follow-Up Audit?' },
+  { key: 'auditDate',        label: 'Date of audit conducted.', type: 'date' },
+  { key: 'ncCovered',        label: 'Were all nonconformities, concerns, complaints, changes or specific areas identified for follow-up adequately covered during the audit?' },
+  { key: 'evidenceReviewed', label: 'Was objective evidence reviewed to verify the implementation and effectiveness of corrections and corrective actions?' },
+  { key: 'ncStillOpen',      label: 'Were any previously raised nonconformities found to be still open or ineffective?' },
+  { key: 'logoVerified',     label: 'Was the use of the certification mark/logo verified and found to be in accordance with the applicable guidelines?' },
+  { key: 'observations',     label: 'Total number of observations raised during the audit.' },
+  { key: 'minorNC',          label: 'Total number of Minor Nonconformities raised during the audit.' },
+  { key: 'majorNC',          label: 'Total number of Major Nonconformities raised during the audit.' },
+  { key: 'laRecommendation', label: "What is the Lead Auditor’s recommendation?" },
+];
+
 const buildChecks = (arr) => Object.fromEntries(arr.map(c => [c.key, '']));
 
 const DEFAULT = {
   orgName: '', standard: '', auditType: 'Surveillance I',
   survChecks: buildChecks(SURV_CHECKS),
   recertChecks: buildChecks(RECERT_CHECKS),
+  specialChecks: buildChecks(SPECIAL_CHECKS),
   reviewDecision: '', supplementEvidences: '',
   reviewerName: '', reviewDate: '',
   hodDecision: '', hodName: '', hodReviewDate: '',
@@ -95,7 +115,8 @@ const ChecksTable = ({ checks, values, setVal }) => (
           <tr key={c.key} style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
             <td style={{ padding: '8px 12px', fontSize: 13, color: '#374151' }}>{c.label}</td>
             <td style={{ padding: '6px 8px' }}>
-              <input type="text" value={values?.[c.key] ?? ''} onChange={e => setVal(c.key, e.target.value)} placeholder="Remarks"
+              <input type={c.type || 'text'} value={values?.[c.key] ?? ''} onChange={e => setVal(c.key, e.target.value)}
+                placeholder={c.type === 'date' ? undefined : 'Remarks'}
                 style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }} />
             </td>
           </tr>
@@ -137,6 +158,12 @@ export default function Form20SurveillanceReviewReport() {
             <YNToggle label="Is Recertification Audit applicable?" value={data.recertApplicable} onChange={v => set('recertApplicable', v)} />
             {data.recertApplicable === 'YES' && (
               <ChecksTable checks={RECERT_CHECKS} values={data.recertChecks} setVal={(k, v) => setCheck('recertChecks', k, v)} />
+            )}
+
+            <SectionTitle>Special / Follow-Up Audit</SectionTitle>
+            <YNToggle label="Is Special / Follow-Up Audit applicable?" value={data.specialApplicable} onChange={v => set('specialApplicable', v)} />
+            {data.specialApplicable === 'YES' && (
+              <ChecksTable checks={SPECIAL_CHECKS} values={data.specialChecks} setVal={(k, v) => setCheck('specialChecks', k, v)} />
             )}
 
             <SectionTitle>Review Decision</SectionTitle>

@@ -1777,6 +1777,17 @@ select.qms-inp { cursor: pointer; }
   .qms-preview-body .aud3-ctl-table th.col-check,
   .qms-preview-body .aud3-ctl-table td.col-check { width: 17.6% !important; }
 
+  /* The "Audit Notes" / "Seasonality Factors" pair inside each merged focus cell is
+     absolutely positioned on screen (`.aud3-csf-inner { position:absolute; inset:0 }`)
+     to exactly overlay the fixed-height area of the rowSpan cell it's editing. On paper
+     the textareas grow to show their full saved text (so nothing is clipped), but that
+     absolute box does NOT grow to match — so long notes visually overlapped the
+     "Seasonality Factors" label below them instead of pushing it down. Let it flow in
+     normal document layout instead, so the cell (and the row it spans) simply grows
+     to fit both notes stacked one after another. */
+  .qms-preview-body .aud3-csf-inner { position: static !important; }
+  .qms-preview-body td.csf-cell { position: static !important; }
+
   /* Application Form (F01) — the on-screen layout leaves generous breathing room around
      every field (large card/row/accordion padding, ~13px gaps) meant for comfortable
      editing. On paper that turns a few pages of data into many, mostly-blank ones, so

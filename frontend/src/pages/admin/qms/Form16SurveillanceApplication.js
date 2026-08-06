@@ -31,6 +31,26 @@ function AuditorFetcher({ clientInfo, data, set, setManDays }) {
   return null;
 }
 
+/* Pulls the contact person's Designation from the Application Form (F01) —
+   filling it here only when still blank. */
+function DesignationFetcher({ clientInfo, data, set }) {
+  useEffect(() => {
+    const cid = clientInfo?.clientId;
+    if (!cid) return;
+    let cancelled = false;
+    const blank = v => !(v && String(v).trim());
+    axios.get(`/api/qms-forms/by-client/${cid}/1`)
+      .then(({ data: f1 }) => {
+        if (cancelled) return;
+        const designation = f1?.formData?.designation;
+        if (designation && String(designation).trim() && blank(data.designation)) set('designation', String(designation).trim());
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [clientInfo?.clientId]); // eslint-disable-line
+  return null;
+}
+
 const AUDIT_TYPES = ['Surveillance I', 'Surveillance II', 'Re-certification'];
 const YN = ['No', 'Yes'];
 
@@ -100,6 +120,7 @@ export default function Form16SurveillanceApplication() {
         return (
           <div>
             <AuditorFetcher clientInfo={clientInfo} data={data} set={set} setManDays={setManDays} />
+            <DesignationFetcher clientInfo={clientInfo} data={data} set={set} />
             <SectionTitle>Organization Details</SectionTitle>
             <FormRow cols={2}>
               <FormField label="ID No."><FInput value={data.idNo} onChange={v => set('idNo', v)} placeholder="Client / Certificate ID" /></FormField>

@@ -1788,6 +1788,16 @@ select.qms-inp { cursor: pointer; }
   .qms-preview-body .aud3-csf-inner { position: static !important; }
   .qms-preview-body td.csf-cell { position: static !important; }
 
+  /* .aud3-stack (the list of standard cards) is `display:flex` on screen. Chrome's
+     print engine fragments flex items poorly — a flex item taller than the remaining
+     page space gets pushed whole to the next page rather than flowing into it, which is
+     why a standard's card left a large blank gap at the bottom of one page before its
+     table started fresh on the next. Block layout fragments normally, so switch to that
+     for print and replace the flex `gap` with margin (block layout doesn't honour gap
+     the same way once display changes). */
+  .qms-preview-body .aud3-stack { display: block !important; }
+  .qms-preview-body .aud3-stack > .aud3-std { margin-bottom: 14px !important; }
+
   /* Application Form (F01) — the on-screen layout leaves generous breathing room around
      every field (large card/row/accordion padding, ~13px gaps) meant for comfortable
      editing. On paper that turns a few pages of data into many, mostly-blank ones, so
@@ -1811,8 +1821,14 @@ select.qms-inp { cursor: pointer; }
   .qms-preview-body .accsec-body { padding: 8px 12px !important; }
   .qms-preview-body .qms-form-intro { padding: 6px 12px !important; margin-bottom: 10px !important; }
 
-  /* Avoid splitting a field, row, table row or standard accordion across pages. */
-  .qms-form-row, .qms-field, .aud3-std, table tr, .form-group, .qms-row { break-inside: avoid; }
+  /* Avoid splitting a field, row or table row across pages.
+     .aud3-std (the AUD-F-03A standard accordion — header + its full clause table +
+     Annex A controls) is deliberately NOT in this list: it can run several pages long,
+     and "avoid" on something that big backfires — the browser can't keep it whole, so
+     it jumps the entire block to a fresh page instead of flowing normally, leaving the
+     previous page's remaining space blank. `table tr` below already stops an individual
+     row from splitting mid-row, which is the actual protection needed here. */
+  .qms-form-row, .qms-field, table tr, .form-group, .qms-row { break-inside: avoid; }
   .qms-section-title { break-after: avoid; }
   /* Margins collapse to zero when a box lands at the very top of a printed page, which
      is why a section title starting a new page used to sit flush against the top edge.

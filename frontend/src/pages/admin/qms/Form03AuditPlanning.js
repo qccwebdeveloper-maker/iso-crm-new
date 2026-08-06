@@ -142,7 +142,7 @@ const [ANNEX_A_LEFT, ANNEX_A_RIGHT] = splitControls(ANNEX_A_CONTROLS, 48);
 const blankStd = () => ({ open: true, cols: COLUMNS.map(c => c.id), values: {}, notes: {}, controls: {} });
 
 /* ───────────────────────── Inner interactive component ───────────────────────── */
-function AuditProgramme({ data, set, clientInfo }) {
+function AuditProgramme({ data, set, clientInfo, isPreview }) {
   const { byName, names, loading } = useStandards();
 
   const byStd = data.byStd || {};
@@ -211,6 +211,7 @@ function AuditProgramme({ data, set, clientInfo }) {
               meta={byName[key]}
               st={getStd(key)}
               setStd={patch => setStd(key, patch)}
+              isPreview={isPreview}
             />
           ))}
         </div>
@@ -222,10 +223,15 @@ function AuditProgramme({ data, set, clientInfo }) {
 }
 
 /* ───────────────────────── One standard accordion ───────────────────────── */
-function StandardCard({ stdKey, meta, st, setStd }) {
+function StandardCard({ stdKey, meta, st, setStd, isPreview }) {
   const code = stdCode(stdKey);
   const desc = meta?.category || '';
   const catalogueClauses = Array.isArray(meta?.clauses) ? meta.clauses : [];
+  // The read-only preview/print modal disables clicks (pointer-events:none), so a
+  // standard that was left collapsed while editing could never be reopened there —
+  // its whole clause table would be silently missing from the printed PDF. Force
+  // every accordion open for that view regardless of the saved toggle state.
+  const isOpen = isPreview || st.open;
 
   const setCheck = (rowKey, colId, val) => {
     const values = { ...st.values, [rowKey]: { ...(st.values[rowKey] || {}), [colId]: val } };
@@ -245,7 +251,7 @@ function StandardCard({ stdKey, meta, st, setStd }) {
   const N = rows.length;
 
   return (
-    <section className={`aud3-std${st.open ? ' open' : ''}`}>
+    <section className={`aud3-std${isOpen ? ' open' : ''}`}>
       {/* header */}
       <button type="button" className="aud3-head" onClick={() => setStd({ open: !st.open })}>
         <span className="aud3-chev"><FiChevronRight size={18} /></span>
@@ -260,7 +266,7 @@ function StandardCard({ stdKey, meta, st, setStd }) {
         </span>
       </button>
 
-      {st.open && (
+      {isOpen && (
         <div className="aud3-body">
           {/* table */}
           <div className="aud3-tscroll">
@@ -414,8 +420,8 @@ export default function Form03AuditPlanning() {
       formTitle="Audit Planning for 3 Years — Initial, Surveillance & Recertification Audit Programme"
       defaultData={{}}
     >
-      {({ data, set, clientInfo }) => (
-        <AuditProgramme data={data} set={set} clientInfo={clientInfo} />
+      {({ data, set, clientInfo, isPreview }) => (
+        <AuditProgramme data={data} set={set} clientInfo={clientInfo} isPreview={isPreview} />
       )}
     </QMSFormPage>
   );

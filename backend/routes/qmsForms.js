@@ -76,7 +76,16 @@ router.get('/client/:clientId', protect, authorize('admin'), async (req, res) =>
     // Contact details — prefer what was entered in F01, fall back to the client record.
     if (fd.emailId)       out.email = fd.emailId;
     if (fd.contactPerson) out.contactPerson = fd.contactPerson;
-    const f1Phone = `${fd.countryCode || ''} ${fd.mobileNumber || ''}`.trim();
+    // Some legacy/imported F01 records saved the mobile number with the country code
+    // already baked in (e.g. "+91 8867125632"), so prepending the country code again
+    // below would duplicate it ("+91 +91 8867125632"). Strip it back to local digits
+    // first — mirrors frontend/src/utils/phone.js's localMobileNumber().
+    const ccDigits     = String(fd.countryCode  || '').replace(/\D/g, '');
+    const mobileDigits = String(fd.mobileNumber || '').replace(/\D/g, '');
+    const localDigits  = (ccDigits && mobileDigits.startsWith(ccDigits) && mobileDigits.length > ccDigits.length)
+      ? mobileDigits.slice(ccDigits.length)
+      : mobileDigits;
+    const f1Phone = `${fd.countryCode || ''} ${localDigits}`.trim();
     if (fd.mobileNumber)  out.phone = f1Phone;
     // Total employees = sum of the "Effective No. Filled by QCC" column (last
     // column) of F01's employee table — used as No. of Persons under Certification.

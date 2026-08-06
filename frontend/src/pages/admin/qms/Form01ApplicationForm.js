@@ -181,7 +181,10 @@ const SecCard = ({id, title, children}) => (
 
 /* ── Inner form component (needs local useState for accordion UI state) ── */
 export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
-  const [openSecs, setOpenSecs] = useState({ iso50001:false, isoEnv:false, iso22000:false, iso22301:false, iso27001:false, iso27701:false, iso42001:false, iso37001:false, iso21001:false });
+  // Default all ISO Additional Details accordions to open — the read-only preview used for
+  // PDF download has pointer-events disabled (can't click to expand), so anything collapsed
+  // by default would be silently missing from the downloaded/printed PDF.
+  const [openSecs, setOpenSecs] = useState({ iso50001:true, isoEnv:true, iso22000:true, iso22301:true, iso27001:true, iso27701:true, iso42001:true, iso37001:true, iso21001:true });
   const { names: ISO_LIST } = useStandards();
 
   // Drop any saved standard that is no longer in the live catalogue (Admin → Standards)

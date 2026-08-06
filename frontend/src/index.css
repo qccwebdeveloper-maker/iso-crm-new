@@ -1754,6 +1754,32 @@ select.qms-inp { cursor: pointer; }
     width: auto !important;
     flex-shrink: 0;
   }
+  /* The preview is read-only (pointer-events:none) — a select field's native dropdown
+     arrow implies it's still clickable, which is misleading on a static printed page.
+     Drop the arrow and its reserved padding so it prints as plain boxed text instead. */
+  .qms-preview-body select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: none !important;
+    padding-right: 8px !important;
+  }
+  /* Mobile Number is a country-code <select> + number <input> side by side
+     (.mobile-input-row). The generic "every field is width:100%" rule above fights the
+     select's own `flex-shrink:0` (so it refuses to shrink) — both children end up wanting
+     100% of the row, the select wins and balloons across it, and the actual phone-number
+     input gets squeezed to near-zero width, spilling a sliver of itself into the next
+     field's column (looked like a stray icon next to "Email Id"). Give each an explicit,
+     proportional share instead of a blanket 100%. */
+  .qms-preview-body .mobile-input-row select {
+    width: 84px !important;
+    flex: 0 0 auto !important;
+  }
+  .qms-preview-body .mobile-input-row input {
+    width: auto !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
 
   /* AUD-F-03A audit programme table (.aud3-table) — on screen its columns size
      themselves naturally (col-area gets a min-width, col-check hugs its checkbox at

@@ -177,7 +177,11 @@ export function FCheckbox({ checked, onChange, label: lbl, disabled }) {
 }
 
 export function SectionTitle({ children }) {
-  return <div className="qms-section-title">{children}</div>;
+  return (
+    <div className="qms-section-title-wrap">
+      <div className="qms-section-title">{children}</div>
+    </div>
+  );
 }
 
 // Read-only pill display for the standards selected in the Application Form (F01).
@@ -915,6 +919,12 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
       {previewRow && (
         <div className="qms-preview-backdrop">
           <div className="qms-preview-modal">
+
+            {/* Letterhead — print-only company branding at the top of the document */}
+            <div className="qms-print-letterhead">
+              <img src="/QC.png" alt="Quality Control Certification" className="qms-print-letterhead-logo" />
+              <div className="qms-print-letterhead-name">Quality Control Certification</div>
+            </div>
 
             {/* Header */}
             <div className="qms-preview-hdr">

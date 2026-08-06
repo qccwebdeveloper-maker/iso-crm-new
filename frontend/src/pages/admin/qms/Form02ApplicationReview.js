@@ -201,11 +201,13 @@ export default function Form02ApplicationReview() {
             </FormRow>
 
             {/* ── 2. Transfer Details ── */}
-            <div className="qms-section-title" style={{ justifyContent: 'space-between' }}>
-              <span>Transfer Details (if applicable)</span>
-              <span style={{ textTransform: 'none', letterSpacing: 'normal', fontWeight: 600 }}>
-                <FRadioGroup value={data.transferApplicable} onChange={v => set('transferApplicable', v)} options={YN} />
-              </span>
+            <div className="qms-section-title-wrap">
+              <div className="qms-section-title" style={{ justifyContent: 'space-between' }}>
+                <span>Transfer Details (if applicable)</span>
+                <span style={{ textTransform: 'none', letterSpacing: 'normal', fontWeight: 600 }}>
+                  <FRadioGroup value={data.transferApplicable} onChange={v => set('transferApplicable', v)} options={YN} />
+                </span>
+              </div>
             </div>
             {data.transferApplicable === 'Yes' && (
               <>

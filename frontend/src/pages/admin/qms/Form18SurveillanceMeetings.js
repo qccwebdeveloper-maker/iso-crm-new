@@ -15,7 +15,7 @@ export default function Form18SurveillanceMeetings() {
     <QMSFormPage
       formType={18}
       formCode="AUD-F-07 (S)"
-      formTitle="Attendance List — Opening & Closing Meeting (Surveillance)"
+      formTitle="Attendance List — Opening & Closing Meeting (Surveillance/Re-certification)"
       defaultData={DEFAULT}
       prefillFrom={{
         formTypes: [16],

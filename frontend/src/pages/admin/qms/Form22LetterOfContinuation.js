@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import axios from 'axios';
 import QMSFormPage, { FormRow, FormField, FInput, FTextarea, SectionTitle, StandardChips } from './QMSFormPage';
 
 /* Sets the letter Reference No. to the client ID only (the 4-digit number, no
@@ -11,6 +12,26 @@ function RefNoFiller({ clientInfo, data, set }) {
     if (refNo && String(refNo).trim()) return; // keep a value already entered / saved
     set('refNo', String(cid));
   }, [cid, refNo]); // eslint-disable-line
+  return null;
+}
+
+/* Pulls the Scope of Registration from the Application Review (F02) — filling
+   it here only when still blank, so manual edits are preserved. */
+function ScopeFetcher({ clientInfo, data, set }) {
+  useEffect(() => {
+    const cid = clientInfo?.clientId;
+    if (!cid) return;
+    let cancelled = false;
+    const blank = v => !(v && String(v).trim());
+    axios.get(`/api/qms-forms/by-client/${cid}/2`)
+      .then(({ data: f2 }) => {
+        if (cancelled) return;
+        const scope = f2?.formData?.scopeOfCertification;
+        if (scope && String(scope).trim() && blank(data.scopeOfRegistration)) set('scopeOfRegistration', String(scope).trim());
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [clientInfo?.clientId]); // eslint-disable-line
   return null;
 }
 
@@ -36,6 +57,7 @@ export default function Form22LetterOfContinuation() {
       {({ data, set, clientInfo }) => (
         <div>
           <RefNoFiller clientInfo={clientInfo} data={data} set={set} />
+          <ScopeFetcher clientInfo={clientInfo} data={data} set={set} />
           <SectionTitle>Letter Reference</SectionTitle>
           <FormRow cols={2}>
             <FormField label="Reference No."><FInput value={data.refNo} onChange={v => set('refNo', v)} placeholder="e.g. 8006" /></FormField>

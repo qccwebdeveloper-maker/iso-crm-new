@@ -72,7 +72,7 @@ export default function Form19SurveillanceAuditReport() {
     <QMSFormPage
       formType={19}
       formCode="AUD-F-15 (S)"
-      formTitle="Audit Report — Surveillance / Re-certification / Special"
+      formTitle="Audit Report — Surveillance / Re-certification"
       defaultData={DEFAULT}
     >
       {(props) => <Body {...props} />}
@@ -137,6 +137,24 @@ function Body({ data, set, clientInfo }) {
     return () => { cancelled = true; };
   }, [clientInfo?.clientId]); // eslint-disable-line
 
+  // Pull the Online Meeting Link and IAF / EA Code from the Application Review
+  // (F02) — filling them here only when still blank.
+  useEffect(() => {
+    const cid = clientInfo?.clientId;
+    if (!cid) return;
+    let cancelled = false;
+    const blank = v => !(v && String(v).trim());
+    axios.get(`/api/qms-forms/by-client/${cid}/2`)
+      .then(({ data: f2 }) => {
+        if (cancelled) return;
+        const fd = f2?.formData || {};
+        if (fd.onlineMeetingLink && blank(data.onlineMeetingLink)) set('onlineMeetingLink', fd.onlineMeetingLink);
+        if (fd.iafCode && blank(data.iafCode)) set('iafCode', fd.iafCode);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [clientInfo?.clientId]); // eslint-disable-line
+
   // Seed each selected standard's checklist with its clauses.
   useEffect(() => {
     if (loading) return;
@@ -177,7 +195,7 @@ function Body({ data, set, clientInfo }) {
       </FormRow>
       <FormRow cols={2}>
         <FormField label="1.5 Type of Audit">
-          <FSelect value={data.auditType} onChange={v => set('auditType', v)} placeholder="Select" options={['Surveillance I', 'Surveillance II', 'Re-certification', 'Special Audit']} />
+          <FSelect value={data.auditType} onChange={v => set('auditType', v)} placeholder="Select" options={['Surveillance I', 'Surveillance II', 'Re-certification']} />
         </FormField>
         <FormField label="1.6 Audit Standard(s)"><StandardChips value={data.auditStandards} /></FormField>
       </FormRow>

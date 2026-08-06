@@ -321,11 +321,13 @@ function Stage1ReportBody({ data, set, clientInfo }) {
             <SectionTitle>Brief About the Organization</SectionTitle>
             <FTextarea value={data.briefAboutOrg} onChange={v=>set('briefAboutOrg',v)} rows={4} placeholder="Brief organizational overview..." />
 
-            <div className="qms-section-title" style={{ justifyContent: 'space-between' }}>
-              <span>Changes & Summary</span>
-              <span style={{ textTransform: 'none', letterSpacing: 'normal', fontWeight: 600 }}>
-                <FRadioGroup value={data.hasChangesSummary} onChange={v=>set('hasChangesSummary',v)} options={[{value:'Yes',label:'Yes'},{value:'No',label:'No'}]} />
-              </span>
+            <div className="qms-section-title-wrap">
+              <div className="qms-section-title" style={{ justifyContent: 'space-between' }}>
+                <span>Changes & Summary</span>
+                <span style={{ textTransform: 'none', letterSpacing: 'normal', fontWeight: 600 }}>
+                  <FRadioGroup value={data.hasChangesSummary} onChange={v=>set('hasChangesSummary',v)} options={[{value:'Yes',label:'Yes'},{value:'No',label:'No'}]} />
+                </span>
+              </div>
             </div>
             {data.hasChangesSummary==='Yes' && (
             <>

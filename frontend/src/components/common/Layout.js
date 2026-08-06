@@ -55,7 +55,7 @@ const NAV = {
       { to: '/admin/qms/form-14', icon: FiFileText, label: 'AUD-F-21 Draft' },
       { to: '/admin/qms/form-15', icon: FiFileText, label: 'AUD-F-22-REVIEW REPORT (B)' },
     ]},
-    { sec: 'Surveillance / Recertification / Special Audit', items: [
+    { sec: 'Surveillance / Recertification', items: [
       { to: '/admin/qms/form-16', icon: FiFileText, label: 'F16 · Application Form' },
       { to: '/admin/qms/form-17', icon: FiFileText, label: 'F17 · Audit Plan' },
       { to: '/admin/qms/form-18', icon: FiFileText, label: 'F18 · Meetings' },

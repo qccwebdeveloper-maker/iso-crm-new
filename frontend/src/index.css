@@ -1635,12 +1635,21 @@ select.qms-inp { cursor: pointer; }
      saved value). When that modal is open, hide the list/form behind it and lay the
      modal out as a normal flowing document so the whole form prints across pages. */
   body:has(.qms-preview-backdrop) .qms-wrap { display: none !important; }
+  /* The Layout wrapper's ".page" container sits AROUND .qms-preview-backdrop and still
+     had its own 12mm padding + the app's default gray background showing through it —
+     that's the space that kept appearing around the "white A4 sheet" look no matter how
+     much padding was zeroed on the backdrop itself. Strip both so nothing but the
+     backdrop's own (now zero) padding separates the form from the paper edge. */
+  body:has(.qms-preview-backdrop) .page {
+    padding: 0 !important;
+    background: #fff !important;
+  }
 
   .qms-preview-backdrop {
     position: static !important;
     inset: auto !important;
     display: block !important;
-    padding: 12mm !important;
+    padding: 5mm !important;
     background: #fff !important;
   }
   .qms-preview-modal {
@@ -1678,6 +1687,11 @@ select.qms-inp { cursor: pointer; }
   .qms-preview-footer,
   .qms-preview-ro-badge { display: none !important; }
   .qms-preview-hdr { border-bottom: 2px solid #1e40af !important; }
+
+  /* Application Form (F01) has its own on-screen "jump to section" stepper with
+     Draft/Save buttons — pure editing UI, not part of the document, so it's dropped
+     on paper the same way the shared preview header's buttons are. */
+  .qms-stepper { display: none !important; }
 
   /* Every field value shows clearly with a visible border; nothing greyed out.
      The card's decorative light-blue border/padding is dropped too — on paper the
@@ -1747,6 +1761,13 @@ select.qms-inp { cursor: pointer; }
      padding — every section gets breathing room whether it starts mid-page or a fresh one. */
   .qms-section-title-wrap { margin-top: 0 !important; padding-top: 22px !important; }
   .qms-section-title-wrap:first-child { padding-top: 0 !important; }
+  /* Same fix, one level down: a field row that happens to fall at the top of a page
+     (not just a section title) also used to sit flush against the paper edge. Move the
+     row's own gap from margin-bottom to padding-top — same total spacing between rows,
+     but padding survives the page-top position so every row gets breathing room. */
+  .qms-form-row { margin-bottom: 0 !important; padding-top: 14px !important; }
+  .qms-preview-body > div > .qms-form-row:first-child,
+  .qms-section-title-wrap + .qms-form-row { padding-top: 0 !important; }
   img, svg { max-width: 100% !important; }
 
   /* Client invoice → print only the invoice document. */

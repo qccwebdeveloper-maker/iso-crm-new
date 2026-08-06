@@ -1745,15 +1745,41 @@ select.qms-inp { cursor: pointer; }
     max-width: 100% !important;
     box-sizing: border-box !important;
     font-size: 10.5px !important;
+    padding: 4px 8px !important;
+    min-height: 0 !important;
   }
+  .qms-preview-body textarea { min-height: 1.6em !important; }
   .qms-preview-body input[type="radio"],
   .qms-preview-body input[type="checkbox"] {
     width: auto !important;
     flex-shrink: 0;
   }
 
+  /* Application Form (F01) — the on-screen layout leaves generous breathing room around
+     every field (large card/row/accordion padding, ~13px gaps) meant for comfortable
+     editing. On paper that turns a few pages of data into many, mostly-blank ones, so
+     tighten every wrapper down to document-density spacing for print/PDF only. */
+  .qms-preview-body .form-group { margin-bottom: 6px !important; gap: 2px !important; }
+  .qms-preview-body .qms-row { margin-bottom: 6px !important; }
+  .qms-preview-body .qms-secs-col { gap: 8px !important; }
+  /* The site's mobile responsive rules (`@media (max-width: 768px/480px) div[style*="minmax(220px"]`
+     in the ── QMS Forms responsive / ApplicationDetail blocks above) have no "screen" qualifier, so
+     they also match during print — and Chrome's print page, after the OS/dialog default margins
+     shave off its edges, is narrow enough to trigger them. The narrowest one (max-width:480px)
+     wins the cascade and forces every field row to `grid-template-columns: 1fr`, which is why
+     fields that are meant to sit side by side (REFNO / Name, Mobile / Email / Contact / Designation,
+     etc.) were printing stacked one-per-line instead. `.qms-preview-body .qms-row` (two classes)
+     outweighs `div[style*="minmax(220px"]` (one attribute selector) in specificity, so this wins
+     regardless of source order and restores the intended responsive side-by-side columns on paper. */
+  .qms-preview-body .qms-row {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important;
+  }
+  .qms-preview-body .sec-card-body { padding: 10px 14px !important; }
+  .qms-preview-body .accsec-body { padding: 8px 12px !important; }
+  .qms-preview-body .qms-form-intro { padding: 6px 12px !important; margin-bottom: 10px !important; }
+
   /* Avoid splitting a field, row, table row or standard accordion across pages. */
-  .qms-form-row, .qms-field, .aud3-std, table tr { break-inside: avoid; }
+  .qms-form-row, .qms-field, .aud3-std, table tr, .form-group, .qms-row { break-inside: avoid; }
   .qms-section-title { break-after: avoid; }
   /* Margins collapse to zero when a box lands at the very top of a printed page, which
      is why a section title starting a new page used to sit flush against the top edge.

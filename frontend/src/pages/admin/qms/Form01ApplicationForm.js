@@ -122,7 +122,7 @@ const GrowText = ({value, onChange, placeholder, className='form-control', style
   );
 };
 const Row = ({children, mb=12}) => (
-  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'0 16px',marginBottom:mb}}>
+  <div className="qms-row" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'0 16px',marginBottom:mb}}>
     {children}
   </div>
 );
@@ -304,11 +304,11 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
       </div>
 
       {/* ── Main content ── */}
-      <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="qms-secs-col" style={{display:'flex',flexDirection:'column',gap:16}}>
 
           {/* Basic Info */}
           <SecCard id="f01-basic-info" title="Basic Information">
-            <div style={{background:'linear-gradient(135deg,var(--primary-50),white)',border:'1.5px solid var(--primary-200)',borderRadius:10,padding:'12px 18px',marginBottom:22,textAlign:'center'}}>
+            <div className="qms-form-intro" style={{background:'linear-gradient(135deg,var(--primary-50),white)',border:'1.5px solid var(--primary-200)',borderRadius:10,padding:'12px 18px',marginBottom:22,textAlign:'center'}}>
               <div style={{fontWeight:800,fontSize:15,color:'var(--text-1)',marginBottom:2}}>Request for Proposal cum Application Form</div>
               <div style={{fontSize:11.5,color:'var(--gray-500)'}}>QC Certification · ISO Certification Management</div>
             </div>
@@ -316,10 +316,10 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
               <FG label="REFNO">
                 <input className="form-control" placeholder="Auto-generated" value={data.refno||''} onChange={e=>set('refno',e.target.value)}/>
               </FG>
+              <FG label="Name of Organization" required>
+                <GrowText placeholder="e.g. ABC Manufacturing Ltd" value={data.organizationName} onChange={v=>set('organizationName',v)}/>
+              </FG>
             </Row>
-            <FG label="Name of Organization" required>
-              <GrowText placeholder="e.g. ABC Manufacturing Ltd" value={data.organizationName} onChange={v=>set('organizationName',v)}/>
-            </FG>
             <FG label="Address" required>
               <textarea className="form-control" rows={3} placeholder="Full address" value={data.address||''} onChange={e=>set('address',e.target.value)}/>
             </FG>

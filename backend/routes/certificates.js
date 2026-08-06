@@ -47,12 +47,19 @@ router.get('/prefill/:clientId', protect, authorize('admin'), async (req, res) =
     const f01 = await QMSForm.findOne({ clientId: cid, formType: 1 }).select('formData').lean();
     const fd = f01?.formData || {};
     const fdStandards = Array.isArray(fd.standards) ? fd.standards.filter(Boolean) : [];
-    // Prepend the country code only when the number doesn't already carry one,
-    // so a mobile saved as "+91 98…" isn't turned into "+91 +91 98…".
-    const fdMobile = (fd.mobileNumber || '').trim();
+    // Prepend the country code only when the number doesn't already carry one, so a
+    // mobile saved as "+91 98…" isn't turned into "+91 +91 98…". Legacy/imported F01
+    // records can also bake the code in as plain digits with no "+" (e.g. "9198…"),
+    // so compare digits rather than just checking for a leading "+".
+    const fdMobile   = (fd.mobileNumber || '').trim();
+    const ccDigits   = String(fd.countryCode || '').replace(/\D/g, '');
+    const fdDigits   = fdMobile.replace(/\D/g, '');
+    const fdLocal    = (ccDigits && fdDigits.startsWith(ccDigits) && fdDigits.length > ccDigits.length)
+      ? fdDigits.slice(ccDigits.length)
+      : fdDigits;
     const fdPhone = !fdMobile ? ''
       : fdMobile.startsWith('+') ? fdMobile
-      : `${fd.countryCode || ''} ${fdMobile}`.trim();
+      : `${fd.countryCode || ''} ${fdLocal}`.trim();
 
     const data = {
       orgName:        fd.organizationName || a.organizationName || user.company || user.name || '',

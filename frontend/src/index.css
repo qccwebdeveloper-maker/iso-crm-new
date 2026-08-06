@@ -1755,6 +1755,39 @@ select.qms-inp { cursor: pointer; }
     flex-shrink: 0;
   }
 
+  /* AUD-F-03A audit programme table (.aud3-table) — on screen its columns size
+     themselves naturally (col-area gets a min-width, col-check hugs its checkbox at
+     width:1%, col-focus gets a min-width). table-layout:fixed above throws that away
+     and splits every column equally, which crushes the wide clause-text column down
+     to checkbox width and pushes the last checkbox column off the page. Give each
+     column type an explicit share instead. The Annex A controls table reuses the same
+     class but its "area" cells only hold a short clause code (e.g. "5.1"), not a full
+     title, so it needs a much narrower area column and gets sized separately. */
+  .qms-preview-body .aud3-table:not(.aud3-ctl-table) { min-width: 0 !important; }
+  .qms-preview-body .aud3-table:not(.aud3-ctl-table) th.col-area,
+  .qms-preview-body .aud3-table:not(.aud3-ctl-table) td.area { width: 24% !important; }
+  .qms-preview-body .aud3-table:not(.aud3-ctl-table) th.col-check,
+  .qms-preview-body .aud3-table:not(.aud3-ctl-table) td.col-check { width: 7% !important; padding-left: 2px !important; padding-right: 2px !important; }
+  .qms-preview-body .aud3-table:not(.aud3-ctl-table) th.col-focus,
+  .qms-preview-body .aud3-table:not(.aud3-ctl-table) td.csf-cell { width: 16% !important; }
+
+  .qms-preview-body .aud3-ctl-table { min-width: 0 !important; }
+  .qms-preview-body .aud3-ctl-table th.col-area,
+  .qms-preview-body .aud3-ctl-table td.area { width: 12% !important; }
+  .qms-preview-body .aud3-ctl-table th.col-check,
+  .qms-preview-body .aud3-ctl-table td.col-check { width: 17.6% !important; }
+
+  /* The "Audit Notes" / "Seasonality Factors" pair inside each merged focus cell is
+     absolutely positioned on screen (`.aud3-csf-inner { position:absolute; inset:0 }`)
+     to exactly overlay the fixed-height area of the rowSpan cell it's editing. On paper
+     the textareas grow to show their full saved text (so nothing is clipped), but that
+     absolute box does NOT grow to match — so long notes visually overlapped the
+     "Seasonality Factors" label below them instead of pushing it down. Let it flow in
+     normal document layout instead, so the cell (and the row it spans) simply grows
+     to fit both notes stacked one after another. */
+  .qms-preview-body .aud3-csf-inner { position: static !important; }
+  .qms-preview-body td.csf-cell { position: static !important; }
+
   /* Application Form (F01) — the on-screen layout leaves generous breathing room around
      every field (large card/row/accordion padding, ~13px gaps) meant for comfortable
      editing. On paper that turns a few pages of data into many, mostly-blank ones, so

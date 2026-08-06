@@ -881,7 +881,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
             {/* Form fields */}
             {clientInfo && (
               <div className="qms-form-card">
-                {children({ data: formData, set, clientInfo, onSaveDraft: () => handleSave('draft'), onSave: () => handleSave('saved'), saving })}
+                {children({ data: formData, set, clientInfo, onSaveDraft: () => handleSave('draft'), onSave: () => handleSave('saved'), saving, isPreview: false })}
 
                 {/* Action bar */}
                 <div className="qms-save-bar">
@@ -964,7 +964,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                 { label: 'Name',         value: previewRow.clientRef?.name    || '—' },
                 { label: 'Company',      value: previewRow.clientRef?.company || '—' },
                 { label: 'Status',       value: STATUS_META[previewRow.status]?.label || previewRow.status },
-                { label: 'Last Updated', value: new Date(previewRow.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) },
               ].map(item => (
                 <div key={item.label} className="qms-preview-meta">
                   <span className="qms-preview-meta-label">{item.label}</span>
@@ -986,6 +985,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   onSaveDraft: () => {},
                   onSave:      () => {},
                   saving:      false,
+                  isPreview:   true,
                 })}
               </div>
               <div className="qms-preview-footer">

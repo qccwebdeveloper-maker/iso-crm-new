@@ -2,20 +2,18 @@ import React, { useEffect } from 'react';
 import axios from 'axios';
 import QMSFormPage, { FormRow, FormField, FInput, FTextarea, SectionTitle, StandardChips } from './QMSFormPage';
 
-/* Pulls the audit type and reviewer name from the Surveillance Application (F16). */
-function AuditTypeFetcher({ clientInfo, data, set }) {
+/* Pulls the audit type from the Surveillance Application (F16). Reviewer Name and
+   Review Date are always entered manually on this form — not auto-fetched. */
+function AuditTypeFetcher({ clientInfo, set }) {
   useEffect(() => {
     const cid = clientInfo?.clientId;
     if (!cid) return;
     let cancelled = false;
-    const blank = v => !(v && String(v).trim());
     axios.get(`/api/qms-forms/by-client/${cid}/16`)
       .then(({ data: f16 }) => {
         if (cancelled) return;
         const fd = f16?.formData || {};
         if (fd.auditType !== undefined) set('auditType', fd.auditType || '');
-        if (fd.applicationReviewedBy && blank(data.reviewerName)) set('reviewerName', String(fd.applicationReviewedBy).trim());
-        if (fd.applicationReviewDate && blank(data.reviewDate)) set('reviewDate', String(fd.applicationReviewDate).trim());
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -138,7 +136,7 @@ export default function Form20SurveillanceReviewReport() {
         const setCheck = (section, key, val) => set(section, { ...(data[section] || {}), [key]: val });
         return (
           <div>
-            <AuditTypeFetcher clientInfo={clientInfo} data={data} set={set} />
+            <AuditTypeFetcher clientInfo={clientInfo} set={set} />
             <SectionTitle>Organization Details</SectionTitle>
             <FormRow cols={2}>
               <FormField label="Organization Name"><FInput value={data.orgName} onChange={v => set('orgName', v)} placeholder="Organization name" /></FormField>

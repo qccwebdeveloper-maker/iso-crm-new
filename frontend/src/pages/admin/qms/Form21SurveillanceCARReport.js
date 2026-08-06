@@ -19,7 +19,7 @@ export default function Form21SurveillanceCARReport() {
     <QMSFormPage
       formType={21}
       formCode="AUD-F-17 (S)"
-      formTitle="Corrective Action Report — Surveillance"
+      formTitle="Corrective Action Report — Surveillance/Re-certification"
       defaultData={DEFAULT}
       prefillFrom={{
         formTypes: [19],
@@ -80,7 +80,7 @@ function Body({ data, set, ncList, setNC, addNC, removeNC }) {
             <FormField label="Department"><FInput value={nc.dept} onChange={v => setNC(ri, 'dept', v)} placeholder="Department name" /></FormField>
             <FormField label="Audit Type">
               <FSelect value={nc.auditType} onChange={v => setNC(ri, 'auditType', v)} placeholder="Select type"
-                options={['Surveillance', 'Surveillance I', 'Surveillance II', 'Re-certification', 'Special', 'Follow-up']} />
+                options={['Surveillance', 'Surveillance I', 'Surveillance II', 'Re-certification', 'Follow-up']} />
             </FormField>
           </FormRow>
           <FormRow cols={1}>

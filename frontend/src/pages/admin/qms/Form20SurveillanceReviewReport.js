@@ -56,14 +56,14 @@ const RECERT_CHECKS = [
   { key: 'laRecommendation',    label: 'What is Lead Auditor recommendation? (Renewal / Suspend / Withdrawal / Reduce/Extend Scope / Retain Certification)' },
 ];
 
-const SPECIAL_CHECKS = [
+const FOLLOWUP_CHECKS = [
   { key: 'siteChange',       label: 'Is there any change at the client’s site/address, certification scope or key management personnel?' },
-  { key: 'auditorApproved',  label: 'What is the name of the auditor(s) approved for the Special / Follow-Up Audit?' },
+  { key: 'auditorApproved',  label: 'What is the name of the auditor(s) approved for the Follow-Up Audit?' },
   { key: 'decSigned',        label: 'Is the Auditor Declaration Form (AD-F-03) signed by the auditor(s)?' },
-  { key: 'reasonObjective',  label: 'What is the reason and objective of the Special / Follow-Up Audit?' },
-  { key: 'withinTimeframe',  label: 'Was the Special / Follow-Up Audit conducted within the stipulated timeframe?' },
-  { key: 'planCommunicated', label: 'Was the Special / Follow-Up Audit Plan and Schedule communicated to the client before the audit?' },
-  { key: 'planPrepared',     label: 'Was the audit plan prepared in accordance with the applicable audit-planning procedure and the purpose of the Special / Follow-Up Audit?' },
+  { key: 'reasonObjective',  label: 'What is the reason and objective of the Follow-Up Audit?' },
+  { key: 'withinTimeframe',  label: 'Was the Follow-Up Audit conducted within the stipulated timeframe?' },
+  { key: 'planCommunicated', label: 'Was the Follow-Up Audit Plan and Schedule communicated to the client before the audit?' },
+  { key: 'planPrepared',     label: 'Was the audit plan prepared in accordance with the applicable audit-planning procedure and the purpose of the Follow-Up Audit?' },
   { key: 'auditDate',        label: 'Date of audit conducted.', type: 'date' },
   { key: 'ncCovered',        label: 'Were all nonconformities, concerns, complaints, changes or specific areas identified for follow-up adequately covered during the audit?' },
   { key: 'evidenceReviewed', label: 'Was objective evidence reviewed to verify the implementation and effectiveness of corrections and corrective actions?' },
@@ -81,7 +81,7 @@ const DEFAULT = {
   orgName: '', standard: '', auditType: 'Surveillance I',
   survChecks: buildChecks(SURV_CHECKS),
   recertChecks: buildChecks(RECERT_CHECKS),
-  specialChecks: buildChecks(SPECIAL_CHECKS),
+  specialChecks: buildChecks(FOLLOWUP_CHECKS),
   reviewDecision: '', supplementEvidences: '',
   reviewerName: '', reviewDate: '',
   hodDecision: '', hodName: '', hodReviewDate: '',
@@ -160,10 +160,10 @@ export default function Form20SurveillanceReviewReport() {
               <ChecksTable checks={RECERT_CHECKS} values={data.recertChecks} setVal={(k, v) => setCheck('recertChecks', k, v)} />
             )}
 
-            <SectionTitle>Special / Follow-Up Audit</SectionTitle>
-            <YNToggle label="Is Special / Follow-Up Audit applicable?" value={data.specialApplicable} onChange={v => set('specialApplicable', v)} />
+            <SectionTitle>Follow-Up Audit</SectionTitle>
+            <YNToggle label="Is Follow-Up Audit applicable?" value={data.specialApplicable} onChange={v => set('specialApplicable', v)} />
             {data.specialApplicable === 'YES' && (
-              <ChecksTable checks={SPECIAL_CHECKS} values={data.specialChecks} setVal={(k, v) => setCheck('specialChecks', k, v)} />
+              <ChecksTable checks={FOLLOWUP_CHECKS} values={data.specialChecks} setVal={(k, v) => setCheck('specialChecks', k, v)} />
             )}
 
             <SectionTitle>Review Decision</SectionTitle>

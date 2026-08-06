@@ -2,9 +2,10 @@ import React, { useEffect } from 'react';
 import axios from 'axios';
 import QMSFormPage, { FormRow, FormField, FInput, FTextarea, FSelect, SectionTitle, StandardChips } from './QMSFormPage';
 
-/* Pulls the Lead Auditor and Auditor names from the Application Review (F02) audit
-   team — filling them here only when still blank, so manual edits are preserved. */
-function AuditorFetcher({ clientInfo, data, set }) {
+/* Pulls the Lead Auditor / Auditor names, Stage-1 & Stage-2 man-days, and the
+   IAF Code from the Application Review (F02) — filling them here only when
+   still blank, so manual edits are preserved. */
+function AuditorFetcher({ clientInfo, data, set, setManDays }) {
   useEffect(() => {
     const cid = clientInfo?.clientId;
     if (!cid) return;
@@ -13,11 +14,16 @@ function AuditorFetcher({ clientInfo, data, set }) {
     axios.get(`/api/qms-forms/by-client/${cid}/2`)
       .then(({ data: f2 }) => {
         if (cancelled) return;
-        const team = f2?.formData?.auditTeam || [];
+        const fd = f2?.formData || {};
+        const team = fd.auditTeam || [];
         const lead = team.find(a => a && a.role === 'Lead Auditor' && a.name && String(a.name).trim());
         const aud  = team.find(a => a && a.role === 'Auditor' && a.name && String(a.name).trim());
         if (lead && blank(data.leadAuditor)) set('leadAuditor', String(lead.name).trim());
         if (aud && blank(data.auditor)) set('auditor', String(aud.name).trim());
+        if (fd.iafCode && blank(data.iafCode)) set('iafCode', String(fd.iafCode).trim());
+        if (blank(data.initialManDaysSt1) && blank(data.initialManDaysSt2) && (fd.totalMandaysS1 || fd.totalMandaysS2)) {
+          setManDays(String(fd.totalMandaysS1 || ''), String(fd.totalMandaysS2 || ''));
+        }
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -25,7 +31,7 @@ function AuditorFetcher({ clientInfo, data, set }) {
   return null;
 }
 
-const AUDIT_TYPES = ['Surveillance I', 'Surveillance II', 'Re-certification', 'Special Audit'];
+const AUDIT_TYPES = ['Surveillance I', 'Surveillance II', 'Re-certification'];
 const YN = ['No', 'Yes'];
 
 /* Each "change since last audit" question is a Yes/No with a details box that
@@ -66,24 +72,34 @@ export default function Form16SurveillanceApplication() {
         const changes = data.changes || {};
         const setChange = (key, patch) => set('changes', { ...changes, [key]: { ...(changes[key] || {}), ...patch } });
 
-        // Surveillance Audit Man-day(s) = one-third of total Initial Audit man-days (ST-1 + ST-2).
+        // Surveillance Audit Man-day(s) = one-third of total Initial Audit man-days
+        // (ST-1 + ST-2), rounded to the nearest half day (e.g. 1.00–1.25 → 1,
+        // 1.25–1.50 → 1.5, 1.75–2.00 → 2), and shown with a "day(s)" unit.
         const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
         const fmt = n => (Number.isInteger(n) ? String(n) : Number(n.toFixed(2)).toString());
-        const survManDay = (() => {
+        const roundToHalfDay = n => Math.round(n * 2) / 2;
+        const survManDayValue = (() => {
           const total = num(data.initialManDaysSt1) + num(data.initialManDaysSt2);
-          return total ? fmt(total / 3) : '';
+          return total ? fmt(roundToHalfDay(total / 3)) : '';
         })();
+        const survManDay = survManDayValue ? `${survManDayValue} day${survManDayValue === '1' ? '' : 's'}` : '';
         // Keep the calculated value persisted whenever ST-1 / ST-2 changes.
         const setManDay = (key, v) => {
           const st1 = key === 'initialManDaysSt1' ? v : data.initialManDaysSt1;
           const st2 = key === 'initialManDaysSt2' ? v : data.initialManDaysSt2;
           const total = num(st1) + num(st2);
           set(key, v);
-          set('surveillanceManDay', total ? fmt(total / 3) : '');
+          set('surveillanceManDay', total ? fmt(roundToHalfDay(total / 3)) : '');
+        };
+        const setManDays = (st1, st2) => {
+          const total = num(st1) + num(st2);
+          set('initialManDaysSt1', st1);
+          set('initialManDaysSt2', st2);
+          set('surveillanceManDay', total ? fmt(roundToHalfDay(total / 3)) : '');
         };
         return (
           <div>
-            <AuditorFetcher clientInfo={clientInfo} data={data} set={set} />
+            <AuditorFetcher clientInfo={clientInfo} data={data} set={set} setManDays={setManDays} />
             <SectionTitle>Organization Details</SectionTitle>
             <FormRow cols={2}>
               <FormField label="ID No."><FInput value={data.idNo} onChange={v => set('idNo', v)} placeholder="Client / Certificate ID" /></FormField>

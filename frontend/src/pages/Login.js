@@ -230,7 +230,8 @@ export default function Login() {
     clear(); setLoading(true);
     if (!serverReady) setMsg('Server is waking up, please wait…');
     try {
-      const user = await login(email.trim(), password);
+      const { data } = await axios.post('/api/auth/client-login', { clientId: email.trim(), password });
+      loginWithToken(data, data.token);
       navigate('/client');
     } catch (ex) {
       setErr(getErrMsg(ex, 'Invalid Client ID or password.'));

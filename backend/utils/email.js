@@ -1,15 +1,14 @@
 // ─────────────────────────────────────────────────────────────
-//  EMAIL SENDER
+//  EMAIL SENDER — nodemailer only, delivers to any recipient.
 //  Priority order:
-//  1. Brevo SMTP      — set BREVO_USER + BREVO_PASS  (free, any recipient)
-//  2. Resend API      — set RESEND_API_KEY            (free, owner email only)
-//  3. Gmail SMTP      — set GMAIL_USER + GMAIL_PASS   (local fallback)
-//  4. Ethereal        — preview URL fallback           (always works)
+//  1. Brevo SMTP      — set BREVO_USER + BREVO_PASS  (preferred, any recipient)
+//  2. Gmail SMTP      — set GMAIL_USER + GMAIL_PASS   (fallback)
+//  3. Ethereal        — preview URL fallback           (always works, no real delivery)
 // ─────────────────────────────────────────────────────────────
 async function sendMail({ to, subject, html }) {
   const nodemailer = require('nodemailer');
 
-  // ── 1. Brevo SMTP (works on Render, sends to any address) ──
+  // ── 1. Brevo SMTP (works on Render/EC2, sends to any address) ──
   const brevoUser = (process.env.BREVO_USER || '').trim();
   const brevoPass = (process.env.BREVO_PASS || '').trim();
 
@@ -32,30 +31,7 @@ async function sendMail({ to, subject, html }) {
     }
   }
 
-  // ── 2. Resend HTTP API ──
-  const resendKey = (process.env.RESEND_API_KEY || '').trim();
-
-  if (resendKey) {
-    const { Resend } = require('resend');
-    const resend      = new Resend(resendKey);
-    const fromAddress = process.env.RESEND_FROM || 'onboarding@resend.dev';
-
-    const { data, error } = await resend.emails.send({
-      from: `QC Certification CRM <${fromAddress}>`,
-      to:   [to],
-      subject,
-      html,
-    });
-
-    if (error) {
-      console.warn('[Email] Resend failed:', error.message);
-    } else {
-      console.log(`✅ Email sent via Resend → ${to} (id: ${data.id})`);
-      return { ok: true, via: 'resend' };
-    }
-  }
-
-  // ── 3. Gmail SMTP fallback ──
+  // ── 2. Gmail SMTP fallback ──
   const gmailUser = (process.env.GMAIL_USER || '').trim();
   const gmailPass = (process.env.GMAIL_PASS || '').replace(/\s/g, '');
 
@@ -75,7 +51,7 @@ async function sendMail({ to, subject, html }) {
     }
   }
 
-  // ── 4. Ethereal preview fallback ──
+  // ── 3. Ethereal preview fallback ──
   console.log('[Email] Using Ethereal preview — add BREVO_USER + BREVO_PASS for real delivery');
   const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('Ethereal timeout')), 10000));
   const acc     = await Promise.race([nodemailer.createTestAccount(), timeout]);

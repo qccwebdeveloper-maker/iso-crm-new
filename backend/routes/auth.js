@@ -37,6 +37,36 @@ router.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ message: 'Invalid email or password' });
 
+    // Admin accounts must always go through OTP verification (/send-otp + /verify-otp).
+    // Password alone is never enough here, even if it's correct — this stops admin
+    // creds entered into the client/auditor/sales login forms from granting a token.
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: 'Admin accounts must sign in with OTP. Use the Admin login option.' });
+    }
+
+    res.json({ ...user.toJSON(), token: genToken(user._id) });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// POST /api/auth/client-login — the "Client Login" form on the login page.
+// Looks up by clientId + role:'client' only — no email fallback — so an
+// auditor/sales/admin account can never authenticate through this box.
+router.post('/client-login', async (req, res) => {
+  try {
+    const { clientId, password } = req.body;
+    if (!clientId || !password) return res.status(400).json({ message: 'Client ID and password are required' });
+
+    const user = await User.findOne({ clientId: clientId.trim(), role: 'client' });
+    if (!user) return res.status(401).json({ message: 'Invalid Client ID or password' });
+
+    if (!user.isActive) {
+      if (user.pendingApproval) return res.status(401).json({ message: 'Your account is pending admin approval.' });
+      return res.status(401).json({ message: 'Account deactivated. Contact admin.' });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ message: 'Invalid Client ID or password' });
+
     res.json({ ...user.toJSON(), token: genToken(user._id) });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -114,19 +144,15 @@ router.post('/client-verify-otp', async (req, res) => {
 router.get('/email-status', async (req, res) => {
   const brevoUser = (process.env.BREVO_USER || '').trim();
   const brevoPass = (process.env.BREVO_PASS || '').trim();
-  const resendKey = (process.env.RESEND_API_KEY || '').trim();
   const gmailUser = (process.env.GMAIL_USER || '').trim();
 
   if (brevoUser && brevoPass) {
     return res.json({ ok: true, mode: 'brevo', note: 'Brevo SMTP is set. Emails deliver to any address.' });
   }
-  if (resendKey) {
-    return res.json({ ok: true, mode: 'resend', warning: 'Resend only delivers to qcc.webdeveloper@gmail.com on free plan. Add BREVO_USER + BREVO_PASS for all recipients.' });
-  }
   if (gmailUser) {
-    return res.json({ ok: false, mode: 'gmail-smtp', warning: 'Gmail SMTP unreachable from Render. Add BREVO_USER + BREVO_PASS.' });
+    return res.json({ ok: true, mode: 'gmail-smtp', note: 'Gmail SMTP is set. Emails deliver to any address.' });
   }
-  res.json({ ok: false, mode: 'ethereal-fallback', error: 'No email provider configured. Add BREVO_USER + BREVO_PASS to Render env vars.' });
+  res.json({ ok: false, mode: 'ethereal-fallback', error: 'No email provider configured. Add BREVO_USER + BREVO_PASS (preferred) or GMAIL_USER + GMAIL_PASS.' });
 });
 
 // GET /api/auth/me

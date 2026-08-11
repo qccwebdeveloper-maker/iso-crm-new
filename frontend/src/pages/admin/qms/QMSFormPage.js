@@ -715,7 +715,9 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   const printPreviewPdf = () => {
     const prevTitle = document.title;
     const company = previewRow?.clientRef?.company || previewRow?.clientId || 'form';
-    const name = `${formCode || 'form'}-${company}-${previewRow?.clientId || ''}`
+    // formCode alone isn't unique (e.g. AUD-F-22 is shared by two different forms),
+    // so include formTitle too — it's what distinguishes "REPORT (A)" from "REPORT (B)".
+    const name = `${formCode || 'form'}-${formTitle || ''}-${company}-${previewRow?.clientId || ''}`
       .replace(/[^\w.-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
     document.title = name;
     const restore = () => { document.title = prevTitle; window.removeEventListener('afterprint', restore); };

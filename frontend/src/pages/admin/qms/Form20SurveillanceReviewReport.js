@@ -129,7 +129,7 @@ export default function Form20SurveillanceReviewReport() {
     <QMSFormPage
       formType={20}
       formCode="AUD-F-22 (S)"
-      formTitle="Report Review — Surveillance / Re-certification"
+      formTitle="F20 · Report Review"
       defaultData={DEFAULT}
     >
       {({ data, set, clientInfo }) => {

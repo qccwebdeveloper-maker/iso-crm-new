@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
-import { Search, UserCheck, Eye, Edit, Plus } from 'lucide-react';
+import { Search, UserCheck, Eye, Edit, Plus, ArrowLeft } from 'lucide-react';
 import Pagination from '../../components/common/Pagination';
 
 export default function AdminApplications() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [apps, setApps]   = useState([]);
   const [aud,  setAud]    = useState([]);
   const [rev,  setRev]    = useState([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
   const [statusF, setStatusF] = useState('');
+  const [standardF, setStandardF] = useState(searchParams.get('standard') || '');
   const [assignModal, setAssignModal] = useState(null);
   const [assign, setAssign] = useState({ auditorId:'', reviewerId:'' });
   const [saving, setSaving] = useState(false);
@@ -31,14 +33,22 @@ export default function AdminApplications() {
   };
   useEffect(load, []);
 
+  const standards = [...new Set(apps.map(a => a.isoStandard).filter(Boolean))].sort();
+
   const filtered = apps.filter(a => {
     const q = search.toLowerCase();
     return (!q||(a.client?.clientId||'').toLowerCase().includes(q)||a.organizationName?.toLowerCase().includes(q)||a.client?.name?.toLowerCase().includes(q))
-      && (!statusF||a.status===statusF);
+      && (!statusF||a.status===statusF)
+      && (!standardF||a.isoStandard===standardF);
   });
 
-  React.useEffect(() => setPage(1), [search, statusF]);
+  React.useEffect(() => setPage(1), [search, statusF, standardF]);
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const changeStandard = (val) => {
+    setStandardF(val);
+    setSearchParams(val ? { standard: val } : {});
+  };
 
   const doAssign = async () => {
     if (!assign.auditorId && !assign.reviewerId) return toast.error('Select at least one');
@@ -93,7 +103,15 @@ export default function AdminApplications() {
   return (
     <Layout title="Applications">
       <div className="page-hdr">
-        <div><h1 className="page-title">All Applications</h1><p className="page-subtitle">{filtered.length} application{filtered.length!==1?'s':''} found</p></div>
+        <div>
+          {searchParams.get('standard') && (
+            <button className="btn btn-ghost btn-sm" style={{marginBottom:8,paddingLeft:0}} onClick={() => navigate('/admin/reports')}>
+              <ArrowLeft size={13}/> Back to Reports
+            </button>
+          )}
+          <h1 className="page-title">All Applications</h1>
+          <p className="page-subtitle">{filtered.length} application{filtered.length!==1?'s':''} found</p>
+        </div>
         <button className="btn btn-primary" onClick={() => navigate('/admin/qms/form-01')}><Plus size={14}/> New Application</button>
       </div>
 
@@ -106,6 +124,10 @@ export default function AdminApplications() {
           <select className="form-control" style={{width:'auto',minWidth:160}} value={statusF} onChange={e=>setStatusF(e.target.value)}>
             <option value="">All Statuses</option>
             {ST.map(s=><option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
+          </select>
+          <select className="form-control" style={{width:'auto',minWidth:160}} value={standardF} onChange={e=>changeStandard(e.target.value)}>
+            <option value="">All Standards</option>
+            {standards.map(s=><option key={s} value={s}>{s}</option>)}
           </select>
         </div>
       </div>

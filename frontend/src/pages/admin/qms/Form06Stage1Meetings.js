@@ -17,7 +17,7 @@ export default function Form06Stage1Meetings() {
     <QMSFormPage
       formType={6}
       formCode="AUD-F-07 S1"
-      formTitle="Attendance List — Opening & Closing Meeting (Stage-1)"
+      formTitle="F07 S1Opening&Closing Meeting"
       defaultData={DEFAULT}
     >
       {(props) => <Form06Body {...props} />}

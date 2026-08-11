@@ -4,30 +4,33 @@ import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import { FiSearch, FiDownload, FiFileText, FiClock, FiCheckCircle } from 'react-icons/fi';
 
-/* All QMS forms that have a dedicated form-XX page (F01–F22). */
+/* All QMS forms that have a dedicated form-XX page (F01–F23).
+   `name` mirrors the sidebar nav label in Layout.js exactly, so the form
+   name shown here matches the sidebar, the form header, and the preview. */
 const ALL_FORMS = [
-  { formType: 1,  code: 'AUD-F-02',     name: 'Application Form' },
-  { formType: 2,  code: 'AUD-F-03',     name: 'Application Review' },
-  { formType: 3,  code: 'AUD-F-03A',    name: 'Audit Planning (3 Years)' },
-  { formType: 4,  code: 'AD-F-03',      name: 'Auditor Declaration' },
-  { formType: 5,  code: 'AUD-F-05',     name: 'Stage-1 Audit Plan' },
-  { formType: 6,  code: 'AUD-F-07 S1',  name: 'Stage-1 Meetings' },
-  { formType: 7,  code: 'AUD-F-09',     name: 'Stage-1 Audit Report' },
-  { formType: 8,  code: 'AUD-F-10',     name: 'Stage-1 Review Report' },
-  { formType: 9,  code: 'AUD-F-11',     name: 'Stage-2 Audit Plan' },
-  { formType: 10, code: 'AUD-F-07 S2',  name: 'Stage-2 Meetings' },
-  { formType: 11, code: 'AUD-F-15',     name: 'Stage-2 Audit Report' },
-  { formType: 12, code: 'AUD-F-16',     name: 'CAR Request' },
-  { formType: 13, code: 'AUD-F-17',     name: 'CAR Report' },
-  { formType: 14, code: 'AUD-F-21',     name: 'Draft Certificate' },
-  { formType: 15, code: 'AUD-F-22',     name: 'Final Review Report' },
-  { formType: 16, code: 'AUD-F-02-A',   name: 'Application Form (Surveillance)' },
-  { formType: 17, code: 'AUD-F-05 / 06', name: 'Audit Plan (Surveillance)' },
-  { formType: 18, code: 'AUD-F-07 (S)', name: 'Meetings (Surveillance)' },
-  { formType: 19, code: 'AUD-F-15 (S)', name: 'Audit Report (Surveillance)' },
-  { formType: 20, code: 'AUD-F-22 (S)', name: 'Report Review (Surveillance)' },
-  { formType: 21, code: 'AUD-F-17 (S)', name: 'CAR Report (Surveillance)' },
-  { formType: 22, code: 'ADMN-F-01',    name: 'Letter of Continuation' },
+  { formType: 1,  code: 'AUD-F-02',      name: 'F02 Application Form' },
+  { formType: 2,  code: 'AUD-F-03',      name: 'F03 App Rev & F03-01 Aud Pln' },
+  { formType: 3,  code: 'AUD-F-03A',     name: 'F03A Audit Planning for 3 years' },
+  { formType: 4,  code: 'AD-F-03',       name: 'F-03 Auditor(s) Declaration' },
+  { formType: 5,  code: 'AUD-F-05',      name: 'F05&F06 S1Plan&Schedule' },
+  { formType: 6,  code: 'AUD-F-07 S1',   name: 'F07 S1Opening&Closing Meeting' },
+  { formType: 7,  code: 'AUD-F-09',      name: 'F09A S1Report' },
+  { formType: 23, code: 'AUD-F-09-B',    name: 'AUD-F-09-B_OFI_O Sheet' },
+  { formType: 8,  code: 'AUD-F-22',      name: 'AUD-F-22-REVIEW REPORT (A)' },
+  { formType: 9,  code: 'AUD-F-11',      name: 'F11&F12 S2Plan&Schedule' },
+  { formType: 10, code: 'AUD-F-07 S2',   name: 'F07 S2 Open&Clos Meeting' },
+  { formType: 11, code: 'AUD-F-15',      name: 'F15A S2Report' },
+  { formType: 12, code: 'AUD-F-16',      name: 'F16&F17 CAR' },
+  { formType: 13, code: 'AUD-F-17',      name: 'AUD-F-17 CAR' },
+  { formType: 14, code: 'AUD-F-21',      name: 'AUD-F-21 Draft' },
+  { formType: 15, code: 'AUD-F-22',      name: 'AUD-F-22-REVIEW REPORT (B)' },
+  { formType: 16, code: 'AUD-F-02-A',    name: 'F16 · Application Form' },
+  { formType: 17, code: 'AUD-F-05 / 06', name: 'F17 · Audit Plan' },
+  { formType: 18, code: 'AUD-F-07 (S)',  name: 'F18 · Meetings' },
+  { formType: 19, code: 'AUD-F-15 (S)',  name: 'F19 · Audit Report' },
+  { formType: 20, code: 'AUD-F-22 (S)',  name: 'F20 · Report Review' },
+  { formType: 21, code: 'AUD-F-17 (S)',  name: 'F21 · Surveillance CAR Report' },
+  { formType: 22, code: 'ADMN-F-01',     name: 'F22 · Letter of Continuation' },
 ];
 
 const STATUS_META = {
@@ -123,7 +126,7 @@ export default function DownloadForms() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-800)' }}>
-                        F{String(f.formType).padStart(2, '0')} · {f.name}
+                        {f.name}
                       </div>
                       <div style={{ fontSize: 11.5, color: 'var(--gray-400)', fontFamily: 'monospace' }}>{f.code}</div>
                     </div>

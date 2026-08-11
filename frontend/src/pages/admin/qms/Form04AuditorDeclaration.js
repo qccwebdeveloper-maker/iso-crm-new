@@ -32,8 +32,11 @@ function Form04Inner({ data, set, clientInfo }) {
   };
 
   // Fetch the Audit Team from F02 (Application Review) and use them as the
-  // declaration's signatories — only when none have been entered here yet, so a
-  // saved/edited Form 04 is never overwritten. Waits for the roster
+  // declaration's signatories — merging in anyone from F02's team who isn't
+  // already listed here (e.g. a reviewer added to F02 after F04 was first
+  // saved), so every F02 team member ends up represented, not just whoever
+  // was on the team the first time this ran. Never touches signatories
+  // already present here, so manual edits are preserved. Waits for the roster
   // (useAuditorSignatures) to finish loading first — otherwise, on a brand-new
   // client where both requests fire together, this can resolve before the
   // roster does and `lookupSignature` closes over an empty map, permanently
@@ -41,8 +44,6 @@ function Form04Inner({ data, set, clientInfo }) {
   useEffect(() => {
     const cid = clientInfo?.clientId;
     if (!cid || sigLoading) return;
-    const hasNames = (data.signatories || []).some(s => s.name && s.name.trim());
-    if (hasNames) return;
     let cancelled = false;
     axios.get(`/api/qms-forms/by-client/${cid}/2`)
       .then(({ data: f2 }) => {
@@ -57,9 +58,17 @@ function Form04Inner({ data, set, clientInfo }) {
         if (hodName && !hasHod) {
           team.push({ name: hodName, role: 'Final Certification Decision by HOD' });
         }
-        if (team.length) {
-          set('signatories', team.map(m => ({ name: m.name || '', role: m.role || '', date: '', signature: lookupSignature(m.name) })));
-        }
+        if (!team.length) return;
+
+        const existing = (data.signatories || []).filter(s => s.name && s.name.trim());
+        const existingNames = new Set(existing.map(s => s.name.trim().toLowerCase()));
+        const missing = team.filter(m => (m.name || '').trim() && !existingNames.has(m.name.trim().toLowerCase()));
+        if (!missing.length) return; // F02's whole team is already reflected here
+
+        set('signatories', [
+          ...existing,
+          ...missing.map(m => ({ name: m.name || '', role: m.role || '', date: '', signature: lookupSignature(m.name) })),
+        ]);
       })
       .catch(() => { /* no F02 yet — keep the default signatories */ });
     return () => { cancelled = true; };
@@ -132,7 +141,7 @@ export default function Form04AuditorDeclaration() {
     <QMSFormPage
       formType={4}
       formCode="AD-F-03"
-      formTitle="Auditor(s) Declaration"
+      formTitle="F-03 Auditor(s) Declaration"
       defaultData={DEFAULT}
     >
       {({ data, set, clientInfo }) => (

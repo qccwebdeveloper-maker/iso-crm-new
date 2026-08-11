@@ -6,9 +6,9 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import toast from 'react-hot-toast';
 import {
   FiFileText, FiUsers, FiAward, FiClock, FiTrendingUp, FiChevronRight,
-  FiCheckCircle, FiPlus, FiMessageSquare, FiTarget, FiStar, FiUserCheck,
+  FiPlus, FiMessageSquare, FiTarget, FiStar,
   FiClipboard, FiEye, FiAlertCircle, FiActivity, FiBookOpen,
-  FiAlertTriangle, FiSettings
+  FiAlertTriangle
 } from 'react-icons/fi';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -17,19 +17,10 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [stats,     setStats]     = useState({ totalApplications:0, clients:0, auditors:0, statusCounts:[], monthlyApps:[], recentApps:[] });
   const [apps,      setApps]      = useState([]);
-  const [leads,     setLeads]     = useState([]);
   const [auditors,  setAuditors]  = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
-  const [salesTeam, setSalesTeam] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState('');
-  const [assignModal,     setAssignModal]     = useState(null);
-  const [assignForm,      setAssignForm]      = useState({ auditorId:'', reviewerId:'' });
-  const [assignLeadModal, setAssignLeadModal] = useState(null);
-  const [assignTo,        setAssignTo]        = useState('');
-  const [saving,          setSaving]          = useState(false);
-  const [otpEnabled,      setOtpEnabled]      = useState(true);
-  const [savingOtp,       setSavingOtp]       = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -37,12 +28,8 @@ export default function AdminDashboard() {
     Promise.all([
       axios.get('/api/dashboard/stats').catch(() => ({ data: { totalApplications:0, clients:0, auditors:0, statusCounts:[], monthlyApps:[], recentApps:[] } })),
       axios.get('/api/applications').catch(() => ({ data: [] })),
-      axios.get('/api/leads').catch(() => ({ data: [] })),
       axios.get('/api/auditors').catch(() => ({ data: [] })),
-      axios.get('/api/users').catch(() => ({ data: [] })),
-      axios.get('/api/settings').catch(() => ({ data: { clientOtpEnabled: true } })),
-    ]).then(([s, a, l, au, u, cfg]) => {
-      setOtpEnabled((cfg.data || {}).clientOtpEnabled !== false);
+    ]).then(([s, a, au]) => {
       const statsData = s.data || {};
       const appsData  = a.data || [];
       setStats({
@@ -54,9 +41,7 @@ export default function AdminDashboard() {
         recentApps:        statsData.recentApps        || [],
       });
       setApps(appsData);
-      setLeads(l.data || []);
       setAuditors(au.data || []);
-      setSalesTeam((u.data || []).filter(x => x.role === 'sales'));
       setFeedbacks(
         appsData.flatMap(app =>
           (app.feedbacks || []).map(f => ({ ...f, appId: app.applicationId, org: app.organizationName }))
@@ -87,10 +72,8 @@ export default function AdminDashboard() {
   const pending      = (stats.statusCounts || []).filter(s => ['submitted','under_review','audit_stage1','audit_stage2'].includes(s._id)).reduce((a, s) => a + s.count, 0);
   const compliance   = stats.totalApplications ? Math.round((certified / stats.totalApplications) * 100) : 0;
   const monthly      = (stats.monthlyApps || []).map(m => ({ name: MONTHS[(m._id?.month || 1) - 1], Apps: m.count }));
-  const recent       = [...apps].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6);
   const unassigned   = apps.filter(a => !a.assignedAuditor && ['submitted','under_review'].includes(a.status));
   const auditorList  = auditors.filter(a => a.role === 'auditor');
-  const reviewerList = auditors.filter(a => a.role === 'reviewer');
   const avgRating    = feedbacks.length ? (feedbacks.reduce((s, f) => s + (f.rating || 0), 0) / feedbacks.length).toFixed(1) : '—';
 
   const kpis = [
@@ -101,41 +84,6 @@ export default function AdminDashboard() {
     { label: 'Pending Review',     value: pending,                 icon: FiClock,       color: 'amber',  to: '/admin/approval-pending' },
     { label: 'Compliance Rate',    value: `${compliance}%`,        icon: FiTrendingUp,  color: 'teal',   to: '/admin/reports' },
   ];
-
-  const handleToggleOtp = async () => {
-    setSavingOtp(true);
-    try {
-      const { data } = await axios.put('/api/settings', { key: 'clientOtpEnabled', value: !otpEnabled });
-      setOtpEnabled(data.clientOtpEnabled !== false);
-      toast.success(data.clientOtpEnabled !== false ? 'Client OTP enabled' : 'Client OTP disabled');
-    } catch { toast.error('Failed to update setting'); }
-    finally { setSavingOtp(false); }
-  };
-
-  const handleAssignAudit = async () => {
-    if (!assignForm.auditorId && !assignForm.reviewerId) return toast.error('Select at least one person');
-    setSaving(true);
-    try {
-      await axios.post(`/api/applications/${assignModal._id}/assign`, assignForm);
-      toast.success('Assigned! Auditor notified.');
-      setAssignModal(null);
-      load();
-    } catch { toast.error('Assignment failed'); }
-    finally { setSaving(false); }
-  };
-
-  const handleAssignLead = async () => {
-    if (!assignTo) return toast.error('Select a team member');
-    setSaving(true);
-    try {
-      await axios.put(`/api/leads/${assignLeadModal._id}`, { assignedTo: assignTo });
-      toast.success('Lead assigned!');
-      setAssignLeadModal(null);
-      setAssignTo('');
-      load();
-    } catch { toast.error('Failed'); }
-    finally { setSaving(false); }
-  };
 
 
   return (
@@ -184,111 +132,33 @@ export default function AdminDashboard() {
       </div>
 
 
-      {/* Monthly Chart + Recent Apps */}
-      <div style={{ display:'grid', gridTemplateColumns:'1.6fr 1fr', gap:18, marginBottom:18 }}>
-        <div className="card" style={{ marginBottom:0 }}>
-          <div className="card-hdr">
-            <div className="card-title"><FiTrendingUp size={14} style={{ color:'var(--primary)' }}/>Monthly Applications</div>
-          </div>
-          <div style={{ padding:'12px 8px 8px' }}>
-            {monthly.length > 0 ? (
-              <ResponsiveContainer width="100%" height={185}>
-                <AreaChart data={monthly}>
-                  <defs>
-                    <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#1565c0" stopOpacity={0.18}/>
-                      <stop offset="95%" stopColor="#1565c0" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e3f2fd"/>
-                  <XAxis dataKey="name" tick={{ fontSize:10 }}/>
-                  <YAxis tick={{ fontSize:10 }}/>
-                  <Tooltip contentStyle={{ borderRadius:10, border:'1px solid #90caf9', fontSize:12 }}/>
-                  <Area type="monotone" dataKey="Apps" stroke="#1565c0" fill="url(#ag)" strokeWidth={2}/>
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="empty-box" style={{ height:185, padding:0 }}>
-                <FiTrendingUp size={28}/><h3>No data yet</h3>
-              </div>
-            )}
-          </div>
+      {/* Monthly Chart */}
+      <div className="card" style={{ marginBottom:18 }}>
+        <div className="card-hdr">
+          <div className="card-title"><FiTrendingUp size={14} style={{ color:'var(--primary)' }}/>Monthly Applications</div>
         </div>
-
-        <div className="card" style={{ marginBottom:0 }}>
-          <div className="card-hdr">
-            <div className="card-title"><FiFileText size={14} style={{ color:'var(--primary)' }}/>Recent Applications</div>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/admin/applications')}>All <FiChevronRight size={11}/></button>
-          </div>
-          {recent.length === 0 ? (
-            <div className="empty-box" style={{ padding:'28px 20px' }}>
-              <FiFileText size={28}/><h3>No applications yet</h3>
-              <button className="btn btn-primary btn-sm" style={{ marginTop:10 }} onClick={() => navigate('/admin/qms/form-01')}><FiPlus size={11}/> Create First</button>
+        <div style={{ padding:'12px 8px 8px' }}>
+          {monthly.length > 0 ? (
+            <ResponsiveContainer width="100%" height={185}>
+              <AreaChart data={monthly}>
+                <defs>
+                  <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#1565c0" stopOpacity={0.18}/>
+                    <stop offset="95%" stopColor="#1565c0" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e3f2fd"/>
+                <XAxis dataKey="name" tick={{ fontSize:10 }}/>
+                <YAxis tick={{ fontSize:10 }}/>
+                <Tooltip contentStyle={{ borderRadius:10, border:'1px solid #90caf9', fontSize:12 }}/>
+                <Area type="monotone" dataKey="Apps" stroke="#1565c0" fill="url(#ag)" strokeWidth={2}/>
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="empty-box" style={{ height:185, padding:0 }}>
+              <FiTrendingUp size={28}/><h3>No data yet</h3>
             </div>
-          ) : recent.map(a => (
-            <div key={a._id}
-              onClick={() => navigate(`/admin/applications/${a._id}`)}
-              style={{ display:'flex', alignItems:'center', gap:9, padding:'10px 16px', borderBottom:'1px solid var(--primary-50)', cursor:'pointer', transition:'background .12s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-50)'}
-              onMouseLeave={e => e.currentTarget.style.background = ''}>
-              <div className="avatar" style={{ width:26, height:26, fontSize:9, flexShrink:0 }}>{a.organizationName?.[0] || '?'}</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:600, fontSize:12.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.organizationName}</div>
-                <div style={{ fontSize:10.5, color:'var(--gray-400)' }}>{a.applicationId}</div>
-              </div>
-              <span className={`badge bdg-${a.status}`} style={{ fontSize:9.5, flexShrink:0 }}>{a.status?.replace(/_/g,' ')}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Auditor Panel + Unassigned */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
-        <div className="card" style={{ marginBottom:0 }}>
-          <div className="card-hdr">
-            <div className="card-title"><FiClipboard size={14} style={{ color:'var(--primary)' }}/>Auditors</div>
-            <div style={{ display:'flex', gap:6 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => navigate('/admin/auditors')}>View All</button>
-              <button className="btn btn-primary btn-sm" onClick={() => navigate('/admin/users')}><FiPlus size={11}/> Add</button>
-            </div>
-          </div>
-          {auditorList.length === 0 ? (
-            <div className="empty-box" style={{ padding:'24px 20px' }}>
-              <FiClipboard size={28}/><h3>No auditors yet</h3>
-              <button className="btn btn-primary btn-sm" style={{ marginTop:10 }} onClick={() => navigate('/admin/users')}><FiPlus size={11}/> Add Auditor</button>
-            </div>
-          ) : auditorList.slice(0, 5).map(a => (
-            <div key={a._id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 16px', borderBottom:'1px solid var(--primary-50)' }}>
-              <div className="avatar" style={{ width:30, height:30, fontSize:10, background:'linear-gradient(135deg,#3b82f6,#1d4ed8)', flexShrink:0 }}>{a.name?.[0]}</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:12.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.name}</div>
-                <div style={{ fontSize:10.5, color:'var(--gray-400)' }}>{a.email}</div>
-              </div>
-              <div style={{ textAlign:'center', padding:'3px 8px', background:'var(--primary-50)', borderRadius:7, fontSize:11, fontWeight:700, color:'var(--primary-dark)', flexShrink:0 }}>
-                {(a.assignedApplications || []).length} apps
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="card" style={{ marginBottom:0 }}>
-          <div className="card-hdr">
-            <div className="card-title"><FiUserCheck size={14} style={{ color:'var(--primary)' }}/>Needs Auditor Assignment</div>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/admin/applications')}>All Apps</button>
-          </div>
-          {unassigned.length === 0 ? (
-            <div className="empty-box" style={{ padding:'24px 20px' }}><FiCheckCircle size={28}/><h3>All assigned!</h3></div>
-          ) : unassigned.slice(0, 5).map(a => (
-            <div key={a._id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 16px', borderBottom:'1px solid var(--primary-50)' }}>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:600, fontSize:12.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.organizationName}</div>
-                <div style={{ fontSize:10.5, color:'var(--gray-400)' }}>{a.applicationId} · {a.isoStandard}</div>
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={() => { setAssignModal(a); setAssignForm({ auditorId:'', reviewerId:'' }); }}>
-                <FiUserCheck size={11}/> Assign
-              </button>
-            </div>
-          ))}
+          )}
         </div>
       </div>
 
@@ -338,157 +208,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
-
-      {/* Sales Team + Unassigned Leads */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18 }}>
-        <div className="card" style={{ marginBottom:0 }}>
-          <div className="card-hdr">
-            <div className="card-title"><FiUsers size={14} style={{ color:'var(--primary)' }}/>Sales Team</div>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/admin/users')}><FiPlus size={11}/> Add</button>
-          </div>
-          {salesTeam.length === 0 ? (
-            <div className="empty-box" style={{ padding:'24px 20px' }}><FiUsers size={28}/><h3>No sales members</h3></div>
-          ) : salesTeam.map(m => (
-            <div key={m._id} style={{ display:'flex', alignItems:'center', gap:9, padding:'10px 16px', borderBottom:'1px solid var(--primary-50)' }}>
-              <div className="avatar" style={{ width:30, height:30, fontSize:10, background:'linear-gradient(135deg,#16a34a,#15803d)', flexShrink:0 }}>{m.name?.[0]}</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:12.5 }}>{m.name}</div>
-                <div style={{ fontSize:10.5, color:'var(--gray-400)' }}>{m.email}</div>
-              </div>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--primary-dark)', background:'var(--primary-50)', padding:'2px 8px', borderRadius:6, flexShrink:0 }}>
-                {leads.filter(l => l.assignedTo === m._id || l.assignedTo?._id === m._id).length} leads
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="card" style={{ marginBottom:0 }}>
-          <div className="card-hdr">
-            <div className="card-title"><FiTarget size={14} style={{ color:'var(--primary)' }}/>Unassigned Leads</div>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/admin/leads')}>All <FiChevronRight size={11}/></button>
-          </div>
-          {leads.filter(l => !l.assignedTo).length === 0 ? (
-            <div className="empty-box" style={{ padding:'24px 20px' }}><FiCheckCircle size={28}/><h3>All leads assigned!</h3></div>
-          ) : leads.filter(l => !l.assignedTo).slice(0, 5).map(l => (
-            <div key={l._id} style={{ display:'flex', alignItems:'center', gap:9, padding:'10px 16px', borderBottom:'1px solid var(--primary-50)' }}>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:600, fontSize:12.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{l.companyName}</div>
-                <div style={{ fontSize:10.5, color:'var(--gray-400)' }}>{l.isoStandard} · {l.status}</div>
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={() => { setAssignLeadModal(l); setAssignTo(''); }}>
-                <FiUserCheck size={11}/> Assign
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Security Settings */}
-      <div className="card" style={{ marginBottom: 18 }}>
-        <div className="card-hdr">
-          <div className="card-title"><FiSettings size={14} style={{ color:'var(--primary)' }}/>Security Settings</div>
-        </div>
-        <div style={{ padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
-          <div>
-            <div style={{ fontWeight:600, fontSize:13 }}>Client Login OTP</div>
-            <div style={{ fontSize:11.5, color:'var(--gray-400)', marginTop:3 }}>
-              {otpEnabled
-                ? 'Clients must verify via email OTP on each login.'
-                : 'OTP disabled — clients log in with password only.'}
-            </div>
-          </div>
-          <button
-            onClick={handleToggleOtp}
-            disabled={savingOtp}
-            title={otpEnabled ? 'Click to disable OTP' : 'Click to enable OTP'}
-            style={{
-              width:46, height:26, borderRadius:13, border:'none',
-              cursor: savingOtp ? 'default' : 'pointer',
-              background: otpEnabled ? 'var(--primary, #1565c0)' : '#d1d5db',
-              position:'relative', transition:'background .2s', flexShrink:0,
-              opacity: savingOtp ? 0.7 : 1,
-            }}
-          >
-            <span style={{
-              position:'absolute', top:3,
-              left: otpEnabled ? 23 : 3,
-              width:20, height:20, borderRadius:'50%', background:'white',
-              transition:'left .2s', boxShadow:'0 1px 4px rgba(0,0,0,0.18)',
-              display:'block',
-            }} />
-          </button>
-        </div>
-      </div>
-
-      {/* Assign Auditor Modal */}
-      {assignModal && (
-        <div className="modal-bg" onClick={() => setAssignModal(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <div className="modal-head">
-              <div className="modal-title"><FiUserCheck size={15} style={{ color:'var(--primary)', marginRight:7, verticalAlign:'middle' }}/>Assign Team — {assignModal.applicationId}</div>
-              <button className="modal-close" onClick={() => setAssignModal(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div style={{ background:'var(--primary-50)', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:13 }}>
-                <strong>{assignModal.organizationName}</strong>
-                <div style={{ fontSize:11.5, color:'var(--gray-500)', marginTop:2 }}>{assignModal.isoStandard} · <span className={`badge bdg-${assignModal.status}`} style={{ fontSize:10 }}>{assignModal.status?.replace(/_/g,' ')}</span></div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Assign Auditor</label>
-                <select className="form-control" value={assignForm.auditorId} onChange={e => setAssignForm(p => ({ ...p, auditorId: e.target.value }))}>
-                  <option value="">— Select Auditor —</option>
-                  {auditorList.map(a => <option key={a._id} value={a._id}>{a.name} — {(a.assignedApplications || []).length} apps</option>)}
-                </select>
-              </div>
-              {reviewerList.length > 0 && (
-                <div className="form-group">
-                  <label className="form-label">Assign Reviewer</label>
-                  <select className="form-control" value={assignForm.reviewerId} onChange={e => setAssignForm(p => ({ ...p, reviewerId: e.target.value }))}>
-                    <option value="">— Select Reviewer —</option>
-                    {reviewerList.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
-                  </select>
-                </div>
-              )}
-            </div>
-            <div className="modal-foot">
-              <button className="btn btn-ghost" onClick={() => setAssignModal(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleAssignAudit} disabled={saving}>{saving ? 'Saving…' : <><FiUserCheck size={13}/> Assign</>}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Assign Lead Modal */}
-      {assignLeadModal && (
-        <div className="modal-bg" onClick={() => setAssignLeadModal(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <div className="modal-head">
-              <div className="modal-title"><FiUserCheck size={15} style={{ color:'var(--primary)', marginRight:7, verticalAlign:'middle' }}/>Assign Lead to Sales</div>
-              <button className="modal-close" onClick={() => setAssignLeadModal(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div style={{ background:'var(--primary-50)', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:13 }}>
-                <strong>{assignLeadModal.companyName}</strong>
-                <div style={{ fontSize:11.5, color:'var(--gray-500)', marginTop:2 }}>{assignLeadModal.contactPerson} · {assignLeadModal.isoStandard}</div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Assign to Sales Team Member *</label>
-                <select className="form-control" value={assignTo} onChange={e => setAssignTo(e.target.value)}>
-                  <option value="">— Select Member —</option>
-                  {salesTeam.length === 0
-                    ? <option disabled>No sales members found</option>
-                    : salesTeam.map(m => <option key={m._id} value={m._id}>{m.name} — {leads.filter(l => l.assignedTo === m._id || l.assignedTo?._id === m._id).length} leads</option>)
-                  }
-                </select>
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="btn btn-ghost" onClick={() => setAssignLeadModal(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleAssignLead} disabled={saving}>{saving ? 'Assigning…' : <><FiUserCheck size={13}/> Assign</>}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </Layout>
   );

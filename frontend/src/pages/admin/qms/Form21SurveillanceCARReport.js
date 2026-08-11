@@ -19,7 +19,7 @@ export default function Form21SurveillanceCARReport() {
     <QMSFormPage
       formType={21}
       formCode="AUD-F-17 (S)"
-      formTitle="Corrective Action Report — Surveillance/Re-certification"
+      formTitle="F21 · Surveillance CAR Report"
       defaultData={DEFAULT}
       prefillFrom={{
         formTypes: [19],

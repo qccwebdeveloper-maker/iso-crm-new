@@ -21,7 +21,7 @@ router.get('/stats', protect, async (req, res) => {
           { $limit: 12 },
         ]),
         Application.find().sort({ createdAt: -1 }).limit(6)
-          .populate('client', 'name email')
+          .populate('client', 'name email clientId')
           .populate('assignedAuditor', 'name'),
       ]);
       return res.json({ totalApplications, clients, auditors, statusCounts, monthlyApps, recentApps });

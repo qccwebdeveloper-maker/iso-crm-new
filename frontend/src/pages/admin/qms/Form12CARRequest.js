@@ -34,7 +34,7 @@ export default function Form12CARRequest() {
     <QMSFormPage
       formType={12}
       formCode="AUD-F-16"
-      formTitle="Request for Corrective Action (CAR)"
+      formTitle="F16&F17 CAR"
       defaultData={DEFAULT}
       prefillFrom={{
         formTypes: [1, 2, 7, 11],

@@ -19,7 +19,7 @@ export default function Form13CARReport() {
     <QMSFormPage
       formType={13}
       formCode="AUD-F-17"
-      formTitle="Corrective Action Report"
+      formTitle="AUD-F-17 CAR"
       defaultData={DEFAULT}
       prefillFrom={{
         formTypes: [12],

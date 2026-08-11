@@ -85,7 +85,7 @@ export default function Form16SurveillanceApplication() {
     <QMSFormPage
       formType={16}
       formCode="AUD-F-02-A"
-      formTitle="Application Form — Surveillance / Re-certification"
+      formTitle="F16 · Application Form"
       defaultData={DEFAULT}
     >
       {({ data, set, clientInfo }) => {

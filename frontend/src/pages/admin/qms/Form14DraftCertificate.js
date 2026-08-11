@@ -18,7 +18,7 @@ export default function Form14DraftCertificate() {
     <QMSFormPage
       formType={14}
       formCode="AUD-F-21"
-      formTitle="Draft for Certificate Approval"
+      formTitle="AUD-F-21 Draft"
       defaultData={DEFAULT}
     >
       {({ data, set, clientInfo }) => <CertBody data={data} set={set} clientInfo={clientInfo} />}

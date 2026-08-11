@@ -49,7 +49,7 @@ export default function Form09Stage2AuditPlan() {
     <QMSFormPage
       formType={9}
       formCode="AUD-F-11"
-      formTitle="Audit Plan — Stage 2"
+      formTitle="F11&F12 S2Plan&Schedule"
       defaultData={DEFAULT}
     >
       {(props) => <Stage2PlanBody {...props} />}

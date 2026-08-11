@@ -42,7 +42,7 @@ export default function Form23OfiObservationSheet() {
 
         return (
           <div>
-            <SectionTitle>Opportunity for Improvement</SectionTitle>
+            <SectionTitle>Area of Concern</SectionTitle>
             <DynamicTable
               columns={OFI_COLUMNS}
               rows={data.entries || []}

@@ -54,7 +54,7 @@ const applicationSchema = new mongoose.Schema({
   outsourcedProcesses: { type: String },
   othersStandard:      { type: String },
   applicationType:     { type: String, default: 'Initial' },
-  accreditationBody:   { type: String, default: 'NABCB' },
+  accreditationBody:   { type: String, default: 'EAS' },
 
   // ── Step 3 — Employees
   totalEmployees:  { type: Number, default: 0 },

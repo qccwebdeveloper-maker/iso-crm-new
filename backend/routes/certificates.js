@@ -71,7 +71,7 @@ router.get('/prefill/:clientId', protect, authorize('admin'), async (req, res) =
       designation:    fd.designation || a.designation || '',
       contactNumber:  fdPhone || a.contactNumbers || user.phone || '',
       email:          fd.emailId || a.emailId || user.email || '',
-      accreditation:  fd.accreditationBody || a.accreditationBody || 'UAF',
+      accreditation:  fd.accreditationBody || a.accreditationBody || 'EAS',
       linkedApplication: app ? app._id : null,
       certNumber:     await generateCertNumber(),
       clientId:       user.clientId || '',

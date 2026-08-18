@@ -14,7 +14,7 @@ const ISO_LIST = [
   'ISO 22301:2019','ISO 37001:2016','ISO 21001:2018','ISO 50001:2018',
 ];
 const APP_TYPES = ['Initial','Surveillance','Re-certification','Un-Announced','Follow-up'];
-const ACCRED    = ['USF','UASL'];
+const ACCRED    = ['EAS','UASL'];
 const COUNTRY_CODES = [
   {code:'+1',country:'US/Canada'},{code:'+7',country:'Russia'},{code:'+20',country:'Egypt'},
   {code:'+27',country:'South Africa'},{code:'+30',country:'Greece'},{code:'+31',country:'Netherlands'},
@@ -51,7 +51,7 @@ const INIT = {
   scopeOfCertification:'',
   mainProcesses:'', outsourcedProcesses:'',
   standards:[], othersStandard:'',
-  applicationType:'Initial', accreditationBody:'USF',
+  applicationType:'Initial', accreditationBody:'EAS',
   totalEmployees:0, contractual:0, workingShifts:1,
   empTable: EMP_ROWS.map(()=>emptyRow()),
   remotePersonnel:0, weekendOperation:'',

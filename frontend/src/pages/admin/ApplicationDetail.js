@@ -10,7 +10,7 @@ import { localMobileNumber } from '../../utils/phone';
 const FL          = ['draft','submitted','under_review','audit_stage1','audit_stage2','approved','certified'];
 const ISO_LIST    = ['ISO 9001:2015','ISO 14001:2015','ISO 45001:2018','ISO 22000:2018','ISO 27001:2022','ISO/IEC 27701:2025','ISO/IEC 42001:2023','ISO 22301:2019','ISO 37001:2016','ISO 21001:2018'];
 const APP_TYPES   = ['Initial','Surveillance','Re-certification','Un-Announced','Follow-up'];
-const ACCRED      = ['USF','UASL'];
+const ACCRED      = ['EAS','UASL'];
 const EMP_ROWS    = ['Top Management','Production Area / Service','Quality Control / Technical','Administration','Other'];
 const EMP_COLS    = ['Full Time','Part Time','Performing Same type of Job','Temporary Unskilled Workers','Effective No. Filled by QCC'];
 const LOC_CONDS   = ['Special countermeasure area','Protection area of source water','Industrial complex','City'];
@@ -97,7 +97,7 @@ export default function AdminApplicationDetail(){
     standards:           d.standards||[d.isoStandard].filter(Boolean),
     othersStandard:      d.othersStandard||'',
     applicationType:     d.applicationType||'Initial',
-    accreditationBody:   d.accreditationBody||'USF',
+    accreditationBody:   d.accreditationBody||'EAS',
     /* Step 3 */
     totalEmployees:      d.totalEmployees||d.employeeCount?.total||0,
     contractual:         d.contractual||0,
@@ -383,7 +383,7 @@ export default function AdminApplicationDetail(){
                 </select>
               </FG>
               <FG label="Accreditation Body">
-                <select className="form-control" value={ef.accreditationBody||'USF'} onChange={e=>set('accreditationBody',e.target.value)}>
+                <select className="form-control" value={ef.accreditationBody||'EAS'} onChange={e=>set('accreditationBody',e.target.value)}>
                   {ACCRED.map(a=><option key={a}>{a}</option>)}
                 </select>
               </FG>

@@ -4,7 +4,7 @@ import QMSFormPage from './QMSFormPage';
 import useStandards from './useStandards';
 import { localMobileNumber } from '../../../utils/phone';
 const APP_TYPES = ['Initial','Surveillance','Re-certification','Un-Announced','Follow-up', 'Special Audit'];
-const ACCRED = ['UAF','UASL'];
+const ACCRED = ['EAS','UASL'];
 const COUNTRY_CODES = [
   {code:'+1',country:'US/Canada'},{code:'+7',country:'Russia'},{code:'+20',country:'Egypt'},
   {code:'+27',country:'South Africa'},{code:'+30',country:'Greece'},{code:'+31',country:'Netherlands'},
@@ -41,7 +41,7 @@ export const INIT = {
   scopeOfCertification:'',
   mainProcesses:'', outsourcedProcesses:'',
   standards:[], othersStandard:'',
-  applicationType:'Initial', accreditationBody:'UAF',
+  applicationType:'Initial', accreditationBody:'EAS',
   totalEmployees:0, contractual:0, workingShifts:1,
   empTable: EMP_ROWS.map(()=>emptyRow()),
   remotePersonnel:0, weekendOperation:'',
@@ -418,7 +418,7 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
                 </select>
               </FG>
               <FG label="Accreditation Body">
-                <select className="form-control" value={data.accreditationBody||'UAF'} onChange={e=>set('accreditationBody',e.target.value)}>
+                <select className="form-control" value={data.accreditationBody||'EAS'} onChange={e=>set('accreditationBody',e.target.value)}>
                   {ACCRED.map(a=><option key={a}>{a}</option>)}
                 </select>
               </FG>

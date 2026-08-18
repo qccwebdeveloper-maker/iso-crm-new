@@ -12,12 +12,12 @@ const ISO_STDS = [
   'ISO 50001:2018','ISO 27001:2022','ISO/IEC 27701:2025','ISO/IEC 42001:2023',
   'ISO 22301:2019','ISO 37001:2016','ISO 21001:2018',
 ];
-const ACCRED = ['UAF','UASL'];
+const ACCRED = ['EAS','UASL'];
 
 const blank = () => ({
   orgName:'', standard:'', scope:'', address:'', clientId:'',
   contactPerson:'', designation:'', contactNumber:'', email:'',
-  auditorName:'', auditorRole:'', iafCode:'', accreditation:'UAF',
+  auditorName:'', auditorRole:'', iafCode:'', accreditation:'EAS',
   certNumber:'', issueDate:'', expiryDate:'', surveillanceDate:'',
   surveillanceDate2:'', originalCertDate:'', notes:'',
   orgTop:19, addressTop:25, scopeTop:51,
@@ -264,7 +264,7 @@ function CertForm({ data, set, isEdit, onGen }) {
           <input className="form-control" value={data.iafCode||''} onChange={e=>set('iafCode',e.target.value)} placeholder="e.g. 33" />
         </FG>
         <FG label="Accreditation Body">
-          <select className="form-control" value={data.accreditation||'NABCB'} onChange={e=>set('accreditation',e.target.value)}>
+          <select className="form-control" value={data.accreditation||'EAS'} onChange={e=>set('accreditation',e.target.value)}>
             {ACCRED.map(a=><option key={a}>{a}</option>)}
           </select>
         </FG>
@@ -377,7 +377,7 @@ export default function CertificateManagement() {
   const [fetching,    setFetching]    = useState(false);
   const [setting,     setSetting]     = useState({
     title:'Certificate of Registration', authority:'QC Certification Pvt Ltd',
-    validityYears:3, footerText:'This certificate is subject to certification body regulations.', accreditation:'UAF',
+    validityYears:3, footerText:'This certificate is subject to certification body regulations.', accreditation:'EAS',
   });
 
   const load = useCallback(() => {

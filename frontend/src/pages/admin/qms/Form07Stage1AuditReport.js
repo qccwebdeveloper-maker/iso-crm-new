@@ -119,6 +119,9 @@ const ISMS_REVIEW_QUESTIONS = [
   'Is the information sufficient to determine audit duration, audit team competence and Stage 2 planning?',
 ];
 
+/* Fixed, non-editable Stage-1 audit criteria wording. */
+const AUDIT_CRITERIA = 'Client Manual, policies, procedures, SOPs, process flow, risk assessment, legal register, objectives, internal audit records, management review records, operational control records, compliance obligations, customer/contractual requirements, and applicable site-specific requirements.';
+
 const DEFAULT = {
   idNo: '', isoStandards: '', orgName: '', auditLanguage: 'English', address: '',
   modeOfAudit: '', contactPerson: '', onlineMeetingLink: '',
@@ -137,7 +140,7 @@ The audit objectives include:
 6. To assess the organization's preparedness for the Stage-2 Audit and identify any areas of concern that could be classified as nonconformities during Stage-2.
 7. To confirm the certification scope, organizational context, interested parties, risks and opportunities, and understanding of applicable management system requirements.
 8. To collect sufficient information regarding the management system, processes, locations, and activities to facilitate effective planning of the Stage-2 Audit.`,
-  auditCriteria: 'Client QMS Manual, policies, procedures, SOPs, process flow, risk assessment, legal register, objectives, internal audit records, management review records, operational control records, compliance obligations, customer/contractual requirements, and applicable site-specific requirements.',
+  auditCriteria: AUDIT_CRITERIA,
   briefAboutOrg: '',
   hasChangesSummary: '',
   auditDurationChange: '', employeeDetailChange: '', employeeDetailChangeDetails: '',
@@ -189,6 +192,12 @@ function Stage1ReportBody({ data, set, clientInfo }) {
       set('appStandards', liveApp);
     }
   }, [clientInfo, names.length]); // eslint-disable-line
+
+  // Audit Criteria is fixed, non-editable wording — keep it persisted so saved and
+  // exported reports always carry the standard text (covers older forms).
+  useEffect(() => {
+    if (data.auditCriteria !== AUDIT_CRITERIA) set('auditCriteria', AUDIT_CRITERIA);
+  }, [data.auditCriteria]); // eslint-disable-line
 
   // Fetch the meeting link and Stage-1 audit dates from F02 (Application Review) and
   // fill them here when blank, without overwriting anything already entered.
@@ -315,7 +324,7 @@ function Stage1ReportBody({ data, set, clientInfo }) {
 
             <SectionTitle>Audit Criteria</SectionTitle>
             <div style={{ padding: '12px 16px', border: '1.5px solid #e2e8f0', borderRadius: 8, background: '#f8fafc', fontSize: 13, lineHeight: 1.6, color: '#334155', whiteSpace: 'pre-line', marginBottom: 16 }}>
-              {data.auditCriteria}
+              {AUDIT_CRITERIA}
             </div>
 
             <SectionTitle>Brief About the Organization</SectionTitle>

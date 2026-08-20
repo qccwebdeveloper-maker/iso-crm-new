@@ -8,7 +8,7 @@ import useStandards from './useStandards';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
-  FiEye, FiPrinter, FiMoreVertical, FiUpload,
+  FiEye, FiPrinter, FiMoreVertical, FiUpload, FiUserCheck,
 } from 'react-icons/fi';
 
 const STATUS_META = {
@@ -537,6 +537,11 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   const [listLoading,   setListLoading]   = useState(true);
   const [deleteId,      setDeleteId]      = useState(null);
   const [previewRow,    setPreviewRow]    = useState(null);
+  const [auditors,      setAuditors]      = useState([]);
+  const [reviewers,     setReviewers]     = useState([]);
+  const [assignRow,     setAssignRow]     = useState(null);
+  const [assignSel,     setAssignSel]     = useState({ auditorId: '', reviewerId: '' });
+  const [assigning,     setAssigning]     = useState(false);
 
   const fetchList = useCallback(async () => {
     setListLoading(true);
@@ -548,6 +553,33 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   }, [formType]);
 
   useEffect(() => { fetchList(); }, [fetchList]);
+
+  useEffect(() => {
+    axios.get('/api/auditors').then(({ data }) => {
+      setAuditors((data || []).filter(u => u.role === 'auditor'));
+      setReviewers((data || []).filter(u => u.role === 'reviewer'));
+    }).catch(() => {});
+  }, []);
+
+  const openAssign = (row) => {
+    setAssignRow(row);
+    setAssignSel({
+      auditorId:  row.application?.assignedAuditor?._id  || '',
+      reviewerId: row.application?.assignedReviewer?._id || '',
+    });
+  };
+
+  const doAssign = async () => {
+    if (!assignSel.auditorId && !assignSel.reviewerId) return toast.error('Select at least one');
+    setAssigning(true);
+    try {
+      await axios.post(`/api/qms-forms/${assignRow._id}/assign`, assignSel);
+      toast.success('Assigned!');
+      setAssignRow(null);
+      fetchList();
+    } catch (err) { toast.error(err.response?.data?.message || 'Assign failed'); }
+    finally { setAssigning(false); }
+  };
 
   // Deep-link support for the "Download Forms" page: when opened as
   // /admin/qms/form-XX?client=<id>, auto-open this form's read-only preview (which
@@ -794,7 +826,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                 <table className="qms-tbl">
                   <thead>
                     <tr>
-                      {['Client ID', 'Client Name', 'Company', 'Status', 'Last Updated', 'Actions'].map(h => (
+                      {['Client ID', 'Client Name', 'Company', 'Status', 'Auditor', 'Last Updated', 'Actions'].map(h => (
                         <th key={h}>{h}</th>
                       ))}
                     </tr>
@@ -813,6 +845,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                               <SIcon size={11} /> {sm.label}
                             </span>
                           </td>
+                          <td style={{ fontSize: 12, color: 'var(--gray-500)' }}>{row.application?.assignedAuditor?.name || '—'}</td>
                           <td style={{ color: 'var(--gray-400)', whiteSpace: 'nowrap' }}>
                             {new Date(row.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </td>
@@ -823,6 +856,9 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                               </button>
                               <button type="button" onClick={() => setPreviewRow(row)} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                 <FiEye size={11} /> View
+                              </button>
+                              <button type="button" onClick={() => openAssign(row)} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <FiUserCheck size={11} /> {row.application?.assignedAuditor ? 'Reassign' : 'Assign'}
                               </button>
                               <button type="button" onClick={() => setDeleteId(row._id)} className="btn btn-danger btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                 <FiTrash2 size={11} />
@@ -1007,6 +1043,44 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ASSIGN AUDITOR ═══ */}
+      {assignRow && (
+        <div className="modal-bg" onClick={() => setAssignRow(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div className="modal-title">
+                <FiUserCheck size={16} style={{ color: 'var(--primary)', marginRight: 8, verticalAlign: 'middle' }} />
+                Assign Team — {assignRow.clientId}
+              </div>
+              <button className="modal-close" onClick={() => setAssignRow(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ background: 'var(--primary-50)', borderRadius: 10, padding: '10px 14px', marginBottom: 18, fontSize: 13, border: '1px solid var(--primary-100)' }}>
+                <strong>{assignRow.clientRef?.company || assignRow.clientRef?.name || 'New Application'}</strong>
+              </div>
+              <div className="form-group"><label className="form-label">Assign Auditor</label>
+                <select className="form-control" value={assignSel.auditorId} onChange={e => setAssignSel(p => ({ ...p, auditorId: e.target.value }))}>
+                  <option value="">— Select Auditor —</option>
+                  {auditors.map(a => <option key={a._id} value={a._id}>{a.name} ({a.email})</option>)}
+                </select>
+              </div>
+              <div className="form-group"><label className="form-label">Assign Reviewer</label>
+                <select className="form-control" value={assignSel.reviewerId} onChange={e => setAssignSel(p => ({ ...p, reviewerId: e.target.value }))}>
+                  <option value="">— Select Reviewer —</option>
+                  {reviewers.map(r => <option key={r._id} value={r._id}>{r.name} ({r.email})</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-ghost" onClick={() => setAssignRow(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={doAssign} disabled={assigning}>
+                {assigning ? 'Saving…' : <><FiUserCheck size={14} /> Confirm Assign</>}
+              </button>
             </div>
           </div>
         </div>

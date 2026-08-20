@@ -31,6 +31,7 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
 
     const forms = await QMSForm.find(filter)
       .populate('clientRef', 'name company clientId email phone')
+      .populate({ path: 'application', select: 'assignedAuditor assignedReviewer status', populate: { path: 'assignedAuditor assignedReviewer', select: 'name email' } })
       .sort({ updatedAt: -1 });
     res.json(forms);
   } catch (err) { res.status(500).json({ message: err.message }); }
@@ -244,6 +245,67 @@ router.post('/my', protect, authorize('client'), async (req, res) => {
     console.error('[POST /api/qms-forms/my]', err.message);
     res.status(500).json({ message: err.message });
   }
+});
+
+// POST /api/qms-forms/:id/assign — assign an auditor/reviewer to the client behind
+// this record. Resolves (or creates) the Application that backs it, since the
+// auditor/reviewer dashboards read assignments from Application.assignedAuditor —
+// same mechanism as POST /api/applications/:id/assign, just entered from this list.
+router.post('/:id/assign', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { auditorId, reviewerId } = req.body;
+    if (!auditorId && !reviewerId) return res.status(400).json({ message: 'Select at least one person to assign' });
+
+    const form = await QMSForm.findById(req.params.id);
+    if (!form) return res.status(404).json({ message: 'Record not found' });
+
+    let clientUserId = form.clientRef;
+    if (!clientUserId) {
+      const client = await User.findOne({ clientId: form.clientId }).select('_id');
+      clientUserId = client?._id || null;
+    }
+    if (!clientUserId) return res.status(400).json({ message: 'No client account found for this record' });
+
+    let appId = form.application;
+    if (!appId) {
+      const existing = await Application.findOne({ client: clientUserId }).sort({ createdAt: -1 }).select('_id');
+      if (existing) {
+        appId = existing._id;
+      } else {
+        const fd = form.formData || {};
+        const created = await Application.create({
+          client:           clientUserId,
+          organizationName: fd.organizationName || fd.orgName || '',
+          isoStandard:      (Array.isArray(fd.standards) && fd.standards[0]) || fd.isoStandard || '',
+        });
+        appId = created._id;
+        await User.findByIdAndUpdate(clientUserId, { $addToSet: { assignedApplications: appId } });
+      }
+      form.application = appId;
+      await form.save();
+    }
+
+    const updates = { status: 'under_review' };
+    if (auditorId)  updates.assignedAuditor  = auditorId;
+    if (reviewerId) updates.assignedReviewer = reviewerId;
+    const app = await Application.findByIdAndUpdate(appId, updates, { new: true })
+      .populate('client assignedAuditor assignedReviewer', 'name email _id clientId');
+
+    if (auditorId) {
+      await User.findByIdAndUpdate(auditorId, { $addToSet: { assignedApplications: appId } });
+      await User.findByIdAndUpdate(auditorId, { $push: { notifications: { $each: [{
+        message: `You have been assigned to application ${app.applicationId}`, type: 'info', read: false, createdAt: new Date(),
+      }], $position: 0, $slice: 50 } } });
+    }
+    if (reviewerId) {
+      await User.findByIdAndUpdate(reviewerId, { $addToSet: { assignedApplications: appId } });
+      await User.findByIdAndUpdate(reviewerId, { $push: { notifications: { $each: [{
+        message: `You have been assigned to review application ${app.applicationId}`, type: 'info', read: false, createdAt: new Date(),
+      }], $position: 0, $slice: 50 } } });
+    }
+
+    res.json({ message: 'Assigned successfully', application: app });
+  } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
 // DELETE /api/qms-forms/:id

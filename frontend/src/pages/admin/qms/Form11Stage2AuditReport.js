@@ -132,7 +132,7 @@ The audit objectives include:
 /* Fixed, non-editable Stage-2 audit criteria wording. */
 const AUDIT_CRITERIA = 'Applicable requirements of organization’s documented policies, manuals, procedures, SOPs, work instructions, process flow charts, risk assessments, objectives and targets; applicable statutory, regulatory, legal and contractual requirements; customer requirements; operational control requirements; monitoring and measurement records; internal audit reports; management review records; corrective action records; performance evaluation results; applicable IAF mandatory documents and accreditation requirements; and other relevant normative references applicable to the organization’s scope of certification.';
 
-const DEFAULT = {
+export const DEFAULT = {
   idNo: '', orgName: '', address: '', contactPerson: '', contactDetails: '',
   auditType: 'Stage II', auditStandards: 'ISO 9001', modeOfAudit: '',
   onlineMeetingLink: '', scopeOfCertification: '', iafCode: '',
@@ -192,7 +192,7 @@ export default function Form11Stage2AuditReport() {
   );
 }
 
-function Stage2ReportBody({ data, set, clientInfo }) {
+export function Stage2ReportBody({ data, set, clientInfo }) {
   const { byName, names, loading } = useStandards();
 
   // Standards the client selected in their Application Form (F01) drive the

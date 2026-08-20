@@ -5,6 +5,7 @@ import axios from 'axios';
 import Layout from '../../../components/common/Layout';
 import toast from 'react-hot-toast';
 import useStandards from './useStandards';
+import { useAuth } from '../../../context/AuthContext';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
@@ -525,6 +526,10 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellCha
 // ─── Main page wrapper ────────────────────────────────────────────────────────
 
 export default function QMSFormPage({ formType, formCode, formTitle, defaultData, prefillFrom, children }) {
+  const { user } = useAuth();
+  // Auditors/reviewers can review & edit these forms exactly like admin, but
+  // assigning the audit team and deleting records stay admin-only management actions.
+  const isAdmin = user?.role === 'admin';
   const [clientIdInput, setClientIdInput] = useState('');
   const [clientInfo,    setClientInfo]    = useState(null);
   const [formData,      setFormData]      = useState(defaultData || {});
@@ -555,11 +560,12 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   useEffect(() => { fetchList(); }, [fetchList]);
 
   useEffect(() => {
+    if (!isAdmin) return;
     axios.get('/api/auditors').then(({ data }) => {
       setAuditors((data || []).filter(u => u.role === 'auditor'));
       setReviewers((data || []).filter(u => u.role === 'reviewer'));
     }).catch(() => {});
-  }, []);
+  }, [isAdmin]);
 
   const openAssign = (row) => {
     setAssignRow(row);
@@ -857,12 +863,16 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                               <button type="button" onClick={() => setPreviewRow(row)} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                 <FiEye size={11} /> View
                               </button>
-                              <button type="button" onClick={() => openAssign(row)} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                <FiUserCheck size={11} /> {row.application?.assignedAuditor ? 'Reassign' : 'Assign'}
-                              </button>
-                              <button type="button" onClick={() => setDeleteId(row._id)} className="btn btn-danger btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                <FiTrash2 size={11} />
-                              </button>
+                              {isAdmin && (
+                                <button type="button" onClick={() => openAssign(row)} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <FiUserCheck size={11} /> {row.application?.assignedAuditor ? 'Reassign' : 'Assign'}
+                                </button>
+                              )}
+                              {isAdmin && (
+                                <button type="button" onClick={() => setDeleteId(row._id)} className="btn btn-danger btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <FiTrash2 size={11} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

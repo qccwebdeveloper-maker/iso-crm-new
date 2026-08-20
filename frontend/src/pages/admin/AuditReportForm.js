@@ -21,12 +21,16 @@ export default function AuditReportForm() {
   const [reportId,       setReportId]       = useState(id || null);
   const [activeSection,  setActiveSection]  = useState(1);
 
-  const [clientId,          setClientId]          = useState('');
-  const [clientInfo,        setClientInfo]        = useState(null);
-  const [assignedAuditor,   setAssignedAuditor]   = useState(null);
-  const [auditors,          setAuditors]          = useState([]);
-  const [selectedAuditorId, setSelectedAuditorId] = useState('');
-  const [assigning,         setAssigning]         = useState(false);
+  const [clientId,           setClientId]           = useState('');
+  const [clientInfo,         setClientInfo]         = useState(null);
+  const [assignedAuditor,    setAssignedAuditor]    = useState(null);
+  const [assignedReviewer,   setAssignedReviewer]   = useState(null);
+  const [auditors,           setAuditors]           = useState([]);
+  const [reviewers,          setReviewers]          = useState([]);
+  const [selectedAuditorId,  setSelectedAuditorId]  = useState('');
+  const [selectedReviewerId, setSelectedReviewerId] = useState('');
+  const [assigning,          setAssigning]          = useState(false);
+  const [assigningReviewer,  setAssigningReviewer]  = useState(false);
 
   const set = (k, v) => setData(p => ({ ...p, [k]: v }));
 
@@ -40,12 +44,17 @@ export default function AuditReportForm() {
           setClientId(r.clientId || '');
           setClientInfo(r.client || null);
           setAssignedAuditor(r.assignedAuditor || null);
+          setAssignedReviewer(r.assignedReviewer || null);
           setReportId(r._id);
         })
         .catch(() => toast.error('Failed to load report'))
         .finally(() => setLoading(false));
     }
-    axios.get('/api/auditors').then(res => setAuditors(res.data || [])).catch(() => {});
+    axios.get('/api/auditors').then(res => {
+      const list = res.data || [];
+      setAuditors(list.filter(u => u.role === 'auditor'));
+      setReviewers(list.filter(u => u.role === 'reviewer'));
+    }).catch(() => {});
   }, [id]);
 
   const handleSave = async (asDraft = false) => {
@@ -56,6 +65,7 @@ export default function AuditReportForm() {
         const res = await axios.put(`/api/audit-reports/${reportId}`, payload);
         setClientInfo(res.data.client || null);
         setAssignedAuditor(res.data.assignedAuditor || null);
+        setAssignedReviewer(res.data.assignedReviewer || null);
         toast.success(asDraft ? 'Draft saved!' : 'Report saved!');
       } else {
         const res = await axios.post('/api/audit-reports', payload);
@@ -63,6 +73,7 @@ export default function AuditReportForm() {
         setReportId(newId);
         setClientInfo(res.data.client || null);
         setAssignedAuditor(res.data.assignedAuditor || null);
+        setAssignedReviewer(res.data.assignedReviewer || null);
         navigate(`/admin/audit-reports/${newId}`, { replace: true });
         toast.success('Report created!');
       }
@@ -85,6 +96,36 @@ export default function AuditReportForm() {
       toast.error(err.response?.data?.message || 'Failed to assign auditor');
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const handleAssignReviewer = async () => {
+    if (!reportId) { toast.error('Save report first before assigning reviewer'); return; }
+    if (!selectedReviewerId) { toast.error('Please select a reviewer'); return; }
+    setAssigningReviewer(true);
+    try {
+      const res = await axios.post(`/api/audit-reports/${reportId}/assign`, { reviewerId: selectedReviewerId });
+      setAssignedReviewer(res.data.assignedReviewer);
+      toast.success('Reviewer assigned successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to assign reviewer');
+    } finally {
+      setAssigningReviewer(false);
+    }
+  };
+
+  const handleUnassignReviewer = async () => {
+    if (!reportId) return;
+    setAssigningReviewer(true);
+    try {
+      await axios.post(`/api/audit-reports/${reportId}/unassign-reviewer`);
+      setAssignedReviewer(null);
+      setSelectedReviewerId('');
+      toast.success('Reviewer unassigned');
+    } catch {
+      toast.error('Failed to unassign reviewer');
+    } finally {
+      setAssigningReviewer(false);
     }
   };
 
@@ -226,6 +267,49 @@ export default function AuditReportForm() {
                   style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 8, border: 'none', background: selectedAuditorId ? 'var(--primary)' : '#e2e8f0', color: selectedAuditorId ? 'white' : 'var(--gray-400)', cursor: (assigning || !selectedAuditorId) ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600 }}
                 >
                   <UserCheck size={13} /> {assigning ? 'Assigning...' : 'Assign'}
+                </button>
+              </div>
+            )}
+            {!reportId && (
+              <span style={{ fontSize: 10.5, color: 'var(--gray-400)', display: 'block', marginTop: 6 }}>
+                Save report first to enable assignment
+              </span>
+            )}
+          </div>
+
+          <div style={{ background: 'white', borderRadius: 12, border: '1px solid #f1f5f9', padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>Assign Reviewer</div>
+            {assignedReviewer ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#15803d', whiteSpace: 'nowrap' }}>✓ {assignedReviewer.name}</span>
+                  <span style={{ fontSize: 12, color: '#86efac' }}>·</span>
+                  <span style={{ fontSize: 12, color: '#15803d', overflow: 'hidden', textOverflow: 'ellipsis' }}>{assignedReviewer.email}</span>
+                </div>
+                <button
+                  onClick={handleUnassignReviewer}
+                  disabled={assigningReviewer}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: '1.5px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: assigningReviewer ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600, flexShrink: 0 }}
+                >
+                  <UserX size={13} /> {assigningReviewer ? '...' : 'Remove'}
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <select
+                  value={selectedReviewerId}
+                  onChange={e => setSelectedReviewerId(e.target.value)}
+                  style={{ ...sel, flex: 1, minWidth: 180 }}
+                >
+                  <option value="">Select reviewer...</option>
+                  {reviewers.map(r => <option key={r._id} value={r._id}>{r.name} ({r.email})</option>)}
+                </select>
+                <button
+                  onClick={handleAssignReviewer}
+                  disabled={assigningReviewer || !selectedReviewerId}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 8, border: 'none', background: selectedReviewerId ? 'var(--primary)' : '#e2e8f0', color: selectedReviewerId ? 'white' : 'var(--gray-400)', cursor: (assigningReviewer || !selectedReviewerId) ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600 }}
+                >
+                  <UserCheck size={13} /> {assigningReviewer ? 'Assigning...' : 'Assign'}
                 </button>
               </div>
             )}

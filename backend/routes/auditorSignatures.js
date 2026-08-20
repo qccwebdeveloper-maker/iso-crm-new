@@ -21,7 +21,7 @@ const signatureUpload = multer({
 
 // GET /api/auditor-signatures — full roster, used to auto-fill the Signature
 // column on QMS forms by matching a signatory's typed name.
-router.get('/', protect, authorize('admin'), async (req, res) => {
+router.get('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req, res) => {
   try {
     const list = await AuditorSignature.find().sort({ name: 1 });
     res.json(list);

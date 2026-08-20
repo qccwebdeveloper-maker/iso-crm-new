@@ -3,7 +3,7 @@ import QMSFormPage, { SectionTitle, DynamicTable } from './QMSFormPage';
 
 const EMPTY_ROW = { sNo: '', clause: '', currentFindings: '', status: '', correctiveAction: '', auditorComment: '', remarks: '' };
 
-const DEFAULT = {
+export const DEFAULT = {
   entries: [{ ...EMPTY_ROW, sNo: '1' }],
 };
 
@@ -28,32 +28,34 @@ export default function Form23OfiObservationSheet() {
       formTitle="AUD-F-09-B_OFI_O Sheet"
       defaultData={DEFAULT}
     >
-      {({ data, set }) => {
-        const setRow = (ri, k, v) => {
-          const rows = [...(data.entries || [])];
-          rows[ri] = { ...rows[ri], [k]: v };
-          set('entries', rows);
-        };
-        const addRow = () => {
-          const rows = data.entries || [];
-          set('entries', [...rows, { ...EMPTY_ROW, sNo: String(rows.length + 1) }]);
-        };
-        const removeRow = (ri) => set('entries', (data.entries || []).filter((_, i) => i !== ri));
-
-        return (
-          <div>
-            <SectionTitle>Area of Concern</SectionTitle>
-            <DynamicTable
-              columns={OFI_COLUMNS}
-              rows={data.entries || []}
-              onAdd={addRow}
-              onRemove={removeRow}
-              onCellChange={setRow}
-              addLabel="Add Row"
-            />
-          </div>
-        );
-      }}
+      {(props) => <OfiBody {...props} />}
     </QMSFormPage>
+  );
+}
+
+export function OfiBody({ data, set }) {
+  const setRow = (ri, k, v) => {
+    const rows = [...(data.entries || [])];
+    rows[ri] = { ...rows[ri], [k]: v };
+    set('entries', rows);
+  };
+  const addRow = () => {
+    const rows = data.entries || [];
+    set('entries', [...rows, { ...EMPTY_ROW, sNo: String(rows.length + 1) }]);
+  };
+  const removeRow = (ri) => set('entries', (data.entries || []).filter((_, i) => i !== ri));
+
+  return (
+    <div>
+      <SectionTitle>Area of Concern</SectionTitle>
+      <DynamicTable
+        columns={OFI_COLUMNS}
+        rows={data.entries || []}
+        onAdd={addRow}
+        onRemove={removeRow}
+        onCellChange={setRow}
+        addLabel="Add Row"
+      />
+    </div>
   );
 }

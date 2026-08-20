@@ -97,7 +97,7 @@ const ROLE_RESPONSIBILITIES = [
   },
 ];
 
-const DEFAULT = {
+export const DEFAULT = {
   idNo: '', orgName: '', address: '', contactPerson: '', contactDetails: '', email: '',
   auditType: '', auditStandards: '', auditPlanDate: '',
   auditDateFrom: '', auditDateTo: '', modeOfAudit: '', onlineMeetingLink: '',
@@ -133,7 +133,7 @@ export default function Form05Stage1AuditPlan() {
   );
 }
 
-function Stage1Body({ data, set, clientInfo }) {
+export function Stage1Body({ data, set, clientInfo }) {
   const { byName, names, loading } = useStandards();
 
   // Standards the client actually selected in their Application Form (F01) — read

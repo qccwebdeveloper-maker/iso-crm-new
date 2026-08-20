@@ -3,7 +3,7 @@ import QMSFormPage, { FormRow, FormField, FInput, SectionTitle, DynamicTable, St
 
 const EMPTY_CAR = { ncrNo: '', clauseRef: '', minorMajor: 'Minor', ncrDetail: '', writingDate: '', processDept: '', acceptedBy: '', leadAuditorName: '' };
 
-const DEFAULT = {
+export const DEFAULT = {
   idNo: '', orgName: '', standard: '',
   carEntries:      [{ ...EMPTY_CAR, ncrNo: '1' }],   // Stage 1 (from F07)
   carEntriesStage2: [{ ...EMPTY_CAR, ncrNo: '1' }],  // Stage 2 (from F11)
@@ -70,59 +70,61 @@ export default function Form12CARRequest() {
         },
       }}
     >
-      {({ data, set }) => {
-        const setCarOn = (field) => (ri, k, v) => {
-          const t = [...(data[field] || [])];
-          t[ri] = { ...t[ri], [k]: v };
-          set(field, t);
-        };
-        const addOn = (field) => () => {
-          const cur = data[field] || [];
-          set(field, [...cur, { ...EMPTY_CAR, ncrNo: String(cur.length + 1) }]);
-        };
-        const removeOn = (field) => (ri) => set(field, (data[field] || []).filter((_, i) => i !== ri));
-
-        return (
-          <div>
-            <SectionTitle>Organization Details</SectionTitle>
-            <FormRow cols={3}>
-              <FormField label="ID No.">
-                <FInput value={data.idNo} onChange={v => set('idNo', v)} placeholder="Client / Application ID" />
-              </FormField>
-              <FormField label="Organization Name" required>
-                <FInput value={data.orgName} onChange={v => set('orgName', v)} />
-              </FormField>
-              <FormField label="Standard">
-                <StandardChips value={data.standard} />
-              </FormField>
-            </FormRow>
-
-            <div style={{ background: '#fef3c7', borderRadius: 8, border: '1px solid #fde68a', padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#92400e' }}>
-              <strong>Note:</strong> Minor NCR — Please take action including reason analysis and prevention within 1 month. | Major NCR — Please conduct confirmation audit between 1–3 months.
-            </div>
-
-            <SectionTitle>Stage 1 — Corrective Action Requests</SectionTitle>
-            <DynamicTable
-              columns={CAR_COLUMNS}
-              rows={data.carEntries || []}
-              onAdd={addOn('carEntries')}
-              onRemove={removeOn('carEntries')}
-              onCellChange={setCarOn('carEntries')}
-              addLabel="Add NCR Entry"
-            />
-
-            <SectionTitle>Stage 2 — Corrective Action Requests</SectionTitle>
-            <DynamicTable
-              columns={CAR_COLUMNS}
-              rows={data.carEntriesStage2 || []}
-              onAdd={addOn('carEntriesStage2')}
-              onRemove={removeOn('carEntriesStage2')}
-              onCellChange={setCarOn('carEntriesStage2')}
-              addLabel="Add NCR Entry"
-            />
-          </div>
-        );
-      }}
+      {(props) => <CarBody {...props} />}
     </QMSFormPage>
+  );
+}
+
+export function CarBody({ data, set }) {
+  const setCarOn = (field) => (ri, k, v) => {
+    const t = [...(data[field] || [])];
+    t[ri] = { ...t[ri], [k]: v };
+    set(field, t);
+  };
+  const addOn = (field) => () => {
+    const cur = data[field] || [];
+    set(field, [...cur, { ...EMPTY_CAR, ncrNo: String(cur.length + 1) }]);
+  };
+  const removeOn = (field) => (ri) => set(field, (data[field] || []).filter((_, i) => i !== ri));
+
+  return (
+    <div>
+      <SectionTitle>Organization Details</SectionTitle>
+      <FormRow cols={3}>
+        <FormField label="ID No.">
+          <FInput value={data.idNo} onChange={v => set('idNo', v)} placeholder="Client / Application ID" />
+        </FormField>
+        <FormField label="Organization Name" required>
+          <FInput value={data.orgName} onChange={v => set('orgName', v)} />
+        </FormField>
+        <FormField label="Standard">
+          <StandardChips value={data.standard} />
+        </FormField>
+      </FormRow>
+
+      <div style={{ background: '#fef3c7', borderRadius: 8, border: '1px solid #fde68a', padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#92400e' }}>
+        <strong>Note:</strong> Minor NCR — Please take action including reason analysis and prevention within 1 month. | Major NCR — Please conduct confirmation audit between 1–3 months.
+      </div>
+
+      <SectionTitle>Stage 1 — Corrective Action Requests</SectionTitle>
+      <DynamicTable
+        columns={CAR_COLUMNS}
+        rows={data.carEntries || []}
+        onAdd={addOn('carEntries')}
+        onRemove={removeOn('carEntries')}
+        onCellChange={setCarOn('carEntries')}
+        addLabel="Add NCR Entry"
+      />
+
+      <SectionTitle>Stage 2 — Corrective Action Requests</SectionTitle>
+      <DynamicTable
+        columns={CAR_COLUMNS}
+        rows={data.carEntriesStage2 || []}
+        onAdd={addOn('carEntriesStage2')}
+        onRemove={removeOn('carEntriesStage2')}
+        onCellChange={setCarOn('carEntriesStage2')}
+        addLabel="Add NCR Entry"
+      />
+    </div>
   );
 }

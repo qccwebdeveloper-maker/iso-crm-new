@@ -122,7 +122,7 @@ const ISMS_REVIEW_QUESTIONS = [
 /* Fixed, non-editable Stage-1 audit criteria wording. */
 const AUDIT_CRITERIA = 'Client Manual, policies, procedures, SOPs, process flow, risk assessment, legal register, objectives, internal audit records, management review records, operational control records, compliance obligations, customer/contractual requirements, and applicable site-specific requirements.';
 
-const DEFAULT = {
+export const DEFAULT = {
   idNo: '', isoStandards: '', orgName: '', auditLanguage: 'English', address: '',
   modeOfAudit: '', contactPerson: '', onlineMeetingLink: '',
   contactDetails: '', auditDates: '', auditType: '', stage1Duration: '',
@@ -173,7 +173,7 @@ export default function Form07Stage1AuditReport() {
   );
 }
 
-function Stage1ReportBody({ data, set, clientInfo }) {
+export function Stage1ReportBody({ data, set, clientInfo }) {
   const { byName, names, loading } = useStandards();
 
   // Standards the client selected in their Application Form (F01) drive the

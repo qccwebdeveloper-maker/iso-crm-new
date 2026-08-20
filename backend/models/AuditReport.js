@@ -26,7 +26,8 @@ const auditReportSchema = new mongoose.Schema({
   createdBy:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   clientId:        { type: String, default: '' },
   client:          { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  assignedAuditor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  assignedAuditor:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  assignedReviewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   status:          { type: String, enum: ['draft', 'in_progress', 'completed'], default: 'draft' },
 
   // ── Step 1: AUD-F-02 §2.1 — Organization Info ────────────────────────────

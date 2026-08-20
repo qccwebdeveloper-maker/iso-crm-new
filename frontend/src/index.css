@@ -458,7 +458,7 @@ select.form-control { cursor: pointer; }
 .audit-wrap        { padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
 .audit-layout      { display: grid; grid-template-columns: 230px 1fr; gap: 20px; align-items: start; }
 .audit-sidebar     { position: sticky; top: 76px; }
-.audit-meta-row    { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.audit-meta-row    { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .audit-section-hdr { display: flex; align-items: center; gap: 10px; padding: 13px 20px; background: #fafafa; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background .15s; }
 .audit-section-hdr:hover   { background: #fff7ed; }
 .audit-section-hdr.active  { background: #fff7ed; border-left: 3px solid var(--primary); }

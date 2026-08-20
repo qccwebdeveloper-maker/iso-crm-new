@@ -27,6 +27,7 @@ const NAV = {
     ]},
 
     { sec: 'Applications', items: [
+      { to: '/admin/applications',          icon: FiUserCheck,     label: 'Assign Audit' },
       { to: '/admin/feedback',              icon: FiMessageSquare, label: 'Reviews & Feedback' },
     ]},
 

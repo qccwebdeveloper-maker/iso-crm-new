@@ -10,6 +10,7 @@ export default function AdminApplications() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [apps, setApps]   = useState([]);
+  const [clients, setClients] = useState([]);
   const [aud,  setAud]    = useState([]);
   const [rev,  setRev]    = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,23 +20,42 @@ export default function AdminApplications() {
   const [assignModal, setAssignModal] = useState(null);
   const [assign, setAssign] = useState({ auditorId:'', reviewerId:'' });
   const [saving, setSaving] = useState(false);
+  const [creatingFor, setCreatingFor] = useState(null);
   const [page, setPage] = useState(1);
   const PER_PAGE = 10;
 
   const load = () => {
     setLoading(true);
-    Promise.all([axios.get('/api/applications'), axios.get('/api/auditors')])
-      .then(([a,au]) => {
+    Promise.all([axios.get('/api/applications'), axios.get('/api/auditors'), axios.get('/api/users?role=client')])
+      .then(([a,au,cl]) => {
         setApps(a.data||[]);
         setAud((au.data||[]).filter(u=>u.role==='auditor'));
         setRev((au.data||[]).filter(u=>u.role==='reviewer'));
+        setClients(cl.data||[]);
       }).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
   const standards = [...new Set(apps.map(a => a.isoStandard).filter(Boolean))].sort();
 
-  const filtered = apps.filter(a => {
+  // Every client should appear here, not just ones who've filed an application —
+  // clients with none get a placeholder row (__noApp) instead of being hidden.
+  const rows = React.useMemo(() => {
+    const withApp = new Set(apps.map(a => a.client?._id).filter(Boolean));
+    const placeholders = clients.filter(c => !withApp.has(c._id)).map(c => ({
+      _id: `client-${c._id}`,
+      client: c,
+      organizationName: c.company || '',
+      isoStandard: '',
+      status: '',
+      assignedAuditor: null,
+      createdAt: c.createdAt,
+      __noApp: true,
+    }));
+    return [...apps, ...placeholders];
+  }, [apps, clients]);
+
+  const filtered = rows.filter(a => {
     const q = search.toLowerCase();
     return (!q||(a.client?.clientId||'').toLowerCase().includes(q)||a.organizationName?.toLowerCase().includes(q)||a.client?.name?.toLowerCase().includes(q))
       && (!statusF||a.status===statusF)
@@ -61,6 +81,24 @@ export default function AdminApplications() {
     navigate(`/admin/applications/${app._id}?tab=edit`);
   };
 
+  // Clients without an application yet have nothing to attach an auditor to —
+  // create a draft Application for them first, then open the same assign modal.
+  const startAssign = async (row) => {
+    if (!row.__noApp) {
+      setAssignModal(row);
+      setAssign({ auditorId: row.assignedAuditor?._id||'', reviewerId: row.assignedReviewer?._id||'' });
+      return;
+    }
+    setCreatingFor(row.client._id);
+    try {
+      const { data } = await axios.post('/api/applications', { client: row.client._id });
+      setAssignModal({ ...data, client: row.client });
+      setAssign({ auditorId:'', reviewerId:'' });
+      load();
+    } catch { toast.error('Could not start an application for this client'); }
+    finally { setCreatingFor(null); }
+  };
+
   const ST = ['draft','submitted','under_review','audit_stage1','audit_stage2','approved','certified','rejected'];
 
   const renderTable = () => {
@@ -73,22 +111,31 @@ export default function AdminApplications() {
             <thead><tr><th>Client ID</th><th>Organization</th><th>Client</th><th>Standard</th><th>Status</th><th>Auditor</th><th>Date</th><th>Actions</th></tr></thead>
             <tbody>
               {paged.map(app=>(
-                <tr key={app._id}>
+                <tr key={app._id} style={app.__noApp?{opacity:.7}:undefined}>
                   <td><span className="mono">{app.client?.clientId || '—'}</span></td>
-                  <td style={{fontWeight:600,maxWidth:160}}>{app.organizationName}</td>
+                  <td style={{fontWeight:600,maxWidth:160}}>{app.organizationName || <span style={{color:'var(--gray-300)',fontStyle:'italic',fontWeight:400}}>No application</span>}</td>
                   <td><div style={{display:'flex',alignItems:'center',gap:7}}><div className="avatar" style={{width:24,height:24,fontSize:10}}>{app.client?.name?.[0]}</div><span style={{fontSize:12.5}}>{app.client?.name}</span></div></td>
-                  <td><span className="badge bdg-info" style={{fontSize:10}}>{app.isoStandard}</span></td>
-                  <td><span className={`badge bdg-${app.status}`} style={{fontSize:10}}>{app.status?.replace(/_/g,' ')}</span></td>
+                  <td>{app.isoStandard ? <span className="badge bdg-info" style={{fontSize:10}}>{app.isoStandard}</span> : <span style={{fontSize:11,color:'var(--gray-300)'}}>—</span>}</td>
+                  <td>{app.status ? <span className={`badge bdg-${app.status}`} style={{fontSize:10}}>{app.status?.replace(/_/g,' ')}</span> : <span className="badge" style={{fontSize:10,background:'var(--gray-100)',color:'var(--gray-400)'}}>Not applied</span>}</td>
                   <td style={{fontSize:12,color:'var(--gray-500)'}}>{app.assignedAuditor?.name||'—'}</td>
                   <td style={{fontSize:12,color:'var(--gray-400)'}}>{new Date(app.createdAt).toLocaleDateString()}</td>
                   <td>
-                    <div className="tbl-actions">
-                      <button className="btn btn-ghost btn-sm" onClick={()=>navigate(`/admin/applications/${app._id}`)}><Eye size={13}/> View</button>
-                      <button className="btn btn-secondary btn-sm" onClick={()=>openEdit(app)}><Edit size={13}/> Edit</button>
-                      <button className="btn btn-primary btn-sm" onClick={()=>{setAssignModal(app);setAssign({auditorId:app.assignedAuditor?._id||'',reviewerId:app.assignedReviewer?._id||''});}}>
-                        <UserCheck size={13}/> Assign
-                      </button>
-                    </div>
+                    {app.__noApp ? (
+                      <div className="tbl-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={()=>navigate(`/admin/users/${app.client?._id}`)}><Eye size={13}/> View Client</button>
+                        <button className="btn btn-primary btn-sm" disabled={creatingFor===app.client?._id} onClick={()=>startAssign(app)}>
+                          <UserCheck size={13}/> {creatingFor===app.client?._id ? 'Starting…' : 'Assign'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="tbl-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={()=>navigate(`/admin/applications/${app._id}`)}><Eye size={13}/> View</button>
+                        <button className="btn btn-secondary btn-sm" onClick={()=>openEdit(app)}><Edit size={13}/> Edit</button>
+                        <button className="btn btn-primary btn-sm" onClick={()=>startAssign(app)}>
+                          <UserCheck size={13}/> Assign
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -110,7 +157,10 @@ export default function AdminApplications() {
             </button>
           )}
           <h1 className="page-title">All Applications</h1>
-          <p className="page-subtitle">{filtered.length} application{filtered.length!==1?'s':''} found</p>
+          <p className="page-subtitle">
+            {filtered.filter(r=>!r.__noApp).length} application{filtered.filter(r=>!r.__noApp).length!==1?'s':''}
+            {filtered.some(r=>r.__noApp) && ` · ${filtered.filter(r=>r.__noApp).length} client${filtered.filter(r=>r.__noApp).length!==1?'s':''} without an application`}
+          </p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/admin/qms/form-01')}><Plus size={14}/> New Application</button>
       </div>
@@ -146,7 +196,8 @@ export default function AdminApplications() {
             </div>
             <div className="modal-body">
               <div style={{background:'var(--primary-50)',borderRadius:10,padding:'10px 14px',marginBottom:18,fontSize:13,border:'1px solid var(--primary-100)'}}>
-                <strong>{assignModal.organizationName}</strong> · <span style={{color:'var(--gray-500)'}}>{assignModal.isoStandard}</span>
+                <strong>{assignModal.organizationName || assignModal.client?.company || assignModal.client?.name || 'New Application'}</strong>
+                {assignModal.isoStandard && <> · <span style={{color:'var(--gray-500)'}}>{assignModal.isoStandard}</span></>}
               </div>
               <div className="form-group"><label className="form-label">Assign Auditor</label>
                 <select className="form-control" value={assign.auditorId} onChange={e=>setAssign(p=>({...p,auditorId:e.target.value}))}>

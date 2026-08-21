@@ -15,12 +15,12 @@ import { CarBody,          DEFAULT as F12_DEFAULT } from '../admin/qms/Form12CAR
    components the admin/auditor fills in — the client just sees their own saved
    record with all inputs disabled, never a separate copy of the layout. */
 const FORMS = {
-  5:  { code: 'AUD-F-05',   title: 'F05 & F06 · Stage-1 Audit Plan & Schedule',   defaultData: F05_DEFAULT, Body: Stage1Body },
-  7:  { code: 'AUD-F-09',   title: 'F09A · Stage-1 Audit Report',                 defaultData: F07_DEFAULT, Body: Stage1ReportBody },
-  23: { code: 'AUD-F-09-B', title: 'F09-B · OFI / Observation Sheet',             defaultData: F23_DEFAULT, Body: OfiBody },
-  9:  { code: 'AUD-F-11',   title: 'F11 & F12 · Stage-2 Audit Plan & Schedule',   defaultData: F09_DEFAULT, Body: Stage2PlanBody },
-  11: { code: 'AUD-F-15',   title: 'F15A · Stage-2 Audit Report',                 defaultData: F11_DEFAULT, Body: Stage2ReportBody },
-  12: { code: 'AUD-F-16',   title: 'F16 & F17 · Corrective Action Request (CAR)', defaultData: F12_DEFAULT, Body: CarBody },
+  5:  { code: 'AUD-F-05',   title: 'AUD-F-05 S1 Plan & Schedule', defaultData: F05_DEFAULT, Body: Stage1Body },
+  7:  { code: 'AUD-F-09',   title: 'AUD-F-09 S1 Report',          defaultData: F07_DEFAULT, Body: Stage1ReportBody },
+  23: { code: 'AUD-F-09-B', title: 'AUD-F-09-B OFI/O Sheet',      defaultData: F23_DEFAULT, Body: OfiBody },
+  9:  { code: 'AUD-F-11',   title: 'AUD-F-11 S2 Plan & Schedule', defaultData: F09_DEFAULT, Body: Stage2PlanBody },
+  11: { code: 'AUD-F-15',   title: 'AUD-F-15 S2 Report',          defaultData: F11_DEFAULT, Body: Stage2ReportBody },
+  12: { code: 'AUD-F-16',   title: 'AUD-F-16 CAR',                defaultData: F12_DEFAULT, Body: CarBody },
 };
 
 const noop = () => {};

@@ -25,7 +25,7 @@ export default function Form23OfiObservationSheet() {
     <QMSFormPage
       formType={23}
       formCode="AUD-F-09-B"
-      formTitle="AUD-F-09-B_OFI_O Sheet"
+      formTitle="AUD-F-09-B OFI/O Sheet"
       defaultData={DEFAULT}
     >
       {(props) => <OfiBody {...props} />}

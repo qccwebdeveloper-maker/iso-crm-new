@@ -38,7 +38,7 @@ export default function Form17SurveillanceAuditPlan() {
     <QMSFormPage
       formType={17}
       formCode="AUD-F-05 / 06"
-      formTitle="F17 · Audit Plan"
+      formTitle="AUD-F-06 Audit Schedule"
       defaultData={DEFAULT}
     >
       {(props) => <Body {...props} />}

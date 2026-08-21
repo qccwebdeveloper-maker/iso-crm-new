@@ -165,7 +165,7 @@ export default function Form07Stage1AuditReport() {
     <QMSFormPage
       formType={7}
       formCode="AUD-F-09"
-      formTitle="F09A S1Report"
+      formTitle="AUD-F-09 S1 Report"
       defaultData={DEFAULT}
     >
       {(props) => <Stage1ReportBody {...props} />}

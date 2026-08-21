@@ -2,35 +2,36 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../../components/common/Layout';
+import { useActiveClient } from '../../context/ActiveClientContext';
 import { FiSearch, FiDownload, FiFileText, FiClock, FiCheckCircle } from 'react-icons/fi';
 
 /* All QMS forms that have a dedicated form-XX page (F01–F23).
    `name` mirrors the sidebar nav label in Layout.js exactly, so the form
    name shown here matches the sidebar, the form header, and the preview. */
 const ALL_FORMS = [
-  { formType: 1,  code: 'AUD-F-02',      name: 'F02 Application Form' },
-  { formType: 2,  code: 'AUD-F-03',      name: 'F03 App Rev & F03-01 Aud Pln' },
-  { formType: 3,  code: 'AUD-F-03A',     name: 'F03A Audit Planning for 3 years' },
-  { formType: 4,  code: 'AD-F-03',       name: 'F-03 Auditor(s) Declaration' },
-  { formType: 5,  code: 'AUD-F-05',      name: 'F05&F06 S1Plan&Schedule' },
-  { formType: 6,  code: 'AUD-F-07 S1',   name: 'F07 S1Opening&Closing Meeting' },
-  { formType: 7,  code: 'AUD-F-09',      name: 'F09A S1Report' },
-  { formType: 23, code: 'AUD-F-09-B',    name: 'AUD-F-09-B_OFI_O Sheet' },
-  { formType: 8,  code: 'AUD-F-22',      name: 'AUD-F-22-REVIEW REPORT (A)' },
-  { formType: 9,  code: 'AUD-F-11',      name: 'F11&F12 S2Plan&Schedule' },
-  { formType: 10, code: 'AUD-F-07 S2',   name: 'F07 S2 Open&Clos Meeting' },
-  { formType: 11, code: 'AUD-F-15',      name: 'F15A S2Report' },
-  { formType: 12, code: 'AUD-F-16',      name: 'F16&F17 CAR' },
+  { formType: 1,  code: 'AUD-F-02',      name: 'AUD-F-02 Application Form' },
+  { formType: 2,  code: 'AUD-F-03',      name: 'AUD-F-03 App Rev & F03-01 Aud Pln' },
+  { formType: 3,  code: 'AUD-F-03A',     name: 'AUD-F-03A Audit Planning for 3 years' },
+  { formType: 4,  code: 'AD-F-03',       name: 'AD-F-03 Auditor(s) Declaration' },
+  { formType: 5,  code: 'AUD-F-05',      name: 'AUD-F-05 S1 Plan & Schedule' },
+  { formType: 6,  code: 'AUD-F-07 S1',   name: 'AUD-F-07 S1 Opening & Closing Meeting' },
+  { formType: 7,  code: 'AUD-F-09',      name: 'AUD-F-09 S1 Report' },
+  { formType: 23, code: 'AUD-F-09-B',    name: 'AUD-F-09-B OFI/O Sheet' },
+  { formType: 8,  code: 'AUD-F-22',      name: 'AUD-F-22 REVIEW REPORT (A)' },
+  { formType: 9,  code: 'AUD-F-11',      name: 'AUD-F-11 S2 Plan & Schedule' },
+  { formType: 10, code: 'AUD-F-07 S2',   name: 'AUD-F-07 S2 Open & Clos Meeting' },
+  { formType: 11, code: 'AUD-F-15',      name: 'AUD-F-15 S2 Report' },
+  { formType: 12, code: 'AUD-F-16',      name: 'AUD-F-16 CAR' },
   { formType: 13, code: 'AUD-F-17',      name: 'AUD-F-17 CAR' },
   { formType: 14, code: 'AUD-F-21',      name: 'AUD-F-21 Draft' },
-  { formType: 15, code: 'AUD-F-22',      name: 'AUD-F-22-REVIEW REPORT (B)' },
-  { formType: 16, code: 'AUD-F-02-A',    name: 'F16 · Application Form' },
-  { formType: 17, code: 'AUD-F-05 / 06', name: 'F17 · Audit Plan' },
-  { formType: 18, code: 'AUD-F-07 (S)',  name: 'F18 · Meetings' },
-  { formType: 19, code: 'AUD-F-15 (S)',  name: 'F19 · Audit Report' },
+  { formType: 15, code: 'AUD-F-22',      name: 'AUD-F-22 REVIEW REPORT (B)' },
+  { formType: 16, code: 'AUD-F-02-A',    name: 'F02 Application Form' },
+  { formType: 17, code: 'AUD-F-05 / 06', name: 'AUD-F-06 Audit Schedule' },
+  { formType: 18, code: 'AUD-F-07 (S)',  name: 'AUD-F-07 Opening & Closing Meeting' },
+  { formType: 19, code: 'AUD-F-15 (S)',  name: 'AUD-F-15 Audit Report' },
   { formType: 20, code: 'AUD-F-22 (S)',  name: 'F20 · Report Review' },
   { formType: 21, code: 'AUD-F-17 (S)',  name: 'F21 · Surveillance CAR Report' },
-  { formType: 22, code: 'ADMN-F-01',     name: 'F22 · Letter of Continuation' },
+  { formType: 22, code: 'ADMN-F-01',     name: 'ADMN-F-01 Continuation Letter' },
 ];
 
 const STATUS_META = {
@@ -43,25 +44,56 @@ const formPath = (formType) => `/admin/qms/form-${String(formType).padStart(2, '
 
 export default function DownloadForms() {
   const navigate = useNavigate();
+  const { setActiveClient } = useActiveClient();
   const [cidInput, setCidInput] = useState('');
   const [client, setClient]     = useState(null);
   const [byType, setByType]     = useState(null); // { [formType]: record }
+  const [matches, setMatches]   = useState(null); // array of {clientId,name,company} when a company name matches more than one client
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
+
+  const loadClient = async (id) => {
+    const { data: c } = await axios.get(`/api/qms-forms/client/${id}`);
+    setClient(c);
+    setActiveClient({
+      clientId: c.clientId, company: c.company,
+      isPrimaryClientId: c.isPrimaryClientId, clientRank: c.clientRank,
+    });
+    const realId = c.clientId || id;
+    const { data } = await axios.get('/api/qms-forms', { params: { clientId: realId } });
+    const map = {};
+    (data || []).forEach(rec => { map[rec.formType] = rec; });
+    setByType(map);
+  };
 
   const search = async (e) => {
     e?.preventDefault();
     const id = cidInput.trim();
     if (!id) return;
-    setLoading(true); setError(''); setByType(null); setClient(null);
+    setLoading(true); setError(''); setByType(null); setClient(null); setMatches(null);
     try {
-      const { data: c } = await axios.get(`/api/qms-forms/client/${id}`);
-      setClient(c);
-      const realId = c.clientId || id;
-      const { data } = await axios.get('/api/qms-forms', { params: { clientId: realId } });
-      const map = {};
-      (data || []).forEach(rec => { map[rec.formType] = rec; });
-      setByType(map);
+      // A company name can match more than one Client ID (e.g. separate
+      // certifications/sites) — offer a picker instead of an arbitrary match.
+      const { data: found } = await axios.get(`/api/qms-forms/find-clients/${encodeURIComponent(id)}`);
+      if (!found || found.length === 0) {
+        setError('No client found with this ID or company name');
+        return;
+      }
+      if (found.length > 1) {
+        setMatches(found);
+        return;
+      }
+      await loadClient(found[0].clientId);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Client not found');
+    } finally { setLoading(false); }
+  };
+
+  const pick = async (id) => {
+    setMatches(null);
+    setLoading(true); setError('');
+    try {
+      await loadClient(id);
     } catch (err) {
       setError(err.response?.data?.message || 'Client not found');
     } finally { setLoading(false); }
@@ -106,6 +138,34 @@ export default function DownloadForms() {
         {error && (
           <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#991b1b', fontSize: 13, marginBottom: 16 }}>
             {error}
+          </div>
+        )}
+
+        {matches && (
+          <div style={{ marginBottom: 20, background: 'white', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+            <div style={{ padding: '10px 16px', fontSize: 12.5, fontWeight: 700, color: 'var(--gray-600)', borderBottom: '1px solid #f1f5f9' }}>
+              {matches.length} clients found — choose one
+            </div>
+            {matches.map(m => (
+              <button
+                key={m.clientId}
+                type="button"
+                onClick={() => pick(m.clientId)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                  width: '100%', padding: '12px 16px', border: 'none', borderBottom: '1px solid #f1f5f9',
+                  background: 'white', cursor: 'pointer', textAlign: 'left', font: 'inherit',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--gray-800)' }}>{m.company || m.name}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--gray-500)' }}>{m.name}{m.isoStandard ? ` · ${m.isoStandard}` : ''}</div>
+                </div>
+                <span style={{ background: 'var(--primary-50)', color: 'var(--primary)', padding: '2px 10px', borderRadius: 6, fontWeight: 700, fontSize: 12.5, flexShrink: 0 }}>
+                  {m.clientId}
+                </span>
+              </button>
+            ))}
           </div>
         )}
 

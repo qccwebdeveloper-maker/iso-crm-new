@@ -125,7 +125,7 @@ export default function Form05Stage1AuditPlan() {
     <QMSFormPage
       formType={5}
       formCode="AUD-F-05"
-      formTitle="F05&F06 S1Plan&Schedule"
+      formTitle="AUD-F-05 S1 Plan & Schedule"
       defaultData={DEFAULT}
     >
       {(props) => <Stage1Body {...props} />}

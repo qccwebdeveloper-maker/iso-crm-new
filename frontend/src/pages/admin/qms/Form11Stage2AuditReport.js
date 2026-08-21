@@ -173,7 +173,7 @@ export default function Form11Stage2AuditReport() {
     <QMSFormPage
       formType={11}
       formCode="AUD-F-15"
-      formTitle="F15A S2Report"
+      formTitle="AUD-F-15 S2 Report"
       defaultData={DEFAULT}
       prefillFrom={{
         formTypes: [7],

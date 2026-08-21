@@ -138,7 +138,7 @@ export default function Form08Stage1ReviewReport() {
     <QMSFormPage
       formType={8}
       formCode="AUD-F-22"
-      formTitle="AUD-F-22-REVIEW REPORT (A)"
+      formTitle="AUD-F-22 REVIEW REPORT (A)"
       defaultData={DEFAULT}
     >
       {({ data, set, clientInfo }) => (

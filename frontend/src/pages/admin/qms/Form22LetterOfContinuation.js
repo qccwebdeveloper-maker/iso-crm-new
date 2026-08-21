@@ -51,7 +51,7 @@ export default function Form22LetterOfContinuation() {
     <QMSFormPage
       formType={22}
       formCode="ADMN-F-01"
-      formTitle="F22 · Letter of Continuation"
+      formTitle="ADMN-F-01 Continuation Letter"
       defaultData={DEFAULT}
     >
       {({ data, set, clientInfo }) => (

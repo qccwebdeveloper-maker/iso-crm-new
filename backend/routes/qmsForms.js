@@ -78,8 +78,90 @@ async function resolveClientInfo(user) {
   out.empTotal = empTable.reduce(
     (a, r) => a + (Array.isArray(r) ? (Number(r[r.length - 1]) || 0) : 0), 0
   );
+
+  // Whether this Client ID is the smallest (original/primary) one among every OTHER
+  // client account that shares this company name AND the same ISO standard. A company
+  // can end up with more than one Client ID — some are genuine re-registrations/extra
+  // sites under the SAME standard (only the primary one went through Initial Audit, the
+  // rest are surveillance/recertification only), while others are entirely separate
+  // certification tracks on a DIFFERENT standard (each gets full, independent access).
+  if (out.company) {
+    const escapedCompany = String(out.company).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const siblings = await User.find({
+      role: 'client',
+      company: new RegExp(`^${escapedCompany}$`, 'i'),
+    }).select('clientId isoStandard');
+
+    const siblingIds = siblings.map(s => s.clientId).filter(Boolean);
+    const siblingForms = await QMSForm.find({ clientId: { $in: siblingIds }, formType: 1 })
+      .select('clientId formData.standards');
+    const standardByClientId = {};
+    siblingForms.forEach(f => {
+      const list = Array.isArray(f.formData?.standards) ? f.formData.standards.filter(Boolean) : [];
+      if (list.length) standardByClientId[f.clientId] = list.join(', ');
+    });
+
+    const sameStandardIds = siblings
+      .map(s => ({ clientId: s.clientId, standard: standardByClientId[s.clientId] || s.isoStandard || '' }))
+      .filter(s => s.standard === out.isoStandard)
+      .map(s => Number(s.clientId))
+      .filter(n => !Number.isNaN(n))
+      .sort((a, b) => a - b);
+
+    const minId = sameStandardIds.length ? sameStandardIds[0] : null;
+    out.isPrimaryClientId = minId === null || Number(cid) === minId;
+    // 1-based position of this Client ID among its same-standard siblings, sorted
+    // ascending — the primary (smallest) is rank 1, the next-smallest is rank 2, and
+    // so on. Used to label per-Client-ID Surveillance cycles (Surveillance-1-2, …).
+    const idx = sameStandardIds.indexOf(Number(cid));
+    out.clientRank = idx >= 0 ? idx + 1 : 1;
+  } else {
+    out.isPrimaryClientId = true;
+    out.clientRank = 1;
+  }
+
   return out;
 }
+
+// GET /api/qms-forms/find-clients/:term — resolve a search term (Client ID or company
+// name) to the matching client(s). A company name can have more than one Client ID
+// (e.g. re-certifications under new IDs), so this returns an array — the caller shows
+// a picker when there's more than one match, or proceeds straight through on exactly one.
+router.get('/find-clients/:term', protect, authorize('admin', 'auditor', 'reviewer'), async (req, res) => {
+  try {
+    const term = (req.params.term || '').trim();
+    if (!term) return res.json([]);
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const users = await User.find({
+      role: 'client',
+      $or: [
+        { clientId: term },
+        { company: new RegExp(`^${escaped}$`, 'i') },
+      ],
+    }).select('name company clientId isoStandard');
+
+    // Standard shown per candidate — F01's selection is authoritative when filled,
+    // otherwise fall back to what was entered at registration. Lets the picker show
+    // which standard each Client ID is on, so an admin can tell duplicates (same
+    // standard) apart from genuinely separate certification tracks (different standard).
+    const clientIds = users.map(u => u.clientId).filter(Boolean);
+    const appForms = await QMSForm.find({ clientId: { $in: clientIds }, formType: 1 })
+      .select('clientId formData.standards');
+    const standardByClientId = {};
+    appForms.forEach(f => {
+      const list = Array.isArray(f.formData?.standards) ? f.formData.standards.filter(Boolean) : [];
+      if (list.length) standardByClientId[f.clientId] = list.join(', ');
+    });
+
+    const list = users
+      .map(u => ({
+        clientId: u.clientId, name: u.name, company: u.company,
+        isoStandard: standardByClientId[u.clientId] || u.isoStandard || '',
+      }))
+      .sort((a, b) => (Number(a.clientId) || 0) - (Number(b.clientId) || 0));
+    res.json(list);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
 
 // GET /api/qms-forms/client/:clientId — fetch client info for pre-fill
 router.get('/client/:clientId', protect, authorize('admin', 'auditor', 'reviewer'), async (req, res) => {

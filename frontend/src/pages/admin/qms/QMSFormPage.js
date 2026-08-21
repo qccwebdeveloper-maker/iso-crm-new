@@ -6,6 +6,7 @@ import Layout from '../../../components/common/Layout';
 import toast from 'react-hot-toast';
 import useStandards from './useStandards';
 import { useAuth } from '../../../context/AuthContext';
+import { useActiveClient } from '../../../context/ActiveClientContext';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
@@ -527,11 +528,13 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellCha
 
 export default function QMSFormPage({ formType, formCode, formTitle, defaultData, prefillFrom, children }) {
   const { user } = useAuth();
+  const { setActiveClient } = useActiveClient();
   // Auditors/reviewers can review & edit these forms exactly like admin, but
   // assigning the audit team and deleting records stay admin-only management actions.
   const isAdmin = user?.role === 'admin';
   const [clientIdInput, setClientIdInput] = useState('');
   const [clientInfo,    setClientInfo]    = useState(null);
+  const [clientMatches, setClientMatches] = useState(null); // array of {clientId,name,company} when a company-name search (F01 only) matches more than one client
   const [formData,      setFormData]      = useState(defaultData || {});
   const [existingId,    setExistingId]    = useState(null);
   const [status,        setStatus]        = useState('draft');
@@ -631,51 +634,84 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     return prefillFrom.apply(sources, base);
   };
 
+  // Resolve one exact Client ID and open its form — the shared tail end of both the
+  // single-match path and the multi-match picker path (company name matched more
+  // than one Client ID).
+  const resolveClient = async (id) => {
+    const { data: client } = await axios.get(`/api/qms-forms/client/${id}`);
+    setClientInfo(client);
+    setActiveClient({
+      clientId: client.clientId, company: client.company,
+      isPrimaryClientId: client.isPrimaryClientId, clientRank: client.clientRank,
+    });
+    const cid = client.clientId || id;
+    let base, st = 'draft', exId = null;
+    try {
+      const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}`);
+      base = withAppDefaults(existing.formData || defaultData || {}, client);
+      st = existing.status || 'draft';
+      exId = existing._id;
+      toast.success('Existing form loaded');
+    } catch {
+      base = {
+        ...(defaultData || {}),
+        idNo:                 client.clientId      || '',
+        refno:                client.refno         || client.clientId || '',
+        acceptanceRefNo:      client.clientId      || '',
+        noOfPersons:          client.empTotal ? String(client.empTotal) : '',
+        orgName:              client.company       || '',
+        organizationName:     client.company       || '',
+        contactPerson:        client.contactPerson || client.name || '',
+        emailId:              client.email         || '',
+        email:                client.email         || '',
+        contactDetails:       client.phone         || '',
+        contactNumbers:       client.phone         || '',
+        mobileNumber:         client.phone         || '',
+        address:              client.address       || '',
+        scopeOfCertification: client.scope         || '',
+        modeOfAudit:          client.modeOfWorking || '',
+        auditStandards:       client.isoStandard   || '',
+        isoStandards:         client.isoStandard   || '',
+        standard:             client.isoStandard   || '',
+      };
+      toast.success('Client found — new form opened with pre-filled details');
+    }
+    base = await applyPrefill(cid, base);
+    setFormData(base);
+    setStatus(st);
+    setExistingId(exId);
+    setView('form');
+  };
+
   const handleClientSearch = async (e) => {
     e.preventDefault();
     const id = clientIdInput.trim();
     if (!id) return;
     setSearching(true);
     try {
-      const { data: client } = await axios.get(`/api/qms-forms/client/${id}`);
-      setClientInfo(client);
-      const cid = client.clientId || id;
-      let base, st = 'draft', exId = null;
-      try {
-        const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}`);
-        base = withAppDefaults(existing.formData || defaultData || {}, client);
-        st = existing.status || 'draft';
-        exId = existing._id;
-        toast.success('Existing form loaded');
-      } catch {
-        base = {
-          ...(defaultData || {}),
-          idNo:                 client.clientId      || '',
-          refno:                client.refno         || client.clientId || '',
-          acceptanceRefNo:      client.clientId      || '',
-          noOfPersons:          client.empTotal ? String(client.empTotal) : '',
-          orgName:              client.company       || '',
-          organizationName:     client.company       || '',
-          contactPerson:        client.contactPerson || client.name || '',
-          emailId:              client.email         || '',
-          email:                client.email         || '',
-          contactDetails:       client.phone         || '',
-          contactNumbers:       client.phone         || '',
-          mobileNumber:         client.phone         || '',
-          address:              client.address       || '',
-          scopeOfCertification: client.scope         || '',
-          modeOfAudit:          client.modeOfWorking || '',
-          auditStandards:       client.isoStandard   || '',
-          isoStandards:         client.isoStandard   || '',
-          standard:             client.isoStandard   || '',
-        };
-        toast.success('Client found — new form opened with pre-filled details');
+      // Every form can be searched by company name, and one company may have more
+      // than one Client ID (e.g. separate certifications/sites) — offer a picker in
+      // that case instead of silently opening an arbitrary match.
+      const { data: matches } = await axios.get(`/api/qms-forms/find-clients/${encodeURIComponent(id)}`);
+      if (!matches || matches.length === 0) {
+        toast.error('No client found with this ID or company name');
+        return;
       }
-      base = await applyPrefill(cid, base);
-      setFormData(base);
-      setStatus(st);
-      setExistingId(exId);
-      setView('form');
+      if (matches.length > 1) {
+        setClientMatches(matches);
+        return;
+      }
+      await resolveClient(matches[0].clientId);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Client not found');
+    } finally { setSearching(false); }
+  };
+
+  const pickClient = async (cid) => {
+    setClientMatches(null);
+    setSearching(true);
+    try {
+      await resolveClient(cid);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Client not found');
     } finally { setSearching(false); }
@@ -729,6 +765,10 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
       try {
         const { data: client } = await axios.get(`/api/qms-forms/client/${cid}`);
         setClientInfo(prev => ({ ...(prev || {}), ...client }));
+        setActiveClient({
+          clientId: client.clientId, company: client.company,
+          isPrimaryClientId: client.isPrimaryClientId, clientRank: client.clientRank,
+        });
         // Fill any blank shared fields (address, scope, REFNO, ID, mode of audit)
         // from the application record, preserving anything already entered, then
         // pull any still-empty linked data (e.g. NCs from F07) via prefillFrom.
@@ -832,7 +872,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                 <table className="qms-tbl">
                   <thead>
                     <tr>
-                      {['Client ID', 'Client Name', 'Company', 'Status', 'Auditor', 'Last Updated', 'Actions'].map(h => (
+                      {['Client ID', 'Client Name', 'Company', 'Status', 'Auditor', 'Actions'].map(h => (
                         <th key={h}>{h}</th>
                       ))}
                     </tr>
@@ -852,9 +892,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                             </span>
                           </td>
                           <td style={{ fontSize: 12, color: 'var(--gray-500)' }}>{row.application?.assignedAuditor?.name || '—'}</td>
-                          <td style={{ color: 'var(--gray-400)', whiteSpace: 'nowrap' }}>
-                            {new Date(row.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </td>
                           <td>
                             <div className="qms-tbl-actions">
                               <button type="button" onClick={() => openExisting(row)} className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -1053,6 +1090,44 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MULTIPLE CLIENT MATCHES — pick one (company-name search matched >1 client) ═══ */}
+      {clientMatches && (
+        <div className="modal-bg" onClick={() => setClientMatches(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div className="modal-title">
+                <FiSearch size={16} style={{ color: 'var(--primary)', marginRight: 8, verticalAlign: 'middle' }} />
+                {clientMatches.length} clients found — choose one
+              </div>
+              <button className="modal-close" onClick={() => setClientMatches(null)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ padding: 0 }}>
+              {clientMatches.map(m => (
+                <button
+                  key={m.clientId}
+                  type="button"
+                  onClick={() => pickClient(m.clientId)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                    width: '100%', padding: '12px 20px', border: 'none', borderBottom: '1px solid var(--gray-100)',
+                    background: 'white', cursor: 'pointer', textAlign: 'left', font: 'inherit',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--gray-800)' }}>{m.company || m.name}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--gray-500)' }}>{m.name}{m.isoStandard ? ` · ${m.isoStandard}` : ''}</div>
+                  </div>
+                  <span style={{
+                    background: 'var(--primary-100)', color: 'var(--primary-dark)',
+                    padding: '2px 10px', borderRadius: 6, fontWeight: 700, fontSize: 12.5, flexShrink: 0,
+                  }}>{m.clientId}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import {
   Award, Download, Edit2, Plus, Trash2, Save,
   Clock, AlertCircle, RefreshCw, CheckCircle, Eye,
+  Ban, XOctagon,
 } from 'lucide-react';
 
 const ISO_STDS = [
@@ -601,6 +602,18 @@ export default function CertificateManagement() {
                                   </button>
                                   <button className="btn btn-secondary btn-sm" onClick={()=>generateCertificate(c)}>
                                     <Download size={13}/> Download
+                                  </button>
+                                  <button
+                                    title="Suspend certificate (not yet functional)"
+                                    style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, border:'1px solid #fde68a', background:'#fffbeb', color:'#b45309', cursor:'pointer', fontSize:12, fontWeight:600 }}
+                                    onClick={()=>toast('Suspend — coming soon')}>
+                                    <Ban size={13}/> Suspend
+                                  </button>
+                                  <button
+                                    title="Withdraw certificate (not yet functional)"
+                                    style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, border:'1px solid #fecaca', background:'#fef2f2', color:'#ef4444', cursor:'pointer', fontSize:12, fontWeight:600 }}
+                                    onClick={()=>toast('Withdrawal — coming soon')}>
+                                    <XOctagon size={13}/> Withdraw
                                   </button>
                                   <button
                                     style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, border:'1px solid #fecaca', background:'#fef2f2', color:'#ef4444', cursor:'pointer', fontSize:12, fontWeight:600 }}

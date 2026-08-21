@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useActiveClient } from '../../context/ActiveClientContext';
 import axios from 'axios';
 import { MdDashboard, MdShield } from 'react-icons/md';
 import {
@@ -42,31 +43,42 @@ const NAV = {
       { to: '/admin/leads', icon: FiTarget, label: 'Lead Management', badge: 'NEW' },
     ]},
     { sec: 'Initial Audit', items: [
-      { to: '/admin/qms/form-01', icon: FiFileText, label: 'F02 Application Form' },
-      { to: '/admin/qms/form-02', icon: FiFileText, label: 'F03 App Rev & F03-01 Aud Pln' },
-      { to: '/admin/qms/form-03', icon: FiFileText, label: 'F03A Audit Planning for 3 years' },
-      { to: '/admin/qms/form-04', icon: FiFileText, label: 'F-03 Auditor(s) Declaration' },
-      { to: '/admin/qms/form-05', icon: FiFileText, label: 'F05&F06 S1Plan&Schedule' },
-      { to: '/admin/qms/form-06', icon: FiFileText, label: 'F07 S1Opening&Closing Meeting' },
-      { to: '/admin/qms/form-07', icon: FiFileText, label: 'F09A S1Report' },
-      { to: '/admin/qms/form-23', icon: FiFileText, label: 'AUD-F-09-B_OFI_O Sheet' },
-      { to: '/admin/qms/form-08', icon: FiFileText, label: 'AUD-F-22-REVIEW REPORT (A)' },
-      { to: '/admin/qms/form-09', icon: FiFileText, label: 'F11&F12 S2Plan&Schedule' },
-      { to: '/admin/qms/form-10', icon: FiFileText, label: 'F07 S2 Open&Clos Meeting' },
-      { to: '/admin/qms/form-11', icon: FiFileText, label: 'F15A S2Report' },
-      { to: '/admin/qms/form-12', icon: FiFileText, label: 'F16&F17 CAR' },
+      { to: '/admin/qms/form-01', icon: FiFileText, label: 'AUD-F-02 Application Form' },
+      { to: '/admin/qms/form-02', icon: FiFileText, label: 'AUD-F-03 App Rev & F03-01 Aud Pln' },
+      { to: '/admin/qms/form-03', icon: FiFileText, label: 'AUD-F-03A Audit Planning for 3 years' },
+      { to: '/admin/qms/form-04', icon: FiFileText, label: 'AD-F-03 Auditor(s) Declaration' },
+      { to: '/admin/qms/form-05', icon: FiFileText, label: 'AUD-F-05 S1 Plan & Schedule' },
+      { to: '/admin/qms/form-06', icon: FiFileText, label: 'AUD-F-07 S1 Opening & Closing Meeting' },
+      { to: '/admin/qms/form-07', icon: FiFileText, label: 'AUD-F-09 S1 Report' },
+      { to: '/admin/qms/form-23', icon: FiFileText, label: 'AUD-F-09-B OFI/O Sheet' },
+      { to: '/admin/qms/form-08', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (A)' },
+      { to: '/admin/qms/form-09', icon: FiFileText, label: 'AUD-F-11 S2 Plan & Schedule' },
+      { to: '/admin/qms/form-10', icon: FiFileText, label: 'AUD-F-07 S2 Open & Clos Meeting' },
+      { to: '/admin/qms/form-11', icon: FiFileText, label: 'AUD-F-15 S2 Report' },
+      { to: '/admin/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
       { to: '/admin/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
       { to: '/admin/qms/form-14', icon: FiFileText, label: 'AUD-F-21 Draft' },
-      { to: '/admin/qms/form-15', icon: FiFileText, label: 'AUD-F-22-REVIEW REPORT (B)' },
+      { to: '/admin/qms/form-15', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (B)' },
     ]},
-    { sec: 'Surveillance / Recertification', items: [
-      { to: '/admin/qms/form-16', icon: FiFileText, label: 'F16 · Application Form' },
-      { to: '/admin/qms/form-17', icon: FiFileText, label: 'F17 · Audit Plan' },
-      { to: '/admin/qms/form-18', icon: FiFileText, label: 'F18 · Meetings' },
-      { to: '/admin/qms/form-19', icon: FiFileText, label: 'F19 · Audit Report' },
-      { to: '/admin/qms/form-20', icon: FiFileText, label: 'F20 · Report Review' },
-      { to: '/admin/qms/form-21', icon: FiFileText, label: 'F21 · Surveillance CAR Report' },
-      { to: '/admin/qms/form-22', icon: FiFileText, label: 'F22 · Letter of Continuation' },
+    { sec: 'Surveillance - 1', items: [
+      { to: '/admin/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/admin/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance I' },
+      { to: '/admin/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/admin/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/admin/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/admin/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/admin/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Surveillance - 2', items: [
+      { to: '/admin/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/admin/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance II' },
+      { to: '/admin/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/admin/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/admin/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/admin/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/admin/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Recertification', items: [
     ]},
   ],
   client: [
@@ -75,13 +87,13 @@ const NAV = {
       { to: '/client/applications', icon: FiFileText,   label: 'My Applications' },
     ]},
     { sec: 'Application', items: [
-      { to: '/client/qms/form-01',   icon: FiFileText, label: 'F01 · Application Form' },
-      { to: '/client/qms/view/5',    icon: FiFileText, label: 'F05 & F06 · Stage-1 Plan' },
-      { to: '/client/qms/view/7',    icon: FiFileText, label: 'F09A · Stage-1 Report' },
-      { to: '/client/qms/view/23',   icon: FiFileText, label: 'F09-B · OFI/Obs. Sheet' },
-      { to: '/client/qms/view/9',    icon: FiFileText, label: 'F11 & F12 · Stage-2 Plan' },
-      { to: '/client/qms/view/11',   icon: FiFileText, label: 'F15A · Stage-2 Report' },
-      { to: '/client/qms/view/12',   icon: FiFileText, label: 'F16 & F17 · CAR' },
+      { to: '/client/qms/form-01',   icon: FiFileText, label: 'AUD-F-02 Application Form' },
+      { to: '/client/qms/view/5',    icon: FiFileText, label: 'AUD-F-05 S1 Plan & Schedule' },
+      { to: '/client/qms/view/7',    icon: FiFileText, label: 'AUD-F-09 S1 Report' },
+      { to: '/client/qms/view/23',   icon: FiFileText, label: 'AUD-F-09-B OFI/O Sheet' },
+      { to: '/client/qms/view/9',    icon: FiFileText, label: 'AUD-F-11 S2 Plan & Schedule' },
+      { to: '/client/qms/view/11',   icon: FiFileText, label: 'AUD-F-15 S2 Report' },
+      { to: '/client/qms/view/12',   icon: FiFileText, label: 'AUD-F-16 CAR' },
     ]},
     { sec: 'Reports', items: [
       { to: '/client/team-reports',   icon: FiClipboard, label: 'Team & Reports' },
@@ -104,19 +116,41 @@ const NAV = {
       { to: '/auditor/review-queue', icon: FiStar,      label: 'Review Queue' },
       { to: '/auditor/reports',      icon: FiBarChart2, label: 'Reports' },
     ]},
-    { sec: 'QMS Forms', items: [
-      { to: '/auditor/qms/form-04', icon: FiFileText, label: 'Auditor Declaration' },
-      { to: '/auditor/qms/form-03', icon: FiFileText, label: 'Audit Planning (3 yr)' },
-      { to: '/auditor/qms/form-05', icon: FiFileText, label: 'F05 & F06 · S1 Plan' },
-      { to: '/auditor/qms/form-06', icon: FiFileText, label: 'F07 · S1 Meetings' },
-      { to: '/auditor/qms/form-07', icon: FiFileText, label: 'F09A · S1 Report' },
-      { to: '/auditor/qms/form-08', icon: FiFileText, label: 'Review Report (A)' },
-      { to: '/auditor/qms/form-09', icon: FiFileText, label: 'F11 & F12 · S2 Plan' },
-      { to: '/auditor/qms/form-10', icon: FiFileText, label: 'F07 · S2 Meetings' },
-      { to: '/auditor/qms/form-11', icon: FiFileText, label: 'F15A · S2 Report' },
-      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'F16 & F17 · CAR' },
+    { sec: 'Initial Audit', items: [
+      { to: '/auditor/qms/form-01', icon: FiFileText, label: 'AUD-F-02 Application Form' },
+      { to: '/auditor/qms/form-02', icon: FiFileText, label: 'AUD-F-03 App Rev & F03-01 Aud Pln' },
+      { to: '/auditor/qms/form-03', icon: FiFileText, label: 'AUD-F-03A Audit Planning for 3 years' },
+      { to: '/auditor/qms/form-04', icon: FiFileText, label: 'AD-F-03 Auditor(s) Declaration' },
+      { to: '/auditor/qms/form-05', icon: FiFileText, label: 'AUD-F-05 S1 Plan & Schedule' },
+      { to: '/auditor/qms/form-06', icon: FiFileText, label: 'AUD-F-07 S1 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-07', icon: FiFileText, label: 'AUD-F-09 S1 Report' },
+      { to: '/auditor/qms/form-23', icon: FiFileText, label: 'AUD-F-09-B OFI/O Sheet' },
+      { to: '/auditor/qms/form-08', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (A)' },
+      { to: '/auditor/qms/form-09', icon: FiFileText, label: 'AUD-F-11 S2 Plan & Schedule' },
+      { to: '/auditor/qms/form-10', icon: FiFileText, label: 'AUD-F-07 S2 Open & Clos Meeting' },
+      { to: '/auditor/qms/form-11', icon: FiFileText, label: 'AUD-F-15 S2 Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
       { to: '/auditor/qms/form-14', icon: FiFileText, label: 'AUD-F-21 Draft' },
-      { to: '/auditor/qms/form-15', icon: FiFileText, label: 'Reviewer Report (B)' },
+      { to: '/auditor/qms/form-15', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (B)' },
+    ]},
+    { sec: 'Surveillance - 1', items: [
+      { to: '/auditor/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/auditor/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance I' },
+      { to: '/auditor/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Surveillance - 2', items: [
+      { to: '/auditor/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/auditor/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance II' },
+      { to: '/auditor/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
     ]},
     { sec: 'Documents', items: [
       { to: '/auditor/documents', icon: FiFolder, label: 'Documents' },
@@ -134,19 +168,41 @@ const NAV = {
       { to: '/auditor/review-queue', icon: FiStar,      label: 'Review Queue' },
       { to: '/auditor/reports',      icon: FiBarChart2, label: 'Reports' },
     ]},
-    { sec: 'QMS Forms', items: [
-      { to: '/auditor/qms/form-04', icon: FiFileText, label: 'Auditor Declaration' },
-      { to: '/auditor/qms/form-03', icon: FiFileText, label: 'Audit Planning (3 yr)' },
-      { to: '/auditor/qms/form-05', icon: FiFileText, label: 'F05 & F06 · S1 Plan' },
-      { to: '/auditor/qms/form-06', icon: FiFileText, label: 'F07 · S1 Meetings' },
-      { to: '/auditor/qms/form-07', icon: FiFileText, label: 'F09A · S1 Report' },
-      { to: '/auditor/qms/form-08', icon: FiFileText, label: 'Review Report (A)' },
-      { to: '/auditor/qms/form-09', icon: FiFileText, label: 'F11 & F12 · S2 Plan' },
-      { to: '/auditor/qms/form-10', icon: FiFileText, label: 'F07 · S2 Meetings' },
-      { to: '/auditor/qms/form-11', icon: FiFileText, label: 'F15A · S2 Report' },
-      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'F16 & F17 · CAR' },
+    { sec: 'Initial Audit', items: [
+      { to: '/auditor/qms/form-01', icon: FiFileText, label: 'AUD-F-02 Application Form' },
+      { to: '/auditor/qms/form-02', icon: FiFileText, label: 'AUD-F-03 App Rev & F03-01 Aud Pln' },
+      { to: '/auditor/qms/form-03', icon: FiFileText, label: 'AUD-F-03A Audit Planning for 3 years' },
+      { to: '/auditor/qms/form-04', icon: FiFileText, label: 'AD-F-03 Auditor(s) Declaration' },
+      { to: '/auditor/qms/form-05', icon: FiFileText, label: 'AUD-F-05 S1 Plan & Schedule' },
+      { to: '/auditor/qms/form-06', icon: FiFileText, label: 'AUD-F-07 S1 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-07', icon: FiFileText, label: 'AUD-F-09 S1 Report' },
+      { to: '/auditor/qms/form-23', icon: FiFileText, label: 'AUD-F-09-B OFI/O Sheet' },
+      { to: '/auditor/qms/form-08', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (A)' },
+      { to: '/auditor/qms/form-09', icon: FiFileText, label: 'AUD-F-11 S2 Plan & Schedule' },
+      { to: '/auditor/qms/form-10', icon: FiFileText, label: 'AUD-F-07 S2 Open & Clos Meeting' },
+      { to: '/auditor/qms/form-11', icon: FiFileText, label: 'AUD-F-15 S2 Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
       { to: '/auditor/qms/form-14', icon: FiFileText, label: 'AUD-F-21 Draft' },
-      { to: '/auditor/qms/form-15', icon: FiFileText, label: 'Reviewer Report (B)' },
+      { to: '/auditor/qms/form-15', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (B)' },
+    ]},
+    { sec: 'Surveillance - 1', items: [
+      { to: '/auditor/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/auditor/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance I' },
+      { to: '/auditor/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Surveillance - 2', items: [
+      { to: '/auditor/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/auditor/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance II' },
+      { to: '/auditor/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
     ]},
     { sec: 'Documents', items: [
       { to: '/auditor/documents', icon: FiFolder, label: 'Documents' },
@@ -179,8 +235,35 @@ const NAV = {
   ],
 };
 
+// Initial-Audit-only forms (by formType, parsed from the route's /form-XX suffix):
+// only the company's original (smallest) Client ID went through Initial Audit —
+// every other Client ID for the same company is surveillance/recertification only.
+const HIDDEN_FOR_NON_PRIMARY = new Set([3, 4, 5, 6, 7, 8, 23]);
+const formTypeFromPath = (to) => {
+  const m = to.match(/form-(\d+)$/);
+  return m ? Number(m[1]) : null;
+};
+
+// Tailor the QMS Forms nav to whichever Client ID is currently open (see
+// ActiveClientContext): the primary Client ID gets everything as-is; any other
+// Client ID for the same company hides the Initial-Audit-only forms and gets its
+// own numbered Surveillance cycle instead of the plain "Surveillance - 1/2" labels.
+function applyActiveClientNav(sections, activeClient) {
+  if (!activeClient || activeClient.isPrimaryClientId !== false) return sections;
+  const rank = activeClient.clientRank || 1;
+  return sections.map(s => {
+    if (s.sec === 'Initial Audit') {
+      return { ...s, items: s.items.filter(item => !HIDDEN_FOR_NON_PRIMARY.has(formTypeFromPath(item.to))) };
+    }
+    if (s.sec === 'Surveillance - 1') return { ...s, sec: `Surveillance - 1-${rank}` };
+    if (s.sec === 'Surveillance - 2') return { ...s, sec: `Surveillance - 2-${rank}` };
+    return s;
+  });
+}
+
 export default function Layout({ children, title }) {
   const { user, logout } = useAuth();
+  const { activeClient } = useActiveClient();
   const loc = useLocation();
   const navigate = useNavigate();
   const [open,            setOpen]            = useState(false);   // mobile drawer
@@ -213,7 +296,7 @@ export default function Layout({ children, title }) {
   const imgRef      = useRef(null);
   const sidebarNavRef = useRef(null);
 
-  const secs   = NAV[user?.role] || [];
+  const secs   = applyActiveClientNav(NAV[user?.role] || [], activeClient);
   const unread = notifications.filter(n => !n.read).length;
 
   const fetchNotifs = useCallback(async () => {

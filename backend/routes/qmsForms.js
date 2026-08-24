@@ -8,6 +8,8 @@ const User        = require('../models/User');
 const Application = require('../models/Application');
 const { protect, authorize } = require('../middleware/auth');
 const { uploadToS3 } = require('../utils/s3');
+const { resolveStandardForClientId } = require('../utils/clientId');
+const { getClientCycles, getLatestCycle } = require('../utils/cycles');
 
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -28,6 +30,7 @@ router.get('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req, 
     if (req.query.formType) filter.formType = Number(req.query.formType);
     if (req.query.clientId) filter.clientId = req.query.clientId;
     if (req.query.status)   filter.status   = req.query.status;
+    if (req.query.cycle)    filter.cycleNumber = Number(req.query.cycle);
 
     const forms = await QMSForm.find(filter)
       .populate('clientRef', 'name company clientId email phone')
@@ -41,10 +44,13 @@ router.get('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req, 
 // details (REFNO, full standards list, address, scope, mode of audit, …) the same
 // way every QMS form does, so both the admin search and a client's own "my info"
 // lookup return the identical shape.
-async function resolveClientInfo(user) {
+async function resolveClientInfo(user, cycle) {
   const cid = user.clientId;
 
-  const appForm = await QMSForm.findOne({ clientId: cid, formType: 1 })
+  const cycles      = await getClientCycles(cid);
+  const activeCycle = cycle ? Number(cycle) : cycles[cycles.length - 1];
+
+  const appForm = await QMSForm.findOne({ clientId: cid, formType: 1, cycleNumber: activeCycle })
     .select('formData');
   const fd = appForm?.formData || {};
   const selected = fd.standards;
@@ -120,6 +126,13 @@ async function resolveClientInfo(user) {
     out.clientRank = 1;
   }
 
+  // Cycle info: how many certification cycles (Initial + Surveillances, then a new
+  // one per recertification-before-expiry) exist under THIS Client ID. Distinct from
+  // clientRank above, which is about legacy multi-Client-ID groupings.
+  out.cycles      = cycles;
+  out.cycleCount  = cycles.length;
+  out.activeCycle = activeCycle;
+
   return out;
 }
 
@@ -178,7 +191,7 @@ router.get('/client/:clientId', protect, authorize('admin', 'auditor', 'reviewer
     }).select('name company email phone address isoStandard scope clientId');
     if (!user) return res.status(404).json({ message: 'No client found with this ID or company name' });
 
-    res.json(await resolveClientInfo(user));
+    res.json(await resolveClientInfo(user, req.query.cycle));
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
@@ -188,6 +201,7 @@ router.get('/by-client/:clientId/:formType', protect, authorize('admin', 'audito
     const form = await QMSForm.findOne({
       clientId: req.params.clientId,
       formType: Number(req.params.formType),
+      cycleNumber: req.query.cycle ? Number(req.query.cycle) : 1,
     }).populate('clientRef', 'name company clientId email phone');
     if (!form) return res.status(404).json({ message: 'No form found' });
     res.json(form);
@@ -197,7 +211,7 @@ router.get('/by-client/:clientId/:formType', protect, authorize('admin', 'audito
 // POST /api/qms-forms — create or update (upsert by clientId + formType)
 router.post('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req, res) => {
   try {
-    const { clientId, formType, formCode, formName, status, formData } = req.body;
+    const { clientId, formType, formCode, formName, status, formData, cycleNumber } = req.body;
     if (!clientId || !formType) {
       return res.status(400).json({ message: 'clientId and formType are required' });
     }
@@ -205,12 +219,14 @@ router.post('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req,
     const client = await User.findOne({ clientId });
     if (!client) return res.status(404).json({ message: 'No client found with this ID' });
 
+    const cycle = cycleNumber ? Number(cycleNumber) : 1;
     const form = await QMSForm.findOneAndUpdate(
-      { clientId, formType: Number(formType) },
+      { clientId, formType: Number(formType), cycleNumber: cycle },
       {
         clientId,
         clientRef: client._id,
         formType: Number(formType),
+        cycleNumber: cycle,
         formCode,
         formName,
         status: status || 'draft',
@@ -278,13 +294,19 @@ router.post('/my', protect, authorize('client'), async (req, res) => {
     // view-only for the client.
     if (Number(formType) !== 1) return res.status(403).json({ message: 'You can only edit the Application Form' });
 
+    // Clients never pick a cycle themselves — they always work in whichever cycle
+    // is currently latest for their Client ID (admin/auditor advances it via
+    // "Start New Cycle" when a recertification-before-expiry round begins).
+    const cycle = await getLatestCycle(req.user.clientId);
+
     const newStatus = status || 'draft';
     const form = await QMSForm.findOneAndUpdate(
-      { clientId: req.user.clientId, formType: Number(formType) },
+      { clientId: req.user.clientId, formType: Number(formType), cycleNumber: cycle },
       {
         clientId:  req.user.clientId,
         clientRef: req.user._id,
         formType:  Number(formType),
+        cycleNumber: cycle,
         formCode,
         formName,
         status:    newStatus,
@@ -302,6 +324,7 @@ router.post('/my', protect, authorize('client'), async (req, res) => {
         isoStandard: (Array.isArray(fd.standards) && fd.standards[0]) || fd.isoStandard || '',
         scope:       fd.scopeOfCertification || fd.scope || '',
         client:      req.user._id,
+        cycleNumber: cycle,
         status:      'submitted',
         submittedAt: new Date(),
       };
@@ -365,13 +388,14 @@ router.post('/:id/assign', protect, authorize('admin'), async (req, res) => {
 
     let appId = form.application;
     if (!appId) {
-      const existing = await Application.findOne({ client: clientUserId }).sort({ createdAt: -1 }).select('_id');
+      const existing = await Application.findOne({ client: clientUserId, cycleNumber: form.cycleNumber || 1 }).sort({ createdAt: -1 }).select('_id');
       if (existing) {
         appId = existing._id;
       } else {
         const fd = form.formData || {};
         const created = await Application.create({
           client:           clientUserId,
+          cycleNumber:      form.cycleNumber || 1,
           organizationName: fd.organizationName || fd.orgName || '',
           isoStandard:      (Array.isArray(fd.standards) && fd.standards[0]) || fd.isoStandard || '',
         });

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useActiveClient } from '../../context/ActiveClientContext';
+import { useUnsavedChangesGuard } from '../../context/UnsavedChangesContext';
 import axios from 'axios';
 import { MdDashboard, MdShield } from 'react-icons/md';
 import {
@@ -261,9 +262,52 @@ function applyActiveClientNav(sections, activeClient) {
   });
 }
 
+// Once a Client ID itself has more than one certification cycle (Initial +
+// Surveillances, then a fresh cycle per recertification-before-expiry — see
+// ActiveClientContext/cycleCount), replace the flat Initial Audit / Surveillance -
+// 1 / Surveillance - 2 / Recertification sections with one collapsible "Cycle N"
+// group per cycle, each containing the same items (routes are unchanged — the admin
+// still picks the client/cycle from the form page itself). A single-cycle client
+// (the common case) is untouched, so the sidebar looks exactly like it does today.
+const CYCLE_SECTION_NAMES = new Set(['Initial Audit', 'Surveillance - 1', 'Surveillance - 2', 'Recertification']);
+function buildCycleGroupedNav(sections, activeClient) {
+  if (!activeClient || !(activeClient.cycleCount > 1)) return sections;
+  const cycleSections = sections.filter(s => CYCLE_SECTION_NAMES.has(s.sec) && s.items.length);
+  if (!cycleSections.length) return sections;
+
+  const cycles     = (activeClient.cycles && activeClient.cycles.length) ? activeClient.cycles : [1];
+  const firstCycle = Math.min(...cycles);
+  const cycleGroups = cycles.map(c => ({
+    sec: `Cycle ${c}`, collapsible: true, key: `cycle-${c}`,
+    // Only the first cycle actually went through Initial Audit — every later
+    // cycle (recertification-before-expiry) is surveillance/recertification only,
+    // same rule as the legacy primary/non-primary Client ID scheme above.
+    groups: cycleSections.map(s => ({
+      label: s.sec,
+      items: (s.sec === 'Initial Audit' && c !== firstCycle)
+        ? s.items.filter(item => !HIDDEN_FOR_NON_PRIMARY.has(formTypeFromPath(item.to)))
+        : s.items,
+    })),
+  }));
+
+  const result = [];
+  let inserted = false;
+  sections.forEach(s => {
+    if (CYCLE_SECTION_NAMES.has(s.sec)) {
+      if (!inserted) { result.push(...cycleGroups); inserted = true; }
+      return;
+    }
+    result.push(s);
+  });
+  return result;
+}
+
 export default function Layout({ children, title }) {
   const { user, logout } = useAuth();
   const { activeClient } = useActiveClient();
+  const unsavedGuard = useUnsavedChangesGuard();
+  const [pendingNav, setPendingNav] = useState(null); // target path while the unsaved-changes prompt is open
+  const [navSaving,  setNavSaving]  = useState(false);
   const loc = useLocation();
   const navigate = useNavigate();
   const [open,            setOpen]            = useState(false);   // mobile drawer
@@ -277,26 +321,41 @@ export default function Layout({ children, title }) {
   const [profileImg,      setProfileImg]      = useState(null);
   const [collapsed,       setCollapsed]       = useState({ master: true, qmsForms: true });
 
-  // Auto-expand the section that contains the active route
+  // Cycle-grouped nav (built when this Client ID has more than one cycle) takes
+  // priority over the legacy clientRank relabeling (built for the old scheme of a
+  // brand-new Client ID per cycle) — a given active client should only ever be
+  // using one of the two mechanisms at a time.
+  const secs = (activeClient && activeClient.cycleCount > 1)
+    ? buildCycleGroupedNav(NAV[user?.role] || [], activeClient)
+    : applyActiveClientNav(NAV[user?.role] || [], activeClient);
+
+  // "Cycle 1" starts open, every later cycle starts collapsed — every cycle points
+  // at the same routes (the admin picks which cycle from the form page's own
+  // selector, not the URL), so "the active route is inside this section" isn't a
+  // useful signal to auto-open one over another here.
+  const isSectionCollapsed = (key) => {
+    if (key in collapsed) return collapsed[key];
+    if (key && key.startsWith('cycle-')) return key !== 'cycle-1';
+    return false;
+  };
+
+  // Auto-expand the (non-cycle) section that contains the active route
   useEffect(() => {
-    const nav = NAV[user?.role] || [];
     const updates = {};
-    nav.forEach(s => {
-      if (s.collapsible && s.key) {
-        const hasActive = s.items.some(item => {
-          if (item.to.endsWith('/new')) return loc.pathname === item.to;
-          return loc.pathname.startsWith(item.to);
-        });
-        if (hasActive) updates[s.key] = false; // false = expanded
-      }
+    secs.forEach(s => {
+      if (!s.collapsible || !s.key || s.key.startsWith('cycle-')) return;
+      const hasActive = (s.items || []).some(item => {
+        if (item.to.endsWith('/new')) return loc.pathname === item.to;
+        return loc.pathname.startsWith(item.to);
+      });
+      if (hasActive) updates[s.key] = false; // false = expanded
     });
     if (Object.keys(updates).length) setCollapsed(p => ({ ...p, ...updates }));
-  }, [loc.pathname, user?.role]);
+  }, [loc.pathname, user?.role]); // eslint-disable-line
   const nRef        = useRef(null);
   const imgRef      = useRef(null);
   const sidebarNavRef = useRef(null);
 
-  const secs   = applyActiveClientNav(NAV[user?.role] || [], activeClient);
   const unread = notifications.filter(n => !n.read).length;
 
   const fetchNotifs = useCallback(async () => {
@@ -384,10 +443,41 @@ export default function Layout({ children, title }) {
   // Nav item click: on desktop, collapse sidebar to icon-only mode.
   // Hovering the icon strip temporarily expands it (CSS); the hamburger
   // button restores the full sidebar permanently. Mobile drawer just closes.
-  const handleNavClick = () => {
+  // If the currently-open QMS form has unsaved changes (see
+  // UnsavedChangesContext), the navigation is held and a prompt is shown instead —
+  // preventDefault() on the Link's click stops React Router from navigating.
+  const finishNavClick = () => {
     setOpen(false);
     window.scrollTo(0, 0);
     if (window.innerWidth > 768) setMini(true);
+  };
+  const handleNavClick = (e, to) => {
+    if (unsavedGuard?.current?.isDirty && to && to !== loc.pathname) {
+      e.preventDefault();
+      setPendingNav(to);
+      return;
+    }
+    finishNavClick();
+  };
+  const proceedPendingNav = () => {
+    const to = pendingNav;
+    setPendingNav(null);
+    finishNavClick();
+    if (to) navigate(to);
+  };
+  const handleSaveAndLeave = async () => {
+    const guard = unsavedGuard?.current;
+    setNavSaving(true);
+    let ok = true;
+    try { if (guard?.onSave) ok = await guard.onSave(); } catch { ok = false; }
+    setNavSaving(false);
+    // Only leave once the save actually succeeded — if it failed, the form's own
+    // save handler already showed an error toast; stay put so nothing is lost.
+    if (ok !== false) proceedPendingNav();
+  };
+  const handleDiscardAndLeave = () => {
+    unsavedGuard?.current?.onDiscard?.();
+    proceedPendingNav();
   };
 
   const handleMenuToggle = () => {
@@ -447,18 +537,34 @@ export default function Layout({ children, title }) {
                     </div>
                     <FiChevronDown
                       size={13}
-                      className={`nav-chevron ${!collapsed[s.key] ? 'open' : ''}`}
+                      className={`nav-chevron ${!isSectionCollapsed(s.key) ? 'open' : ''}`}
                     />
                   </button>
-                  {!collapsed[s.key] && (
+                  {!isSectionCollapsed(s.key) && (
                     <div className="nav-sub">
-                      {s.items.map(item => (
+                      {s.groups ? s.groups.map((g, gi) => (
+                        <div key={g.label + gi}>
+                          <div className="nav-group-label" style={{ paddingLeft: 34, fontSize: 10 }}>{g.label}</div>
+                          {g.items.map(item => (
+                            <Link
+                              key={item.to + item.label}
+                              to={item.to}
+                              className={`nav-sub-item ${isOn(item.to) ? 'active' : ''}`}
+                              title={item.label}
+                              onClick={(e) => handleNavClick(e, item.to)}
+                            >
+                              <span className="nav-sub-dot" />
+                              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      )) : s.items.map(item => (
                         <Link
                           key={item.to + item.label}
                           to={item.to}
                           className={`nav-sub-item ${isOn(item.to) ? 'active' : ''}`}
                           title={item.label}
-                          onClick={handleNavClick}
+                          onClick={(e) => handleNavClick(e, item.to)}
                         >
                           <span className="nav-sub-dot" />
                           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
@@ -476,7 +582,7 @@ export default function Layout({ children, title }) {
                       to={item.to}
                       className={`nav-link ${isOn(item.to) ? 'active' : ''}`}
                       title={item.label}
-                      onClick={handleNavClick}
+                      onClick={(e) => handleNavClick(e, item.to)}
                     >
                       <item.icon className="nav-icon" size={15} />
                       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
@@ -595,11 +701,6 @@ export default function Layout({ children, title }) {
                                   <div className="notif-msg">{n.message}</div>
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
                                     <span className="notif-time">{relTime}</span>
-                                    {n.link && (
-                                      <span style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                        View →
-                                      </span>
-                                    )}
                                     {!n.read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />}
                                   </div>
                                 </div>
@@ -631,6 +732,31 @@ export default function Layout({ children, title }) {
 
         <main className="page">{children}</main>
       </div>
+
+      {/* Unsaved-changes prompt — shown when navigating away from a QMS form
+          page that still has edits not yet saved (see UnsavedChangesContext) */}
+      {pendingNav && (
+        <div className="modal-bg" onClick={() => !navSaving && setPendingNav(null)}>
+          <div className="modal-box" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div className="modal-title">Unsaved changes</div>
+              {!navSaving && <button className="modal-close" onClick={() => setPendingNav(null)}>✕</button>}
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 13.5, color: 'var(--gray-600)', margin: 0 }}>
+                You're leaving this form without saving. Save your changes as a draft before you go?
+              </p>
+            </div>
+            <div className="modal-foot" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost" disabled={navSaving} onClick={() => setPendingNav(null)}>Cancel</button>
+              <button className="btn btn-ghost" disabled={navSaving} onClick={handleDiscardAndLeave}>Leave without saving</button>
+              <button className="btn btn-primary" disabled={navSaving} onClick={handleSaveAndLeave}>
+                {navSaving ? 'Saving…' : 'Save & Leave'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

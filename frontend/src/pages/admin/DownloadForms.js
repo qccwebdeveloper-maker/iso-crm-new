@@ -52,15 +52,17 @@ export default function DownloadForms() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
 
-  const loadClient = async (id) => {
-    const { data: c } = await axios.get(`/api/qms-forms/client/${id}`);
+  const loadClient = async (id, cycleOverride) => {
+    const q = cycleOverride ? `?cycle=${cycleOverride}` : '';
+    const { data: c } = await axios.get(`/api/qms-forms/client/${id}${q}`);
     setClient(c);
     setActiveClient({
       clientId: c.clientId, company: c.company,
       isPrimaryClientId: c.isPrimaryClientId, clientRank: c.clientRank,
+      cycles: c.cycles, cycleCount: c.cycleCount, activeCycle: c.activeCycle,
     });
     const realId = c.clientId || id;
-    const { data } = await axios.get('/api/qms-forms', { params: { clientId: realId } });
+    const { data } = await axios.get('/api/qms-forms', { params: { clientId: realId, cycle: c.activeCycle || 1 } });
     const map = {};
     (data || []).forEach(rec => { map[rec.formType] = rec; });
     setByType(map);
@@ -101,7 +103,8 @@ export default function DownloadForms() {
 
   const open = (formType) => {
     const realId = client?.clientId || cidInput.trim();
-    navigate(`${formPath(formType)}?client=${encodeURIComponent(realId)}`);
+    const cycle  = client?.activeCycle || 1;
+    navigate(`${formPath(formType)}?client=${encodeURIComponent(realId)}&cycle=${cycle}`);
   };
 
   const filledCount = byType ? Object.keys(byType).length : 0;
@@ -171,8 +174,25 @@ export default function DownloadForms() {
 
         {byType && (
           <>
-            <div style={{ marginBottom: 14, fontSize: 13, color: 'var(--gray-600)' }}>
-              <strong>{client?.company || cidInput}</strong>{client?.clientId ? ` · ${client.clientId}` : ''} — {filledCount} form{filledCount === 1 ? '' : 's'} filled
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, fontSize: 13, color: 'var(--gray-600)' }}>
+              <span>
+                <strong>{client?.company || cidInput}</strong>{client?.clientId ? ` · ${client.clientId}` : ''} — {filledCount} form{filledCount === 1 ? '' : 's'} filled
+              </span>
+              {/* Only shown once this Client ID has more than one certification
+                  cycle — a single-cycle client keeps today's plain summary line. */}
+              {client?.cycleCount > 1 && (
+                <select
+                  value={client.activeCycle || 1}
+                  onChange={(e) => loadClient(client.clientId, Number(e.target.value))}
+                  className="btn btn-sm"
+                  style={{ padding: '4px 8px' }}
+                  title="Switch certification cycle"
+                >
+                  {(client.cycles || [1]).map(c => (
+                    <option key={c} value={c}>Cycle {c}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div style={{ background: 'white', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
               {ALL_FORMS.map((f, i) => {

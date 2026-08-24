@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import {
@@ -117,14 +117,17 @@ function OtpInput({ value, onChange }) {
 
 // ═══════════════════════════════════════════════
 export default function Login() {
-  const [tab, setTab] = useState('login');
   // Role is chosen by the URL path: /login/admin | /login/client | /login/auditor | /login/sales.
   // Bare /login defaults to client.
   const { role } = useParams();
+  const [searchParams] = useSearchParams();
   const initialMode = ['admin', 'auditor', 'sales', 'client'].includes(role) ? role : 'client';
+  const allowRegister = initialMode === 'client'; // only clients can self-register (Create Account)
+  // The QCC marketing site's "Create Account" button links here with ?tab=register
+  // (see qcc frontend's LoginClient.tsx) so the Create Account tab opens directly.
+  const [tab, setTab] = useState(searchParams.get('tab') === 'register' && allowRegister ? 'register' : 'login');
   const [loginMode, setLoginMode] = useState(initialMode);
   const showRoleTabs = false;                  // single-form login per link — hide the role switcher
-  const allowRegister = initialMode === 'client'; // only clients can self-register (Create Account)
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -160,6 +163,25 @@ export default function Login() {
     warmUp();
     return () => { clearInterval(timerRef.current); };
   }, []);
+
+  // SSO handoff from the QCC marketing site: its login form authenticates
+  // directly against our /api/auth/client-login|login, base64-encodes the
+  // resulting { ...user, token } and redirects here as ?sso=... . Complete the
+  // session here exactly like the admin OTP flow does (loginWithToken), so the
+  // visitor lands on their dashboard already signed in instead of typing
+  // credentials a second time.
+  useEffect(() => {
+    const sso = searchParams.get('sso');
+    if (!sso) return;
+    try {
+      const data = JSON.parse(atob(sso));
+      if (!data || !data.token || !data.role) throw new Error('Malformed session');
+      loginWithToken(data, data.token);
+      navigate(data.role === 'reviewer' ? '/auditor' : `/${data.role}`, { replace: true });
+    } catch {
+      setErr('Could not complete sign-in from qccertification.com. Please try logging in again.');
+    }
+  }, [searchParams]);
 
   const startTimer = (sec = 60) => {
     setTimer(sec);

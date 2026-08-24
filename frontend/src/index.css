@@ -407,6 +407,7 @@ pre { max-width: 100%; overflow-x: auto; }
 .bdg-active, .bdg-Active   { background: var(--green-50);   color: var(--green); }
 .bdg-inactive, .bdg-Inactive { background: var(--gray-100); color: var(--gray-500); }
 .bdg-info     { background: var(--blue-50);     color: var(--blue); }
+.bdg-pending_review { background: var(--red-50); color: var(--red); }
 .bdg-new      { background: var(--blue-50);     color: var(--blue); }
 .bdg-contacted { background: var(--amber-50);   color: #92400e; }
 .bdg-qualified { background: var(--purple-50);  color: var(--purple); }

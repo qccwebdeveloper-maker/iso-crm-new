@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import useStandards from './useStandards';
 import { useAuth } from '../../../context/AuthContext';
 import { useActiveClient } from '../../../context/ActiveClientContext';
+import { useUnsavedChangesGuard } from '../../../context/UnsavedChangesContext';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
@@ -551,6 +552,30 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   const [assignSel,     setAssignSel]     = useState({ auditorId: '', reviewerId: '' });
   const [assigning,     setAssigning]     = useState(false);
 
+  // Unsaved-changes guard: snapshot of formData as it was when the form was opened
+  // (fresh or existing), compared against the live formData to decide whether
+  // leaving should prompt to save. Reset whenever a form is (re)opened.
+  const unsavedGuard = useUnsavedChangesGuard();
+  const initialSnapshotRef = useRef(null);
+  const isDirty = view === 'form'
+    && initialSnapshotRef.current !== null
+    && JSON.stringify(formData) !== initialSnapshotRef.current;
+
+  useEffect(() => {
+    if (!unsavedGuard) return;
+    unsavedGuard.current = isDirty
+      ? { isDirty: true, onSave: () => handleSave('draft'), onDiscard: resetForm }
+      : null;
+  }); // no deps — keep the ref's callbacks pointing at the latest formData/status
+
+  useEffect(() => {
+    const handler = (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  useEffect(() => () => { if (unsavedGuard) unsavedGuard.current = null; }, []); // eslint-disable-line
+
   const fetchList = useCallback(async () => {
     setListLoading(true);
     try {
@@ -597,15 +622,16 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   useEffect(() => {
     const cid = searchParams.get('client');
     if (!cid) return;
+    const cycle = searchParams.get('cycle') || '1';
     let cancelled = false;
     (async () => {
       try {
-        const { data: rec } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}`);
+        const { data: rec } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}?cycle=${cycle}`);
         if (cancelled || !rec || !rec._id) return;
         let clientRef = rec.clientRef;
         if (!clientRef || !clientRef.company) {
           try {
-            const { data: client } = await axios.get(`/api/qms-forms/client/${cid}`);
+            const { data: client } = await axios.get(`/api/qms-forms/client/${cid}?cycle=${cycle}`);
             clientRef = { clientId: cid, ...(clientRef || {}), ...client };
           } catch { /* keep the lean ref */ }
         }
@@ -637,17 +663,20 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   // Resolve one exact Client ID and open its form — the shared tail end of both the
   // single-match path and the multi-match picker path (company name matched more
   // than one Client ID).
-  const resolveClient = async (id) => {
-    const { data: client } = await axios.get(`/api/qms-forms/client/${id}`);
+  const resolveClient = async (id, cycleOverride) => {
+    const q = cycleOverride ? `?cycle=${cycleOverride}` : '';
+    const { data: client } = await axios.get(`/api/qms-forms/client/${id}${q}`);
     setClientInfo(client);
     setActiveClient({
       clientId: client.clientId, company: client.company,
       isPrimaryClientId: client.isPrimaryClientId, clientRank: client.clientRank,
+      cycles: client.cycles, cycleCount: client.cycleCount, activeCycle: client.activeCycle,
     });
     const cid = client.clientId || id;
+    const activeCycle = client.activeCycle || 1;
     let base, st = 'draft', exId = null;
     try {
-      const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}`);
+      const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}?cycle=${activeCycle}`);
       base = withAppDefaults(existing.formData || defaultData || {}, client);
       st = existing.status || 'draft';
       exId = existing._id;
@@ -678,6 +707,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     }
     base = await applyPrefill(cid, base);
     setFormData(base);
+    initialSnapshotRef.current = JSON.stringify(base);
     setStatus(st);
     setExistingId(exId);
     setView('form');
@@ -722,11 +752,12 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   const set = (key, val) => setFormData(p => ({ ...p, [key]: typeof val === 'function' ? val(p[key]) : val }));
 
   const handleSave = async (saveStatus) => {
-    if (!clientInfo) return;
+    if (!clientInfo) return false;
     setSaving(true);
     try {
       await axios.post('/api/qms-forms', {
         clientId: clientInfo.clientId,
+        cycleNumber: clientInfo.activeCycle || 1,
         formType, formCode,
         formName: formTitle,
         status:   saveStatus,
@@ -736,8 +767,10 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
       toast.success(saveStatus === 'draft' ? 'Saved as draft' : 'Form saved successfully');
       fetchList();
       resetForm();
+      return true;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed');
+      return false;
     } finally { setSaving(false); }
   };
 
@@ -752,9 +785,11 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
 
   const openExisting = async (row) => {
     const cid = row.clientRef?.clientId || row.clientId || '';
+    const cycleNum = row.cycleNumber || 1;
     setClientIdInput(cid);
-    setClientInfo(row.clientRef || { clientId: cid });
+    setClientInfo(row.clientRef ? { ...row.clientRef, activeCycle: cycleNum } : { clientId: cid, activeCycle: cycleNum });
     setFormData(row.formData || {});
+    initialSnapshotRef.current = JSON.stringify(row.formData || {});
     setStatus(row.status);
     setExistingId(row._id);
     setView('form');
@@ -763,11 +798,12 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     // that read from the application — e.g. F03 — get the same data as a fresh search.
     if (cid) {
       try {
-        const { data: client } = await axios.get(`/api/qms-forms/client/${cid}`);
-        setClientInfo(prev => ({ ...(prev || {}), ...client }));
+        const { data: client } = await axios.get(`/api/qms-forms/client/${cid}?cycle=${cycleNum}`);
+        setClientInfo(prev => ({ ...(prev || {}), ...client, activeCycle: cycleNum }));
         setActiveClient({
           clientId: client.clientId, company: client.company,
           isPrimaryClientId: client.isPrimaryClientId, clientRank: client.clientRank,
+          cycles: client.cycles, cycleCount: client.cycleCount, activeCycle: cycleNum,
         });
         // Fill any blank shared fields (address, scope, REFNO, ID, mode of audit)
         // from the application record, preserving anything already entered, then
@@ -775,6 +811,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
         let base = withAppDefaults(row.formData || {}, client);
         base = await applyPrefill(cid, base);
         setFormData(base);
+        initialSnapshotRef.current = JSON.stringify(base);
       } catch { /* keep the lean clientRef if the lookup fails */ }
     }
   };
@@ -784,6 +821,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     setClientIdInput('');
     setClientInfo(null);
     setFormData(defaultData || {});
+    initialSnapshotRef.current = null;
     setExistingId(null);
     setStatus('draft');
   };
@@ -883,7 +921,17 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                       const SIcon = sm.Icon;
                       return (
                         <tr key={row._id}>
-                          <td><span className="mono">{row.clientId}</span></td>
+                          <td>
+                            <span className="mono">{row.clientId}</span>
+                            {row.cycleNumber > 1 && (
+                              <span title="Certification cycle" style={{
+                                marginLeft: 6, fontSize: 10, fontWeight: 700, color: 'var(--primary-dark)',
+                                background: 'var(--primary-100)', padding: '1px 6px', borderRadius: 5,
+                              }}>
+                                C{row.cycleNumber}
+                              </span>
+                            )}
+                          </td>
                           <td style={{ fontWeight: 600 }}>{row.clientRef?.name || '—'}</td>
                           <td style={{ color: 'var(--gray-500)' }}>{row.clientRef?.company || '—'}</td>
                           <td>
@@ -949,6 +997,23 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   </div>
                 </div>
                 <div className="qms-client-banner-right">
+                  {/* Only shown once this Client ID actually has more than one cycle
+                      (Initial+Surveillances, then a fresh one per recertification-
+                      before-expiry) — a brand-new/single-cycle client keeps today's
+                      plain banner with no cycle UI at all. */}
+                  {clientInfo.cycleCount > 1 && (
+                    <select
+                      value={clientInfo.activeCycle || 1}
+                      onChange={(e) => resolveClient(clientInfo.clientId, Number(e.target.value))}
+                      className="btn btn-sm"
+                      style={{ padding: '4px 8px' }}
+                      title="Switch certification cycle"
+                    >
+                      {(clientInfo.cycles || [1]).map(c => (
+                        <option key={c} value={c}>Cycle {c}</option>
+                      ))}
+                    </select>
+                  )}
                   <span className="qms-status-pill" style={{ background: statusMeta.bg, color: statusMeta.color }}>
                     <statusMeta.Icon size={11} /> {statusMeta.label}
                   </span>

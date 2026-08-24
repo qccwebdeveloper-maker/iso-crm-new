@@ -6,6 +6,8 @@ import toast from 'react-hot-toast';
 import { Plus, Search, Edit, Trash2, CheckCircle, Copy, RefreshCw, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Pagination from '../../components/common/Pagination';
 
+const ISO_STANDARDS = ['ISO 9001:2015','ISO 14001:2015','ISO 45001:2018','ISO 27001:2022','ISO 22000:2018','ISO 13485:2016','ISO 50001:2018'];
+
 function genPassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
@@ -43,7 +45,7 @@ export default function AdminUsers() {
   const PER_PAGE = 10;
 
   const [form, setForm] = useState({
-    name: '', email: '', password: '', role: 'client', phone: '', company: '',
+    name: '', email: '', password: '', role: 'client', phone: '', company: '', isoStandard: '',
   });
 
   const load = () => {
@@ -76,6 +78,7 @@ export default function AdminUsers() {
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter a valid email address';
     if (!form.role)         e.role  = 'Role is required';
     if (modal === 'add' && !form.password) e.password = 'Password is required';
+    if (modal === 'add' && form.role === 'client' && !form.isoStandard) e.isoStandard = 'ISO Standard is required for clients';
     return e;
   };
 
@@ -100,6 +103,9 @@ export default function AdminUsers() {
       setModal(null);
       load();
     } catch (err) {
+      // Same company + same standard + a still-active certification already has a
+      // Client ID — this is a hard block; a new one can only be created once that
+      // certification actually expires (Certificates page → Expire).
       toast.error(err.response?.data?.message || 'Error');
     } finally { setSaving(false); }
   };
@@ -113,7 +119,7 @@ export default function AdminUsers() {
   const roleColor = { admin: 'var(--primary)', client: '#3b82f6', auditor: '#8b5cf6', reviewer: '#8b5cf6', sales: '#16a34a' };
 
   const openAdd = () => {
-    setForm({ name: '', email: '', password: genPassword(), role: 'client', phone: '', company: '' });
+    setForm({ name: '', email: '', password: genPassword(), role: 'client', phone: '', company: '', isoStandard: '' });
     setErrors({});
     setShowPw(false);
     setModal('add');
@@ -181,7 +187,7 @@ export default function AdminUsers() {
                         <button className="btn btn-primary btn-sm" onClick={() => navigate(`/admin/users/${u._id}`)}><Eye size={13} /> Review</button>
                       ) : (
                         <>
-                          <button className="btn btn-ghost btn-sm" onClick={() => { setForm({ name: u.name, email: u.email, password: '', role: u.role, phone: u.phone || '', company: u.company || '' }); setShowPw(false); setModal(u); }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setForm({ name: u.name, email: u.email, password: '', role: u.role, phone: u.phone || '', company: u.company || '', isoStandard: u.isoStandard || '' }); setShowPw(false); setModal(u); }}>
                             <Edit size={13} /> Edit
                           </button>
                           <button className="btn btn-danger btn-sm" onClick={() => del(u._id)}><Trash2 size={13} /> Delete</button>
@@ -265,9 +271,22 @@ export default function AdminUsers() {
               <input className="form-control" value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))} placeholder="Company Ltd" />
             </div>
           </div>
+          {form.role === 'client' && (
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">ISO Standard{isAdd ? ' *' : ''}</label>
+                <select className={`form-control${errors.isoStandard ? ' input-error' : ''}`} value={form.isoStandard}
+                  onChange={e => { setForm(p => ({ ...p, isoStandard: e.target.value })); setErrors(p => ({ ...p, isoStandard: '' })); }}>
+                  <option value="">Select standard…</option>
+                  {ISO_STANDARDS.map(s => <option key={s}>{s}</option>)}
+                </select>
+                {errors.isoStandard && <span className="field-error">{errors.isoStandard}</span>}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, borderTop: '1px solid var(--gray-100)', paddingTop: 18 }}>
             <button className="btn btn-ghost" onClick={() => setModal(null)}>Cancel</button>
-            <button className="btn btn-primary" onClick={save} disabled={saving}>
+            <button className="btn btn-primary" onClick={() => save()} disabled={saving}>
               {saving ? 'Saving…' : isAdd ? <><Plus size={14} /> Create</> : <><Edit size={14} /> Save</>}
             </button>
           </div>

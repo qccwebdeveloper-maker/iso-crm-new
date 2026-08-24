@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import {
   Award, Download, Edit2, Plus, Trash2, Save,
   Clock, AlertCircle, RefreshCw, CheckCircle, Eye,
-  Ban, XOctagon,
+  Ban, XOctagon, MoreVertical,
 } from 'lucide-react';
 
 const ISO_STDS = [
@@ -373,7 +373,9 @@ export default function CertificateManagement() {
   const [manualForm,  setManualForm]  = useState(blank());
   const [editModal,   setEditModal]   = useState(null);
   const [viewModal,   setViewModal]   = useState(null);
-  const [deleteId,    setDeleteId]    = useState(null);
+  const [menuOpenId,  setMenuOpenId]  = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null); // { type: 'delete'|'expire'|'suspend'|'withdraw', cert }
+  const [confirmTyped,  setConfirmTyped]  = useState('');
   const [clientIdInput, setClientIdInput] = useState('');
   const [fetching,    setFetching]    = useState(false);
   const [setting,     setSetting]     = useState({
@@ -391,6 +393,14 @@ export default function CertificateManagement() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Close the row "…" menu on any outside click
+  useEffect(() => {
+    if (!menuOpenId) return;
+    const close = (e) => { if (!e.target.closest('[data-cert-menu]')) setMenuOpenId(null); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuOpenId]);
 
   const setM = (k,v) => setManualForm(p=>({...p,[k]:v}));
   const setE = (k,v) => setEditModal(p=>({...p,[k]:v}));
@@ -455,13 +465,64 @@ export default function CertificateManagement() {
     finally { setSaving(false); }
   };
 
-  const deleteCert = async () => {
+  // Manually mark a certificate expired (backdate its expiry to yesterday) instead
+  // of waiting for the expiry date to pass naturally — e.g. the certification body
+  // is withdrawing/ending it early. Status everywhere (statusOf() above, and the
+  // Client-ID-reuse guard in backend/utils/clientId.js findReusableClientId) is
+  // derived purely from expiryDate, so this is all that's needed to let a new
+  // certification lifecycle (new Client ID) start for this company + standard.
+  // (Confirmation happens in the unified type-to-confirm modal below — this just
+  // performs the action once confirmed.)
+  const expireCert = async (c) => {
     try {
-      await axios.delete(`/api/certificates/${deleteId}`);
-      toast.success('Certificate deleted');
-      setDeleteId(null);
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      await axios.put(`/api/certificates/${c._id}`, withLayout({ ...c, expiryDate: yesterday }));
+      toast.success('Certificate marked as expired');
       load();
-    } catch { toast.error('Failed to delete'); }
+    } catch { toast.error('Failed to expire certificate'); }
+  };
+
+  // Config for the unified type-to-confirm modal — one entry per destructive/
+  // impactful row action, keyed by the same `type` stored in confirmAction.
+  const CONFIRM_ACTIONS = {
+    delete: {
+      word: 'DELETE', title: 'Confirm Delete', color: '#ef4444', Icon: Trash2,
+      message: (c) => <>Permanently delete certificate <strong>{c.certNumber || ''}</strong> for <strong>{c.orgName || c.organizationName || 'this organization'}</strong>?<br/><strong>This action cannot be undone.</strong></>,
+      buttonLabel: 'Delete Permanently',
+      run: async (c) => { await axios.delete(`/api/certificates/${c._id}`); toast.success('Certificate deleted'); load(); },
+    },
+    expire: {
+      word: 'EXPIRE', title: 'Confirm Expire', color: '#ef4444', Icon: Clock,
+      message: (c) => <>Mark certificate <strong>{c.certNumber || ''}</strong> for <strong>{c.orgName || c.organizationName || 'this organization'}</strong> as expired now?<br/>This lets a new certification lifecycle (new Client ID) start for this company + standard if they re-certify.</>,
+      buttonLabel: 'Mark as Expired',
+      run: expireCert,
+    },
+    suspend: {
+      word: 'SUSPEND', title: 'Confirm Suspend', color: '#b45309', Icon: Ban,
+      message: (c) => <>Suspend certificate <strong>{c.certNumber || ''}</strong> for <strong>{c.orgName || c.organizationName || 'this organization'}</strong>?</>,
+      buttonLabel: 'Suspend',
+      run: async () => { toast('Suspend — coming soon'); },
+    },
+    withdraw: {
+      word: 'WITHDRAW', title: 'Confirm Withdraw', color: '#ef4444', Icon: XOctagon,
+      message: (c) => <>Withdraw certificate <strong>{c.certNumber || ''}</strong> for <strong>{c.orgName || c.organizationName || 'this organization'}</strong>?</>,
+      buttonLabel: 'Withdraw',
+      run: async () => { toast('Withdrawal — coming soon'); },
+    },
+  };
+
+  const runConfirmedAction = async () => {
+    if (!confirmAction) return;
+    const cfg = CONFIRM_ACTIONS[confirmAction.type];
+    if (confirmTyped.trim().toUpperCase() !== cfg.word) return;
+    setSaving(true);
+    try { await cfg.run(confirmAction.cert); }
+    catch { toast.error('Action failed'); }
+    finally {
+      setSaving(false);
+      setConfirmAction(null);
+      setConfirmTyped('');
+    }
   };
 
   const saveSetting = async () => {
@@ -603,23 +664,44 @@ export default function CertificateManagement() {
                                   <button className="btn btn-secondary btn-sm" onClick={()=>generateCertificate(c)}>
                                     <Download size={13}/> Download
                                   </button>
-                                  <button
-                                    title="Suspend certificate (not yet functional)"
-                                    style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, border:'1px solid #fde68a', background:'#fffbeb', color:'#b45309', cursor:'pointer', fontSize:12, fontWeight:600 }}
-                                    onClick={()=>toast('Suspend — coming soon')}>
-                                    <Ban size={13}/> Suspend
-                                  </button>
-                                  <button
-                                    title="Withdraw certificate (not yet functional)"
-                                    style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, border:'1px solid #fecaca', background:'#fef2f2', color:'#ef4444', cursor:'pointer', fontSize:12, fontWeight:600 }}
-                                    onClick={()=>toast('Withdrawal — coming soon')}>
-                                    <XOctagon size={13}/> Withdraw
-                                  </button>
-                                  <button
-                                    style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, border:'1px solid #fecaca', background:'#fef2f2', color:'#ef4444', cursor:'pointer', fontSize:12, fontWeight:600 }}
-                                    onClick={()=>setDeleteId(c._id)}>
-                                    <Trash2 size={13}/> Delete
-                                  </button>
+                                  <div style={{ position:'relative' }} data-cert-menu>
+                                    <button
+                                      title="More actions"
+                                      className="btn btn-ghost btn-sm"
+                                      onClick={()=>setMenuOpenId(id=>id===c._id?null:c._id)}>
+                                      <MoreVertical size={13}/>
+                                    </button>
+                                    {menuOpenId===c._id && (
+                                      <div style={{
+                                        position:'absolute', top:'100%', right:0, marginTop:4, zIndex:20,
+                                        background:'white', border:'1px solid #e5e7eb', borderRadius:8,
+                                        boxShadow:'0 4px 16px rgba(0,0,0,0.12)', minWidth:150, overflow:'hidden',
+                                      }}>
+                                        {st.label !== 'Expired' && (
+                                          <button
+                                            style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'8px 12px', border:'none', background:'white', color:'#ef4444', cursor:'pointer', fontSize:12.5, fontWeight:600, textAlign:'left' }}
+                                            onClick={()=>{ setMenuOpenId(null); setConfirmAction({ type:'expire', cert:c }); }}>
+                                            <Clock size={13}/> Expire
+                                          </button>
+                                        )}
+                                        <button
+                                          style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'8px 12px', border:'none', background:'white', color:'#b45309', cursor:'pointer', fontSize:12.5, fontWeight:600, textAlign:'left' }}
+                                          onClick={()=>{ setMenuOpenId(null); setConfirmAction({ type:'suspend', cert:c }); }}>
+                                          <Ban size={13}/> Suspend
+                                        </button>
+                                        <button
+                                          style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'8px 12px', border:'none', background:'white', color:'#ef4444', cursor:'pointer', fontSize:12.5, fontWeight:600, textAlign:'left' }}
+                                          onClick={()=>{ setMenuOpenId(null); setConfirmAction({ type:'withdraw', cert:c }); }}>
+                                          <XOctagon size={13}/> Withdraw
+                                        </button>
+                                        <button
+                                          style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'8px 12px', border:'none', borderTop:'1px solid #f1f5f9', background:'white', color:'#ef4444', cursor:'pointer', fontSize:12.5, fontWeight:600, textAlign:'left' }}
+                                          onClick={()=>{ setMenuOpenId(null); setConfirmAction({ type:'delete', cert:c }); }}>
+                                          <Trash2 size={13}/> Delete
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </td>
                             </tr>
@@ -783,36 +865,55 @@ export default function CertificateManagement() {
         </div>
       )}
 
-      {/* ═══ DELETE CONFIRM MODAL ═══ */}
-      {deleteId&&(
-        <div className="modal-bg" onClick={()=>setDeleteId(null)}>
-          <div className="modal-box" style={{ maxWidth:420 }} onClick={e=>e.stopPropagation()}>
-            <div className="modal-head">
-              <div className="modal-title" style={{ color:'#ef4444' }}>
-                <Trash2 size={15} style={{ marginRight:7, verticalAlign:'middle' }}/>Confirm Delete
+      {/* ═══ UNIFIED TYPE-TO-CONFIRM MODAL (Delete / Expire / Suspend / Withdraw) ═══ */}
+      {confirmAction&&(() => {
+        const cfg = CONFIRM_ACTIONS[confirmAction.type];
+        const closeConfirm = () => { setConfirmAction(null); setConfirmTyped(''); };
+        const matched = confirmTyped.trim().toUpperCase() === cfg.word;
+        return (
+          <div className="modal-bg" onClick={closeConfirm}>
+            <div className="modal-box" style={{ maxWidth:420 }} onClick={e=>e.stopPropagation()}>
+              <div className="modal-head">
+                <div className="modal-title" style={{ color:cfg.color }}>
+                  <cfg.Icon size={15} style={{ marginRight:7, verticalAlign:'middle' }}/>{cfg.title}
+                </div>
+                <button className="modal-close" onClick={closeConfirm}>✕</button>
               </div>
-              <button className="modal-close" onClick={()=>setDeleteId(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div style={{ textAlign:'center', padding:'20px 0' }}>
-                <AlertCircle size={40} style={{ color:'#ef4444', marginBottom:14 }}/>
-                <p style={{ fontSize:14, color:'var(--gray-700)', margin:0, lineHeight:1.6 }}>
-                  Are you sure you want to permanently delete this certificate?<br/>
-                  <strong>This action cannot be undone.</strong>
-                </p>
+              <div className="modal-body">
+                <div style={{ textAlign:'center', padding:'16px 0 8px' }}>
+                  <AlertCircle size={40} style={{ color:cfg.color, marginBottom:14 }}/>
+                  <p style={{ fontSize:14, color:'var(--gray-700)', margin:'0 0 18px', lineHeight:1.6 }}>
+                    {cfg.message(confirmAction.cert)}
+                  </p>
+                </div>
+                <div style={{ textAlign:'left' }}>
+                  <label className="form-label" style={{ fontSize:12.5 }}>
+                    Type <strong>{cfg.word}</strong> to confirm
+                  </label>
+                  <input
+                    autoFocus
+                    className="form-control"
+                    value={confirmTyped}
+                    onChange={e=>setConfirmTyped(e.target.value)}
+                    onKeyDown={e=>{ if (e.key==='Enter' && matched && !saving) runConfirmedAction(); }}
+                    placeholder={cfg.word}
+                    style={{ textTransform:'uppercase' }}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="modal-foot">
-              <button className="btn btn-ghost" onClick={()=>setDeleteId(null)}>Cancel</button>
-              <button
-                style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 20px', borderRadius:8, border:'none', background:'#ef4444', color:'white', cursor:'pointer', fontSize:13, fontWeight:700 }}
-                onClick={deleteCert}>
-                <Trash2 size={13}/> Delete Permanently
-              </button>
+              <div className="modal-foot">
+                <button className="btn btn-ghost" onClick={closeConfirm}>Cancel</button>
+                <button
+                  disabled={!matched||saving}
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 20px', borderRadius:8, border:'none', background:cfg.color, color:'white', cursor:(!matched||saving)?'not-allowed':'pointer', fontSize:13, fontWeight:700, opacity:(!matched||saving)?0.5:1 }}
+                  onClick={runConfirmedAction}>
+                  <cfg.Icon size={13}/> {saving?'Working…':cfg.buttonLabel}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </Layout>
   );

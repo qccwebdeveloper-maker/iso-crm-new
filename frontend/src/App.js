@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ActiveClientProvider } from './context/ActiveClientContext';
+import { UnsavedChangesProvider } from './context/UnsavedChangesContext';
 
 import Login from './pages/Login';
 
@@ -237,16 +238,18 @@ export default function App() {
   return (
     <AuthProvider>
       <ActiveClientProvider>
-        <Router>
-          <AppRoutes />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: { background: '#fff7ed', color: '#7c2d12', border: '1px solid #fed7aa', borderRadius: 12, fontSize: 13 },
-              success: { iconTheme: { primary: '#f97316', secondary: '#fff' } },
-            }}
-          />
-        </Router>
+        <UnsavedChangesProvider>
+          <Router>
+            <AppRoutes />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: { background: '#fff7ed', color: '#7c2d12', border: '1px solid #fed7aa', borderRadius: 12, fontSize: 13 },
+                success: { iconTheme: { primary: '#f97316', secondary: '#fff' } },
+              }}
+            />
+          </Router>
+        </UnsavedChangesProvider>
       </ActiveClientProvider>
     </AuthProvider>
   );

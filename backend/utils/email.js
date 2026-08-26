@@ -19,7 +19,24 @@ const withTimeout = async (promise, timeoutMs, label) => {
   }
 };
 
-async function sendMail({ to, subject, html }) {
+// Public entry point — hard-caps the whole provider fallback chain (Brevo -> Gmail
+// -> Ethereal) at once. Each provider already times out on its own, but those add up
+// sequentially (worst case ~50-60s+, more if a provider hangs past its own timeout on
+// a blackholed network instead of cleanly erroring), which can outlast the frontend's
+// axios timeout and leave the caller with an indefinite hang instead of a clean error.
+// This guarantees callers always get a response within OVERALL_TIMEOUT_MS.
+const OVERALL_TIMEOUT_MS = 25000;
+
+async function sendMail(opts) {
+  try {
+    return await withTimeout(attemptSendMail(opts), OVERALL_TIMEOUT_MS, 'Email delivery');
+  } catch (e) {
+    console.warn('[Email] All providers failed or timed out:', e.message);
+    throw new Error('Email service is temporarily unavailable. Please try again shortly.');
+  }
+}
+
+async function attemptSendMail({ to, subject, html }) {
   const nodemailer = require('nodemailer');
 
   // ── 1. Brevo SMTP (works on Render/EC2, sends to any address) ──

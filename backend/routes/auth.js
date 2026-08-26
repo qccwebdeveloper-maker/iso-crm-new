@@ -7,7 +7,7 @@ const Otp         = require('../models/Otp');
 const AppSetting  = require('../models/AppSetting');
 const { protect } = require('../middleware/auth');
 const { sendOtpEmail, sendWelcomeEmail } = require('../utils/email');
-const { generateClientId } = require('../utils/clientId');
+const { generateClientId, findReusableClientId } = require('../utils/clientId');
 
 const SECRET   = process.env.JWT_SECRET || 'crm_secret_key_2024';
 const genToken = (id) => jwt.sign({ id }, SECRET, { expiresIn: '7d' });
@@ -229,6 +229,18 @@ router.post('/register-client', async (req, res) => {
 
     const exists = await User.findOne({ email: email.toLowerCase() });
     if (exists) return res.status(409).json({ message: 'An account with this email already exists' });
+
+    // Same company + same standard + a still-active (non-expired) certification is
+    // one lifecycle and must keep the same Client ID — a public visitor can't judge
+    // whether a second registration is a legitimate second site, so this is a hard
+    // stop here (unlike the admin-facing create-user flow, which can confirm past it).
+    const reusable = await findReusableClientId({ company: companyName, standard });
+    if (reusable) {
+      return res.status(409).json({
+        message: `An active Client ID (${reusable.clientId}) already exists for ${companyName} under ${standard}. Please log in with that Client ID instead of registering again, or contact your certification body if you believe this is a separate site.`,
+        existingClientId: reusable.clientId,
+      });
+    }
 
     const clientId = await generateClientId();
     const hashed   = await hashPw(password);

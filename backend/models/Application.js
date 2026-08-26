@@ -21,6 +21,9 @@ const uploadedDocSchema = new mongoose.Schema({
 const applicationSchema = new mongoose.Schema({
   applicationId:      { type: String, unique: true, sparse: true },
   refno:              { type: String },
+  // Which certification cycle (under the same Client ID) this Application belongs
+  // to — mirrors QMSForm.cycleNumber, kept in sync when created from an F01 submit.
+  cycleNumber:        { type: Number, default: 1 },
 
   // BUG FIX 1: removed required:true — allows draft saves without orgName
   status:             { type: String, enum: ['draft','submitted','under_review','audit_stage1','audit_stage2','approved','certified','rejected'], default: 'draft' },

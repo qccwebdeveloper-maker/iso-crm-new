@@ -88,7 +88,7 @@ export function AuditorApplications() {
 
   const filtered = apps.filter(a => {
     const q = search.toLowerCase();
-    return (!q || a.applicationId?.toLowerCase().includes(q) || a.organizationName?.toLowerCase().includes(q) || a.client?.name?.toLowerCase().includes(q))
+    return (!q || a.client?.clientId?.toLowerCase().includes(q) || a.applicationId?.toLowerCase().includes(q) || a.organizationName?.toLowerCase().includes(q) || a.client?.name?.toLowerCase().includes(q))
       && (!statusF || a.status === statusF);
   });
 
@@ -121,7 +121,7 @@ export function AuditorApplications() {
         <div className="card-body" style={{display:'flex',gap:12,flexWrap:'wrap'}}>
           <div className="search-wrap" style={{flex:1,minWidth:220}}>
             <Search size={15} className="search-ico"/>
-            <input className="search-input" placeholder="Search by App ID, organization, client…" value={search} onChange={e=>setSearch(e.target.value)}/>
+            <input className="search-input" placeholder="Search by Client ID, organization, client…" value={search} onChange={e=>setSearch(e.target.value)}/>
           </div>
           <select className="form-control" style={{width:'auto',minWidth:170}} value={statusF} onChange={e=>setStatusF(e.target.value)}>
             <option value="">All Statuses</option>
@@ -146,14 +146,14 @@ export function AuditorApplications() {
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>App ID</th><th>Organization</th><th>Client</th><th>Standard</th>
+                  <th>Client ID</th><th>Organization</th><th>Client</th><th>Standard</th>
                   <th>Status</th><th>Docs</th><th>Date</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(app=>(
                   <tr key={app._id}>
-                    <td><span className="mono">{app.applicationId}</span></td>
+                    <td><span className="mono">{app.client?.clientId || '—'}</span></td>
                     <td>
                       <div style={{fontWeight:600,color:'var(--text-1)',fontSize:13,marginBottom:2}}>{app.organizationName}</div>
                       <div style={{fontSize:11,color:'var(--gray-500)'}}>{[app.city,app.state].filter(Boolean).join(', ')}</div>

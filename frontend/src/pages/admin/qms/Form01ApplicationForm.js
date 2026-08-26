@@ -470,8 +470,19 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
               <FG label="No. of personnel working away from site (if applicable)">
                 <input className="form-control" type="number" min="0" value={data.remotePersonnel||0} onChange={e=>set('remotePersonnel',Number(e.target.value)||0)}/>
               </FG>
-              <FG label="No. of Employees (auto)">
-                <input className="form-control" value={effectiveTotal()} readOnly style={{background:'var(--primary-50)',fontWeight:700,color:'var(--primary)'}}/>
+              <FG label={<span>No. of Employees {data.totalEmployeesOverride!==undefined && data.totalEmployeesOverride!=='' && (
+                <button type="button" onClick={()=>set('totalEmployeesOverride','')}
+                  style={{marginLeft:6,fontSize:11,fontWeight:600,color:'var(--primary)',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
+                  reset to auto
+                </button>
+              )}</span>}>
+                <input
+                  className="form-control" type="number" min="0"
+                  value={(data.totalEmployeesOverride!==undefined && data.totalEmployeesOverride!=='') ? data.totalEmployeesOverride : effectiveTotal()}
+                  onChange={e=>set('totalEmployeesOverride', e.target.value)}
+                  style={{background:'var(--primary-50)',fontWeight:700,color:'var(--primary)'}}
+                  title="Auto-filled from the employee table above — edit to override"
+                />
               </FG>
               <FG label="Operation for Weekend / Weekly Holiday" full>
                 <GrowText placeholder="e.g. Saturday half day, Sunday off" value={data.weekendOperation} onChange={v=>set('weekendOperation',v)}/>
@@ -1159,7 +1170,7 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
                   {l:'App. Type',    v:data.applicationType||'—'},
                   {l:'Mode',         v:data.modeOfWorking||'—'},
                   {l:'Contact',      v:data.contactPerson||'—'},
-                  {l:'Total Emp.',   v:effectiveTotal()},
+                  {l:'Total Emp.',   v:(data.totalEmployeesOverride!==undefined && data.totalEmployeesOverride!=='') ? data.totalEmployeesOverride : effectiveTotal()},
                   {l:'Accreditation',v:data.accreditationBody||'—'},
                   {l:'Scope',        v:data.scopeOfCertification?(data.scopeOfCertification.slice(0,60)+'…'):'—'},
                 ].map(({l,v})=>(
@@ -1226,7 +1237,7 @@ export default function Form01ApplicationForm() {
     <QMSFormPage
       formType={1}
       formCode="AUD-F-02"
-      formTitle="F02 Application Form"
+      formTitle="AUD-F-02 Application Form"
       defaultData={INIT}
     >
       {({ data, set, clientInfo, onSaveDraft, onSave, saving }) => (

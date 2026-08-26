@@ -10,6 +10,12 @@ connectDB();
 
 const app = express();
 
+// Production runs behind nginx (see Caddyfile/docker-compose) — without this,
+// every request looks like it comes from the proxy's own IP, which breaks
+// per-IP rate limiting (routes/leads.js's public submission limiter) by
+// pooling every real visitor into one shared bucket.
+app.set('trust proxy', 1);
+
 // Ensure uploads directory exists and serve it as static
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
@@ -23,6 +29,10 @@ const allowedOrigins = [
   'https://iso-crm-new-r6ca.vercel.app',
   'http://crm.qccertification.com',
   'https://crm.qccertification.com',
+  // The public QCC marketing site (separate app/repo) — its login page hands off
+  // sessions here via ?sso=, and its contact/footer forms POST to /api/leads/public.
+  'https://qccertification.com',
+  'https://www.qccertification.com',
   process.env.CLIENT_URL,
 ].filter(Boolean);
 // Allow localhost / 127.0.0.1 with or without a port (e.g. http://localhost:3000 for the

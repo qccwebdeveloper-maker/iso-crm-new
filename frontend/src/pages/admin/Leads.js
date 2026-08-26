@@ -6,16 +6,17 @@ import toast from 'react-hot-toast';
 import {
   Plus, Search, Eye, UserCheck, ArrowRight, Trash2,
   Phone, Mail, MapPin, Tag, TrendingUp, Users, Star,
-  CheckCircle, Clock, XCircle, Filter, Download
+  CheckCircle, Clock, XCircle, Filter, Download, Inbox, Trophy
 } from 'lucide-react';
 import Pagination from '../../components/common/Pagination';
 
 const STATUS_CONFIG = {
-  new:       { label:'New',       color:'bdg-submitted',    icon:'🆕', bg:'#eff6ff' },
-  contacted: { label:'Contacted', color:'bdg-under_review', icon:'📞', bg:'#fffbeb' },
-  qualified: { label:'Qualified', color:'bdg-audit_stage1', icon:'✅', bg:'#f5f3ff' },
-  converted: { label:'Converted', color:'bdg-certified',    icon:'🏆', bg:'#f0fdf4' },
-  lost:      { label:'Lost',      color:'bdg-rejected',     icon:'❌', bg:'#fef2f2' },
+  pending_review: { label:'Pending Review', color:'bdg-pending_review', icon:Inbox,       bg:'#fef2f2' },
+  new:       { label:'New',       color:'bdg-submitted',    icon:Star,        bg:'#eff6ff' },
+  contacted: { label:'Contacted', color:'bdg-under_review', icon:Phone,       bg:'#fffbeb' },
+  qualified: { label:'Qualified', color:'bdg-audit_stage1', icon:CheckCircle, bg:'#f5f3ff' },
+  converted: { label:'Converted', color:'bdg-certified',    icon:Trophy,      bg:'#f0fdf4' },
+  lost:      { label:'Lost',      color:'bdg-rejected',     icon:XCircle,     bg:'#fef2f2' },
 };
 
 const PRIORITY = {
@@ -23,6 +24,17 @@ const PRIORITY = {
   medium: { label:'Medium', color:'#f97316', bg:'#fff7ed' },
   low:    { label:'Low',    color:'#6b7280', bg:'#f9fafb' },
 };
+
+function StatusBadge({ status, size = 11 }) {
+  const st = STATUS_CONFIG[status];
+  if (!st) return null;
+  const Icon = st.icon;
+  return (
+    <span className={`badge ${st.color}`}>
+      <Icon size={size} style={{ marginRight: 3, verticalAlign: -1.5 }} /> {st.label}
+    </span>
+  );
+}
 
 const ISO_STANDARDS = ['ISO 9001:2015','ISO 14001:2015','ISO 45001:2018','ISO 27001:2022','ISO 22000:2018','ISO 13485:2016','ISO 50001:2018'];
 const SOURCES = ['Website','Referral','LinkedIn','Cold Call','Email Campaign','Trade Show','Other'];
@@ -87,6 +99,7 @@ export default function AdminLeads() {
 
   const stats = {
     total: leads.length,
+    pendingReview: leads.filter(l=>l.status==='pending_review').length,
     new: leads.filter(l=>l.status==='new').length,
     contacted: leads.filter(l=>l.status==='contacted').length,
     qualified: leads.filter(l=>l.status==='qualified').length,
@@ -179,7 +192,7 @@ export default function AdminLeads() {
       <div className="page-hdr">
         <div>
           <h1 className="page-title">Lead Management</h1>
-          <p className="page-subtitle">{stats.total} total leads · {stats.qualified} qualified · {stats.converted} converted</p>
+          <p className="page-subtitle">{stats.total} total leads · {stats.pendingReview} pending review · {stats.qualified} qualified · {stats.converted} converted</p>
         </div>
         <div style={{display:'flex',gap:10}}>
           <button className="btn btn-secondary btn-sm" onClick={exportCSV}><Download size={14}/> Export</button>
@@ -190,14 +203,15 @@ export default function AdminLeads() {
       {/* ── KPI Strip ── */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(130px,1fr))',gap:12,marginBottom:24}}>
         {[
-          {l:'Total',    v:stats.total,     c:'orange', icon:<TrendingUp size={18}/>},
-          {l:'New',      v:stats.new,       c:'blue',   icon:<Star size={18}/>},
-          {l:'Contacted',v:stats.contacted, c:'amber',  icon:<Phone size={18}/>},
-          {l:'Qualified',v:stats.qualified, c:'purple', icon:<CheckCircle size={18}/>},
-          {l:'Converted',v:stats.converted, c:'green',  icon:<ArrowRight size={18}/>},
+          {l:'Total',          s:'',                v:stats.total,         c:'orange', icon:<TrendingUp size={18}/>},
+          {l:'Pending Review', s:'pending_review',   v:stats.pendingReview, c:'red',    icon:<Inbox size={18}/>},
+          {l:'New',            s:'new',              v:stats.new,           c:'blue',   icon:<Star size={18}/>},
+          {l:'Contacted',      s:'contacted',        v:stats.contacted,     c:'amber',  icon:<Phone size={18}/>},
+          {l:'Qualified',      s:'qualified',        v:stats.qualified,     c:'purple', icon:<CheckCircle size={18}/>},
+          {l:'Converted',      s:'converted',        v:stats.converted,     c:'green',  icon:<ArrowRight size={18}/>},
         ].map((k,i)=>(
           <div key={i} className={`kpi-card ${k.c}`} style={{padding:'16px 18px',cursor:'pointer'}}
-            onClick={()=>setStatusF(k.l.toLowerCase()===statusF?'':k.l.toLowerCase()==='total'?'':k.l.toLowerCase())}>
+            onClick={()=>setStatusF(k.s===statusF?'':k.s)}>
             <div className={`kpi-icon ${k.c}`} style={{width:36,height:36,marginBottom:10}}>{k.icon}</div>
             <div className="kpi-value" style={{fontSize:24}}>{k.v}</div>
             <div className="kpi-label" style={{fontSize:12}}>{k.l}</div>
@@ -275,9 +289,7 @@ export default function AdminLeads() {
                     </td>
                     <td><span className="badge bdg-info">{lead.isoStandard}</span></td>
                     <td>
-                      <span className={`badge ${STATUS_CONFIG[lead.status]?.color||'bdg-draft'}`}>
-                        {STATUS_CONFIG[lead.status]?.icon} {STATUS_CONFIG[lead.status]?.label}
-                      </span>
+                      <StatusBadge status={lead.status} size={10} />
                     </td>
                     <td>
                       <span style={{fontSize:12,fontWeight:700,color:PRIORITY[lead.priority]?.color,background:PRIORITY[lead.priority]?.bg,padding:'2px 8px',borderRadius:99}}>
@@ -312,7 +324,7 @@ export default function AdminLeads() {
         <div className="modal-bg" onClick={()=>{ setAddModal(false); setFormErrors({}); }}>
           <div className="modal-box" style={{maxWidth:680}} onClick={e=>e.stopPropagation()}>
             <div className="modal-head">
-              <span className="modal-title">➕ Add New Lead</span>
+              <span className="modal-title" style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Plus size={15} /> Add New Lead</span>
               <button className="modal-close" onClick={()=>{ setAddModal(false); setFormErrors({}); }}>✕</button>
             </div>
             <div className="modal-body">
@@ -403,7 +415,7 @@ export default function AdminLeads() {
         <div className="modal-bg" onClick={()=>setAssignModal(null)}>
           <div className="modal-box" onClick={e=>e.stopPropagation()}>
             <div className="modal-head">
-              <span className="modal-title">👤 Assign Lead — {assignModal.leadId}</span>
+              <span className="modal-title" style={{ display:'inline-flex', alignItems:'center', gap:6 }}><UserCheck size={15} /> Assign Lead — {assignModal.leadId}</span>
               <button className="modal-close" onClick={()=>setAssignModal(null)}>✕</button>
             </div>
             <div className="modal-body">
@@ -445,7 +457,7 @@ export default function AdminLeads() {
               <div>
                 <span className="modal-title">{detailModal.companyName}</span>
                 <div style={{marginTop:4,display:'flex',gap:6}}>
-                  <span className={`badge ${STATUS_CONFIG[detailModal.status]?.color}`}>{STATUS_CONFIG[detailModal.status]?.icon} {STATUS_CONFIG[detailModal.status]?.label}</span>
+                  <StatusBadge status={detailModal.status} />
                   <span style={{fontSize:12,fontWeight:700,color:PRIORITY[detailModal.priority]?.color,background:PRIORITY[detailModal.priority]?.bg,padding:'2px 8px',borderRadius:99}}>{PRIORITY[detailModal.priority]?.label} Priority</span>
                 </div>
               </div>
@@ -482,8 +494,9 @@ export default function AdminLeads() {
                   {Object.entries(STATUS_CONFIG).map(([k,v])=>(
                     <button key={k}
                       className={`btn btn-sm ${detailModal.status===k?'btn-primary':'btn-ghost'}`}
-                      onClick={()=>{updateStatus(detailModal._id,k);setDetailModal({...detailModal,status:k});}}>
-                      {v.icon} {v.label}
+                      onClick={()=>{updateStatus(detailModal._id,k);setDetailModal({...detailModal,status:k});}}
+                      style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                      <v.icon size={12} /> {v.label}
                     </button>
                   ))}
                 </div>
@@ -509,7 +522,7 @@ export default function AdminLeads() {
         <div className="modal-bg" onClick={()=>setConvertModal(null)}>
           <div className="modal-box" onClick={e=>e.stopPropagation()}>
             <div className="modal-head">
-              <span className="modal-title">🏆 Convert Lead to Application</span>
+              <span className="modal-title" style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Trophy size={15} /> Convert Lead to Application</span>
               <button className="modal-close" onClick={()=>setConvertModal(null)}>✕</button>
             </div>
             <div className="modal-body">
@@ -554,7 +567,6 @@ export default function AdminLeads() {
 }
 
 function LeadCard({ lead, onView, onAssign, onConvert, onDelete, onStatusChange }) {
-  const st = STATUS_CONFIG[lead.status] || {};
   const pr = PRIORITY[lead.priority] || {};
   return (
     <div style={{background:'white',border:'1.5px solid var(--primary-100)',borderRadius:16,overflow:'hidden',boxShadow:'0 2px 8px rgba(249,115,22,0.06)',transition:'all .2s'}}
@@ -572,7 +584,7 @@ function LeadCard({ lead, onView, onAssign, onConvert, onDelete, onStatusChange 
             <span className="mono" style={{fontSize:10.5}}>{lead.leadId}</span>
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:4,alignItems:'flex-end',flexShrink:0,marginLeft:8}}>
-            <span className={`badge ${st.color}`} style={{fontSize:10.5}}>{st.icon} {st.label}</span>
+            <StatusBadge status={lead.status} size={10} />
             <span style={{fontSize:10.5,fontWeight:700,color:pr.color,background:pr.bg,padding:'2px 7px',borderRadius:99}}>{pr.label}</span>
           </div>
         </div>
@@ -628,7 +640,7 @@ function LeadCard({ lead, onView, onAssign, onConvert, onDelete, onStatusChange 
           {lead.status !== 'converted' ? (
             <button className="btn btn-success btn-sm" style={{flex:1}} onClick={onConvert}><ArrowRight size={12}/> Convert</button>
           ) : (
-            <button className="btn btn-ghost btn-sm" style={{flex:1,opacity:.5}} disabled>✓ Converted</button>
+            <button className="btn btn-ghost btn-sm" style={{flex:1,opacity:.5,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:4}} disabled><CheckCircle size={12}/> Converted</button>
           )}
           <button className="btn btn-danger btn-sm" onClick={onDelete}><Trash2 size={12}/></button>
         </div>

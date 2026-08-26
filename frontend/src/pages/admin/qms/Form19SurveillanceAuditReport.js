@@ -72,7 +72,7 @@ export default function Form19SurveillanceAuditReport() {
     <QMSFormPage
       formType={19}
       formCode="AUD-F-15 (S)"
-      formTitle="F19 · Audit Report"
+      formTitle="AUD-F-15 Audit Report"
       defaultData={DEFAULT}
     >
       {(props) => <Body {...props} />}

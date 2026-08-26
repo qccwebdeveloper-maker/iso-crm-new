@@ -150,11 +150,11 @@ export default function AuditorDashboard() {
               ) : (
                 <div className="tbl-wrap">
                   <table className="tbl">
-                    <thead><tr><th>App ID</th><th>Organization</th><th>Client</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Client ID</th><th>Organization</th><th>Client</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody>
                       {myAudits.slice(0,6).map(a=>(
                         <tr key={a._id}>
-                          <td><span className="mono">{a.applicationId}</span></td>
+                          <td><span className="mono">{a.client?.clientId || '—'}</span></td>
                           <td style={{fontWeight:600,fontSize:12.5,maxWidth:130,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.organizationName}</td>
                           <td style={{fontSize:12,color:'var(--gray-500)'}}>{a.client?.name}</td>
                           <td><span className={`badge bdg-${a.status}`} style={{fontSize:10}}>{a.status?.replace(/_/g,' ')}</span></td>
@@ -213,11 +213,11 @@ export default function AuditorDashboard() {
               ) : (
                 <div className="tbl-wrap">
                   <table className="tbl">
-                    <thead><tr><th>App ID</th><th>Organization</th><th>Standard</th><th>Status</th><th>Client</th><th></th></tr></thead>
+                    <thead><tr><th>Client ID</th><th>Organization</th><th>Standard</th><th>Status</th><th>Client</th><th></th></tr></thead>
                     <tbody>
                       {myReviews.slice(0,6).map(a=>(
                         <tr key={a._id}>
-                          <td><span className="mono">{a.applicationId}</span></td>
+                          <td><span className="mono">{a.client?.clientId || '—'}</span></td>
                           <td style={{fontWeight:600,fontSize:12.5,maxWidth:130,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.organizationName}</td>
                           <td><span className="badge bdg-info" style={{fontSize:9.5}}>{a.isoStandard}</span></td>
                           <td><span className={`badge bdg-${a.status}`} style={{fontSize:9.5}}>{a.status?.replace(/_/g,' ')}</span></td>

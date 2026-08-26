@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ActiveClientProvider } from './context/ActiveClientContext';
+import { UnsavedChangesProvider } from './context/UnsavedChangesContext';
 
 import Login from './pages/Login';
 
@@ -67,6 +69,7 @@ import ClientCertificates    from './pages/client/Certificates';
 import ClientInvoices        from './pages/client/Invoices';
 import ClientFeedback        from './pages/client/Feedback';
 import ClientTeamReports     from './pages/client/TeamReports';
+import ClientQMSFormViewer   from './pages/client/QMSFormViewer';
 
 // ── Auditor ──
 import AuditorDashboard      from './pages/auditor/Dashboard';
@@ -168,6 +171,7 @@ function AppRoutes() {
       <Route path="/client/applications"     element={<ProtectedRoute roles={['client']}><ClientApplications /></ProtectedRoute>} />
       <Route path="/client/applications/new" element={<ProtectedRoute roles={['client']}><ClientNewApplication /></ProtectedRoute>} />
       <Route path="/client/qms/form-01"      element={<ProtectedRoute roles={['client']}><ClientApplicationForm /></ProtectedRoute>} />
+      <Route path="/client/qms/view/:formType" element={<ProtectedRoute roles={['client']}><ClientQMSFormViewer /></ProtectedRoute>} />
       <Route path="/client/applications/:id/edit" element={<ProtectedRoute roles={['client']}><ClientNewApplication /></ProtectedRoute>} />
       <Route path="/client/applications/:id" element={<ProtectedRoute roles={['client']}><ClientApplicationDetail /></ProtectedRoute>} />
       <Route path="/client/documents"        element={<ProtectedRoute roles={['client']}><ClientDocuments /></ProtectedRoute>} />
@@ -184,6 +188,32 @@ function AppRoutes() {
       <Route path="/auditor/reports"          element={<ProtectedRoute roles={['auditor','reviewer']}><AuditorApplications /></ProtectedRoute>} />
       <Route path="/auditor/documents"        element={<ProtectedRoute roles={['auditor','reviewer']}><AuditorApplications /></ProtectedRoute>} />
       <Route path="/auditor/settings"         element={<ProtectedRoute roles={['auditor','reviewer']}><AuditorDashboard /></ProtectedRoute>} />
+
+      {/* ── Auditor — QMS Forms (same forms/editors as admin, review + edit access) ── */}
+      <Route path="/auditor/qms/form-01" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm01 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-02" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm02 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-03" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm03 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-04" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm04 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-05" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm05 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-06" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm06 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-07" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm07 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-08" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm08 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-09" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm09 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-10" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm10 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-11" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm11 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-12" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm12 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-13" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm13 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-14" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm14 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-15" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm15 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-16" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm16 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-17" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm17 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-18" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm18 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-19" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm19 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-20" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm20 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-21" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm21 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-22" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm22 /></ProtectedRoute>} />
+      <Route path="/auditor/qms/form-23" element={<ProtectedRoute roles={['auditor','reviewer']}><QMSForm23 /></ProtectedRoute>} />
+
       <Route path="/reviewer"                 element={<Navigate to="/auditor" replace />} />
       <Route path="/reviewer/*"               element={<Navigate to="/auditor" replace />} />
 
@@ -207,16 +237,20 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            style: { background: '#fff7ed', color: '#7c2d12', border: '1px solid #fed7aa', borderRadius: 12, fontSize: 13 },
-            success: { iconTheme: { primary: '#f97316', secondary: '#fff' } },
-          }}
-        />
-      </Router>
+      <ActiveClientProvider>
+        <UnsavedChangesProvider>
+          <Router>
+            <AppRoutes />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: { background: '#fff7ed', color: '#7c2d12', border: '1px solid #fed7aa', borderRadius: 12, fontSize: 13 },
+                success: { iconTheme: { primary: '#f97316', secondary: '#fff' } },
+              }}
+            />
+          </Router>
+        </UnsavedChangesProvider>
+      </ActiveClientProvider>
     </AuthProvider>
   );
 }

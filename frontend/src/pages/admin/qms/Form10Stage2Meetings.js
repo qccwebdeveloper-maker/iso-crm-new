@@ -21,7 +21,7 @@ export default function Form10Stage2Meetings() {
     <QMSFormPage
       formType={10}
       formCode="AUD-F-07 S2"
-      formTitle="F07 S2 Open&Clos Meeting"
+      formTitle="AUD-F-07 S2 Open & Clos Meeting"
       defaultData={DEFAULT}
     >
       {(props) => <Form10Body {...props} />}

@@ -63,9 +63,9 @@ export default function AdminReports() {
 
   const exportCSV = () => {
     const rows = [
-      ['App ID','Organization','Client','Standard','Status','Auditor','Reviewer','Issue Date'],
+      ['Client ID','Organization','Client','Standard','Status','Auditor','Reviewer','Issue Date'],
       ...apps.map(a => [
-        a.applicationId, a.organizationName, a.client?.name||'',
+        a.client?.clientId||'', a.organizationName, a.client?.name||'',
         a.isoStandard, a.status, a.assignedAuditor?.name||'',
         a.assignedReviewer?.name||'', a.submittedAt?new Date(a.submittedAt).toLocaleDateString():''
       ])
@@ -93,7 +93,7 @@ export default function AdminReports() {
       color: '#d97706', bg: '#fef3c7',
       action: () => {
         const filtered = apps.filter(a=>a.status==='certified');
-        const rows=[['App ID','Org','Standard','Cert Date'],...filtered.map(a=>[a.applicationId,a.organizationName,a.isoStandard,a.updatedAt?new Date(a.updatedAt).toLocaleDateString():''])];
+        const rows=[['Client ID','Org','Standard','Cert Date'],...filtered.map(a=>[a.client?.clientId||'',a.organizationName,a.isoStandard,a.updatedAt?new Date(a.updatedAt).toLocaleDateString():''])];
         const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
         const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const el=document.createElement('a');el.href=url;el.download='certified.csv';el.click();
         toast.success('Certified export done!');
@@ -106,7 +106,7 @@ export default function AdminReports() {
       color: '#7c3aed', bg: '#ede9fe',
       action: () => {
         const filtered=apps.filter(a=>['submitted','under_review','audit_stage1','audit_stage2'].includes(a.status));
-        const rows=[['App ID','Org','Status','Auditor'],...filtered.map(a=>[a.applicationId,a.organizationName,a.status,a.assignedAuditor?.name||''])];
+        const rows=[['Client ID','Org','Status','Auditor'],...filtered.map(a=>[a.client?.clientId||'',a.organizationName,a.status,a.assignedAuditor?.name||''])];
         const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
         const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const el=document.createElement('a');el.href=url;el.download='pending.csv';el.click();
         toast.success('Pending export done!');
@@ -267,7 +267,7 @@ export default function AdminReports() {
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th><FiFileText size={11} style={{ marginRight:5 }}/>App ID</th>
+                    <th><FiFileText size={11} style={{ marginRight:5 }}/>Client ID</th>
                     <th>Organization</th>
                     <th><FiClipboard size={11} style={{ marginRight:5 }}/>Auditor</th>
                     <th>Stage</th>
@@ -278,7 +278,7 @@ export default function AdminReports() {
                 <tbody>
                   {auditorApps.map((app,i) => (
                     <tr key={i}>
-                      <td><span className="mono">{app.applicationId}</span></td>
+                      <td><span className="mono">{app.client?.clientId || '—'}</span></td>
                       <td style={{ fontWeight:600 }}>{app.organizationName}</td>
                       <td>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -322,7 +322,7 @@ export default function AdminReports() {
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th><FiFileText size={11} style={{ marginRight:5 }}/>App ID</th>
+                    <th><FiFileText size={11} style={{ marginRight:5 }}/>Client ID</th>
                     <th>Organization</th>
                     <th><FiUsers size={11} style={{ marginRight:5 }}/>Reviewer</th>
                     <th>Status</th>
@@ -333,7 +333,7 @@ export default function AdminReports() {
                 <tbody>
                   {reviewerApps.map((app,i) => (
                     <tr key={i}>
-                      <td><span className="mono">{app.applicationId}</span></td>
+                      <td><span className="mono">{app.client?.clientId || '—'}</span></td>
                       <td style={{ fontWeight:600 }}>{app.organizationName}</td>
                       <td>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>

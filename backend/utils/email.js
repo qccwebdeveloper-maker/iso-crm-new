@@ -28,10 +28,11 @@ const withTimeout = async (promise, timeoutMs, label) => {
 // sequentially (worst case ~50-60s+, more if a provider hangs past its own timeout on
 // a blackholed network instead of cleanly erroring), which can outlast the frontend's
 // axios timeout and leave the caller with an indefinite hang instead of a clean error.
-// This guarantees callers always get a response within OVERALL_TIMEOUT_MS. Sized to
-// comfortably fit Resend (10s) + Brevo (12s) + Gmail (16s) worst-case sequentially,
-// while staying well under the frontend's 90s axios timeout.
-const OVERALL_TIMEOUT_MS = 40000;
+// This guarantees callers always get a response within OVERALL_TIMEOUT_MS and keeps
+// the OTP screen responsive even when a fallback provider is unhealthy.
+const OVERALL_TIMEOUT_MS = 25000;
+
+let gmailTransport;
 
 async function sendMail(opts) {
   try {
@@ -111,15 +112,19 @@ async function attemptSendMail({ to, subject, html }) {
   const gmailPass = (process.env.GMAIL_PASS || '').replace(/\s/g, '');
 
   if (gmailUser && gmailPass.length >= 16) {
-    const t = nodemailer.createTransport({
+    // Reuse a pooled SMTP connection. sendMail performs authentication itself, so
+    // a separate verify() call only adds another network round-trip to every OTP.
+    if (!gmailTransport) gmailTransport = nodemailer.createTransport({
+      pool: true,
+      maxConnections: 2,
+      maxMessages: 50,
       host: 'smtp.gmail.com', port: 587, secure: false,
       auth: { user: gmailUser, pass: gmailPass },
       connectionTimeout: 8000, greetingTimeout: 5000, socketTimeout: 10000,
     });
     try {
-      await withTimeout(t.verify(), 6000, 'Gmail connection');
       await withTimeout(
-        t.sendMail({ from: `"QC Certification CRM" <${gmailUser}>`, to, subject, html }),
+        gmailTransport.sendMail({ from: `"QC Certification CRM" <${gmailUser}>`, to, subject, html }),
         10000,
         'Gmail email delivery'
       );
@@ -127,8 +132,8 @@ async function attemptSendMail({ to, subject, html }) {
       return { ok: true, via: 'gmail' };
     } catch (e) {
       console.warn('[Email] Gmail SMTP failed:', e.message);
-    } finally {
-      t.close();
+      gmailTransport.close();
+      gmailTransport = null;
     }
   }
 

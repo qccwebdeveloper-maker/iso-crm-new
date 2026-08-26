@@ -28,6 +28,9 @@ const userSchema = new mongoose.Schema({
   notifications:        { type: [notificationSchema], default: [] },
 }, { timestamps: true });
 
+// Admin OTP login queries by both fields; keep that lookup indexed as user data grows.
+userSchema.index({ email: 1, role: 1 });
+
 // Static helper — hash any password string
 userSchema.statics.hashPassword = (password) => bcrypt.hash(password, 10);
 

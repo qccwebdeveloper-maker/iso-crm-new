@@ -5,6 +5,20 @@
 //  2. Gmail SMTP      — set GMAIL_USER + GMAIL_PASS   (fallback)
 //  3. Ethereal        — preview URL fallback           (always works, no real delivery)
 // ─────────────────────────────────────────────────────────────
+const withTimeout = async (promise, timeoutMs, label) => {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 async function sendMail({ to, subject, html }) {
   const nodemailer = require('nodemailer');
 
@@ -23,11 +37,17 @@ async function sendMail({ to, subject, html }) {
       socketTimeout:     15000,
     });
     try {
-      await t.sendMail({ from: `"QC Certification CRM" <${brevoUser}>`, to, subject, html });
+      await withTimeout(
+        t.sendMail({ from: `"QC Certification CRM" <${brevoUser}>`, to, subject, html }),
+        12000,
+        'Brevo email delivery'
+      );
       console.log(`✅ Email sent via Brevo → ${to}`);
       return { ok: true, via: 'brevo' };
     } catch (e) {
       console.warn('[Email] Brevo SMTP failed:', e.message);
+    } finally {
+      t.close();
     }
   }
 
@@ -42,27 +62,47 @@ async function sendMail({ to, subject, html }) {
       connectionTimeout: 8000, greetingTimeout: 5000, socketTimeout: 10000,
     });
     try {
-      await t.verify();
-      await t.sendMail({ from: `"QC Certification CRM" <${gmailUser}>`, to, subject, html });
+      await withTimeout(t.verify(), 6000, 'Gmail connection');
+      await withTimeout(
+        t.sendMail({ from: `"QC Certification CRM" <${gmailUser}>`, to, subject, html }),
+        10000,
+        'Gmail email delivery'
+      );
       console.log(`✅ Email sent via Gmail → ${to}`);
       return { ok: true, via: 'gmail' };
     } catch (e) {
       console.warn('[Email] Gmail SMTP failed:', e.message);
+    } finally {
+      t.close();
     }
   }
 
-  // ── 3. Ethereal preview fallback ──
+  // Ethereal is useful for local previews, but it must never delay a production
+  // request after a real provider has failed.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Email service is temporarily unavailable. Please try again shortly.');
+  }
+
+  // ── 3. Ethereal preview fallback (development only) ──
   console.log('[Email] Using Ethereal preview — add BREVO_USER + BREVO_PASS for real delivery');
-  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('Ethereal timeout')), 10000));
-  const acc     = await Promise.race([nodemailer.createTestAccount(), timeout]);
+  const acc = await withTimeout(nodemailer.createTestAccount(), 10000, 'Ethereal account creation');
   const t2      = nodemailer.createTransport({
     host: 'smtp.ethereal.email', port: 587, secure: false,
     auth: { user: acc.user, pass: acc.pass },
+    connectionTimeout: 8000, greetingTimeout: 5000, socketTimeout: 10000,
   });
-  const info = await t2.sendMail({ from: `"QC Certification CRM" <${acc.user}>`, to, subject, html });
-  const url  = nodemailer.getTestMessageUrl(info);
-  console.log('\n📬 Ethereal Preview URL:', url, '\n');
-  return { ok: true, via: 'ethereal', previewUrl: url };
+  try {
+    const info = await withTimeout(
+      t2.sendMail({ from: `"QC Certification CRM" <${acc.user}>`, to, subject, html }),
+      15000,
+      'Ethereal email delivery'
+    );
+    const url = nodemailer.getTestMessageUrl(info);
+    console.log('\n📬 Ethereal Preview URL:', url, '\n');
+    return { ok: true, via: 'ethereal', previewUrl: url };
+  } finally {
+    t2.close();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -25,23 +25,22 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 // survives every deploy/restart on hosts with an ephemeral filesystem.
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
-const allowedOrigins = [
-  'https://iso-crm-new-r6ca.vercel.app',
-  'http://crm.qccertification.com',
-  'https://crm.qccertification.com',
-  // The public QCC marketing site (separate app/repo) — its login page hands off
-  // sessions here via ?sso=, and its contact/footer forms POST to /api/leads/public.
-  'https://qccertification.com',
-  'https://www.qccertification.com',
-  process.env.CLIENT_URL,
-].filter(Boolean);
-// Allow localhost / 127.0.0.1 with or without a port (e.g. http://localhost:3000 for the
-// CRA dev server, or http://localhost on port 80 from the nginx Docker container).
+// Each allowed URL lives in its own CORS_ORIGIN_* environment variable. New origins
+// can be added in the deployment environment without changing this file. Paths and
+// trailing slashes are harmless: only the URL origin is used for comparison.
+const allowedOrigins = Object.entries(process.env)
+  .filter(([key]) => key.startsWith('CORS_ORIGIN_'))
+  .map(([, value]) => value.trim())
+  .filter(Boolean)
+  .map((value) => {
+    try { return new URL(value).origin; } catch { return value; }
+  });
+const allowLocalhost = process.env.CORS_ALLOW_LOCALHOST === 'true';
 const isLocalhost = (o) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
-    if (isLocalhost(origin)) return cb(null, true);
+    if (allowLocalhost && isLocalhost(origin)) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
     return cb(new Error('CORS: origin not allowed'));
   },

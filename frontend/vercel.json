@@ -5,6 +5,10 @@
       "destination": "https://iso-crm-new-8.onrender.com/api/:path*"
     },
     {
+      "source": "/uploads/:path*",
+      "destination": "https://iso-crm-new-8.onrender.com/uploads/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

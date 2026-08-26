@@ -1,9 +1,13 @@
 // ─────────────────────────────────────────────────────────────
-//  EMAIL SENDER — nodemailer only, delivers to any recipient.
+//  EMAIL SENDER
 //  Priority order:
-//  1. Brevo SMTP      — set BREVO_USER + BREVO_PASS  (preferred, any recipient)
-//  2. Gmail SMTP      — set GMAIL_USER + GMAIL_PASS   (fallback)
-//  3. Ethereal        — preview URL fallback           (always works, no real delivery)
+//  1. Resend HTTP API — set RESEND_API_KEY (+ optional RESEND_FROM). Plain HTTPS,
+//     not SMTP — many hosts (Render included) throttle or silently drop outbound
+//     SMTP (ports 25/587), which is what causes send-otp to hang instead of
+//     cleanly failing. An HTTPS POST doesn't hit that problem.
+//  2. Brevo SMTP      — set BREVO_USER + BREVO_PASS  (fallback, any recipient)
+//  3. Gmail SMTP      — set GMAIL_USER + GMAIL_PASS   (fallback)
+//  4. Ethereal        — preview URL fallback           (always works, no real delivery)
 // ─────────────────────────────────────────────────────────────
 const withTimeout = async (promise, timeoutMs, label) => {
   let timer;
@@ -24,8 +28,11 @@ const withTimeout = async (promise, timeoutMs, label) => {
 // sequentially (worst case ~50-60s+, more if a provider hangs past its own timeout on
 // a blackholed network instead of cleanly erroring), which can outlast the frontend's
 // axios timeout and leave the caller with an indefinite hang instead of a clean error.
-// This guarantees callers always get a response within OVERALL_TIMEOUT_MS.
+// This guarantees callers always get a response within OVERALL_TIMEOUT_MS and keeps
+// the OTP screen responsive even when a fallback provider is unhealthy.
 const OVERALL_TIMEOUT_MS = 25000;
+
+let gmailTransport;
 
 async function sendMail(opts) {
   try {
@@ -37,9 +44,41 @@ async function sendMail(opts) {
 }
 
 async function attemptSendMail({ to, subject, html }) {
+  // ── 1. Resend HTTP API (fast, not SMTP — preferred on hosts like Render) ──
+  const resendKey  = (process.env.RESEND_API_KEY || '').trim();
+  const resendFrom = (process.env.RESEND_FROM || '').trim();
+
+  if (resendKey) {
+    try {
+      const resp = await withTimeout(
+        fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendKey}`,
+            'Content-Type':  'application/json',
+          },
+          body: JSON.stringify({
+            from: resendFrom ? `QC Certification CRM <${resendFrom}>` : 'onboarding@resend.dev',
+            to, subject, html,
+          }),
+        }),
+        10000,
+        'Resend email delivery'
+      );
+      if (resp.ok) {
+        console.log(`✅ Email sent via Resend → ${to}`);
+        return { ok: true, via: 'resend' };
+      }
+      const body = await resp.text();
+      console.warn(`[Email] Resend API failed (${resp.status}):`, body);
+    } catch (e) {
+      console.warn('[Email] Resend request failed:', e.message);
+    }
+  }
+
   const nodemailer = require('nodemailer');
 
-  // ── 1. Brevo SMTP (works on Render/EC2, sends to any address) ──
+  // ── 2. Brevo SMTP (works on Render/EC2, sends to any address) ──
   const brevoUser = (process.env.BREVO_USER || '').trim();
   const brevoPass = (process.env.BREVO_PASS || '').trim();
 
@@ -68,20 +107,24 @@ async function attemptSendMail({ to, subject, html }) {
     }
   }
 
-  // ── 2. Gmail SMTP fallback ──
+  // ── 3. Gmail SMTP fallback ──
   const gmailUser = (process.env.GMAIL_USER || '').trim();
   const gmailPass = (process.env.GMAIL_PASS || '').replace(/\s/g, '');
 
   if (gmailUser && gmailPass.length >= 16) {
-    const t = nodemailer.createTransport({
+    // Reuse a pooled SMTP connection. sendMail performs authentication itself, so
+    // a separate verify() call only adds another network round-trip to every OTP.
+    if (!gmailTransport) gmailTransport = nodemailer.createTransport({
+      pool: true,
+      maxConnections: 2,
+      maxMessages: 50,
       host: 'smtp.gmail.com', port: 587, secure: false,
       auth: { user: gmailUser, pass: gmailPass },
       connectionTimeout: 8000, greetingTimeout: 5000, socketTimeout: 10000,
     });
     try {
-      await withTimeout(t.verify(), 6000, 'Gmail connection');
       await withTimeout(
-        t.sendMail({ from: `"QC Certification CRM" <${gmailUser}>`, to, subject, html }),
+        gmailTransport.sendMail({ from: `"QC Certification CRM" <${gmailUser}>`, to, subject, html }),
         10000,
         'Gmail email delivery'
       );
@@ -89,8 +132,8 @@ async function attemptSendMail({ to, subject, html }) {
       return { ok: true, via: 'gmail' };
     } catch (e) {
       console.warn('[Email] Gmail SMTP failed:', e.message);
-    } finally {
-      t.close();
+      gmailTransport.close();
+      gmailTransport = null;
     }
   }
 
@@ -100,7 +143,7 @@ async function attemptSendMail({ to, subject, html }) {
     throw new Error('Email service is temporarily unavailable. Please try again shortly.');
   }
 
-  // ── 3. Ethereal preview fallback (development only) ──
+  // ── 4. Ethereal preview fallback (development only) ──
   console.log('[Email] Using Ethereal preview — add BREVO_USER + BREVO_PASS for real delivery');
   const acc = await withTimeout(nodemailer.createTestAccount(), 10000, 'Ethereal account creation');
   const t2      = nodemailer.createTransport({

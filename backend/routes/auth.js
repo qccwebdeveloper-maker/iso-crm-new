@@ -142,10 +142,15 @@ router.post('/client-verify-otp', async (req, res) => {
 
 // GET /api/auth/email-status  — diagnostic
 router.get('/email-status', async (req, res) => {
+  const resendKey = (process.env.RESEND_API_KEY || '').trim();
+  const resendFrom = (process.env.RESEND_FROM || '').trim();
   const brevoUser = (process.env.BREVO_USER || '').trim();
   const brevoPass = (process.env.BREVO_PASS || '').trim();
   const gmailUser = (process.env.GMAIL_USER || '').trim();
 
+  if (resendKey) {
+    return res.json({ ok: true, mode: 'resend', note: `Resend HTTP delivery is set${resendFrom ? '' : ' with its default sender'}.` });
+  }
   if (brevoUser && brevoPass) {
     return res.json({ ok: true, mode: 'brevo', note: 'Brevo SMTP is set. Emails deliver to any address.' });
   }
@@ -170,30 +175,35 @@ router.post('/send-otp', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Admin email required' });
 
-    const admin = await User.findOne({ email: email.toLowerCase().trim(), role: 'admin' });
+    const admin = await User.findOne({ email: email.toLowerCase().trim(), role: 'admin' })
+      .select('_id name email isActive')
+      .lean();
     if (!admin) return res.status(404).json({ message: 'No admin account found with this email' });
     if (!admin.isActive) return res.status(403).json({ message: 'Admin account is inactive' });
 
     const otp       = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await Otp.findOneAndReplace(
+    await Otp.updateOne(
       { email: admin.email },
-      { email: admin.email, otp, userId: admin._id, expiresAt },
+      { $set: { email: admin.email, otp, userId: admin._id, expiresAt } },
       { upsert: true }
     );
 
-    const result = await sendOtpEmail({ to: admin.email, name: admin.name, otp, expiresInMinutes: 10 });
-
-    console.log(`[OTP] Sent to ${admin.email} via ${result.via}`);
-    if (result.previewUrl) console.log(`[OTP] Preview: ${result.previewUrl}`);
+    // The user can enter the OTP while delivery completes. Waiting for the email
+    // provider here adds its full network latency (typically 6-7 seconds) before
+    // the OTP input appears, even though the OTP is already safely stored.
+    sendOtpEmail({ to: admin.email, name: admin.name, otp, expiresInMinutes: 10 })
+      .then((result) => {
+        console.log(`[OTP] Sent to ${admin.email} via ${result.via}`);
+        if (result.previewUrl) console.log(`[OTP] Preview: ${result.previewUrl}`);
+      })
+      .catch((err) => console.error(`[OTP] Delivery to ${admin.email} failed: ${err.message}`));
 
     res.json({
-      message:    `OTP sent to ${admin.email}. Check your inbox.`,
+      message:    `OTP is being sent to ${admin.email}. Check your inbox.`,
       adminName:  admin.name,
-      emailSent:  result.ok,
-      via:        result.via,
-      previewUrl: result.previewUrl || null,
+      emailQueued: true,
     });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });

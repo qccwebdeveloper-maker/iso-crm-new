@@ -1,9 +1,4 @@
 const mongoose = require('mongoose');
-const dns = require('dns');
-
-// Use Google DNS to resolve MongoDB Atlas SRV records
-// (ISP DNS may block SRV queries needed for mongodb+srv:// URIs)
-dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
 
 // Log topology recovery so a replica-set election (which produces the transient
 // "primary marked stale due to electionId/setVersion mismatch" message) is visible
@@ -19,10 +14,13 @@ const bindConnectionListeners = () => {
 
 const connectDB = async (retries = 5) => {
   bindConnectionListeners();
+  const mongoUri = (process.env.MONGODB_URI || '').trim();
+  if (!mongoUri) throw new Error('MONGODB_URI is not configured');
+
   for (let i = 1; i <= retries; i++) {
     try {
       const conn = await mongoose.connect(
-        process.env.MONGODB_URI || 'mongodb+srv://qccwebdeveloper_db:iso_crm_qcc_101@cluster0.nhou9fq.mongodb.net/?appName=Cluster0',
+        mongoUri,
         {
           serverSelectionTimeoutMS: 15000, // keep selecting through an election
           retryWrites: true,               // auto-retry writes against the new primary
@@ -42,7 +40,7 @@ const connectDB = async (retries = 5) => {
         console.log(`⏳ Retrying in ${wait / 1000}s...`);
         await new Promise(r => setTimeout(r, wait));
       } else {
-        console.error('❌ All MongoDB connection attempts failed. Server continues without DB.');
+        throw new Error(`MongoDB connection failed after ${retries} attempts: ${err.message}`);
       }
     }
   }

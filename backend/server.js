@@ -6,7 +6,6 @@ const fs        = require('fs');
 const connectDB = require('./config/db');
 
 dotenv.config();
-connectDB();
 
 const app = express();
 
@@ -81,7 +80,7 @@ app.use('/api/files',        require('./routes/files'));
 // ── Health check ─────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({
   status : 'ok',
-  db     : 'mongodb',
+  db     : 'connected',
   version: '2.0',
   time   : new Date().toISOString(),
 }));
@@ -96,14 +95,26 @@ console.log("GMAIL_USER:", process.env.GMAIL_USER || '(not set)');
 console.log("GMAIL_PASS set:", !!(process.env.GMAIL_PASS || '').replace(/\s/g, ''));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`\n✅ Server v2.0 running on port ${PORT}`);
-  console.log(`🗄️  Database  : MongoDB`);
-  console.log(`👤 User model : Fixed (Mongoose 9 compatible)`);
-  console.log(`\n🔑 Login credentials:`);
-  console.log(`   admin@crm.com    / admin123  (OTP)`);
-  console.log(`   client@crm.com   / client123`);
-  console.log(`   auditor@crm.com  / auditor123`);
-  console.log(`   sales@crm.com    / sales123`);
-  console.log(`\n📌 Seed: POST http://localhost:${PORT}/api/auth/seed?force=true\n`);
-});
+const startServer = async () => {
+  try {
+    // Do not accept API requests until MongoDB is ready. This prevents Mongoose's
+    // buffered queries from failing later with a misleading 10-second timeout.
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(`\n✅ Server v2.0 running on port ${PORT}`);
+      console.log(`🗄️  Database  : MongoDB connected`);
+      console.log(`👤 User model : Fixed (Mongoose 9 compatible)`);
+      console.log(`\n🔑 Login credentials:`);
+      console.log(`   admin@crm.com    / admin123  (OTP)`);
+      console.log(`   client@crm.com   / client123`);
+      console.log(`   auditor@crm.com  / auditor123`);
+      console.log(`   sales@crm.com    / sales123`);
+      console.log(`\n📌 Seed: POST http://localhost:${PORT}/api/auth/seed?force=true\n`);
+    });
+  } catch (err) {
+    console.error(`❌ Server startup aborted: ${err.message}`);
+    process.exit(1);
+  }
+};
+
+startServer();

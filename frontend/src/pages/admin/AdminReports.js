@@ -2,7 +2,7 @@ import React,{useState,useEffect}from 'react';import axios from 'axios';import L
 export default function AdminReports(){
   const[tab,setTab]=useState('auditor');const[reports,setReports]=useState([]);const[loading,setLoading]=useState(true);
   const TABS=[{id:'auditor',label:'Auditor to Admin'},{id:'client',label:'Client to Admin'},{id:'reviewer',label:'Reviewer to Admin'},{id:'clientDoc',label:'Client Document'}];
-  const load=()=>{setLoading(true);axios.get('/api/reports').then(r=>setReports(r.data||[])).finally(()=>setLoading(false));};useEffect(load,[]);
+  const load=()=>{setLoading(true);axios.get('/api/reports').then(r=>setReports(Array.isArray(r.data)?r.data:[])).finally(()=>setLoading(false));};useEffect(load,[]);
   const filtered=reports.filter(r=>r.type===tab);
   return(<Layout title="Reports">
     <div className="page-hdr"><div><h1 className="page-title">Reports</h1><p className="page-subtitle">Incoming reports from all roles</p></div><button className="btn btn-secondary" onClick={()=>window.print()}><FiDownload size={14}/>Export</button></div>

@@ -232,7 +232,7 @@ router.post('/verify-otp', async (req, res) => {
 // POST /api/auth/register-client
 router.post('/register-client', async (req, res) => {
   try {
-    const { companyName, email, password, mobile, address, standard, scope } = req.body;
+    const { companyName, email, password, mobile, address, standard, scope, branchLabel } = req.body;
     if (!companyName || !email || !password || !mobile || !address || !standard || !scope)
       return res.status(400).json({ message: 'All fields are required' });
     if (password.length < 6) return res.status(400).json({ message: 'Password must be at least 6 characters' });
@@ -244,7 +244,7 @@ router.post('/register-client', async (req, res) => {
     // one lifecycle and must keep the same Client ID — a public visitor can't judge
     // whether a second registration is a legitimate second site, so this is a hard
     // stop here (unlike the admin-facing create-user flow, which can confirm past it).
-    const reusable = await findReusableClientId({ company: companyName, standard });
+    const reusable = await findReusableClientId({ company: companyName, standard, branchLabel });
     if (reusable) {
       return res.status(409).json({
         message: `An active Client ID (${reusable.clientId}) already exists for ${companyName} under ${standard}. Please log in with that Client ID instead of registering again, or contact your certification body if you believe this is a separate site.`,
@@ -258,6 +258,7 @@ router.post('/register-client', async (req, res) => {
     const user = await User.create({
       name: companyName, email: email.toLowerCase(), password: hashed, role: 'client',
       phone: mobile, company: companyName, address, isoStandard: standard, scope,
+      branchLabel: String(branchLabel || '').trim(),
       clientId, isActive: false, pendingApproval: true,
     });
 

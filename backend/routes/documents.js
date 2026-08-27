@@ -10,7 +10,7 @@ router.get('/', protect, async (req, res) => {
     const filter = {};
     if (req.query.applicationId) filter.application = req.query.applicationId;
     if (req.query.docType)       filter.docType      = req.query.docType;
-    const docs = await Document.find(filter).sort({ uploadedAt: -1 });
+    const docs = await Document.find(filter).sort({ uploadedAt: -1 }).lean();
     res.json(docs);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });

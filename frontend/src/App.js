@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -8,81 +8,81 @@ import { UnsavedChangesProvider } from './context/UnsavedChangesContext';
 import Login from './pages/Login';
 
 // ── Admin ──
-import AdminDashboard        from './pages/admin/Dashboard';
-import AdminApplications     from './pages/admin/Applications';
-import AdminApplicationDetail from './pages/admin/ApplicationDetail';
-import AdminNewApplication   from './pages/admin/NewApplication';
-import AdminUsers            from './pages/admin/Users';
-import AdminUserDetail       from './pages/admin/UserDetail';
-import AdminAuditors         from './pages/admin/Auditors';
-import AdminAuditorSignatures from './pages/admin/AuditorSignatures';
-import AdminReports          from './pages/admin/AdminReports';
-import AdminFeedback         from './pages/admin/Feedback';
-import AdminLeads            from './pages/admin/Leads';
-import AdminPayments         from './pages/admin/Payments';
-import AdminStandards        from './pages/admin/Standards';
-import AdminRoles            from './pages/admin/Roles';
-import ApprovalPending       from './pages/admin/ApprovalPending';
-import DMS                   from './pages/admin/DMS';
-import AuditStages           from './pages/admin/AuditStages';
-import Observation           from './pages/admin/Observation';
-import CertificateManagement from './pages/admin/CertificateManagement';
-import SendDocument          from './pages/admin/SendDocument';
-import AdminAnalysisReports  from './pages/admin/Reports';
-import AdminApplicationReview     from './pages/admin/ApplicationReview';
-import AdminApplicationReviewForm from './pages/admin/ApplicationReviewForm';
+const AdminDashboard        = lazy(() => import('./pages/admin/Dashboard'));
+const AdminApplications     = lazy(() => import('./pages/admin/Applications'));
+const AdminApplicationDetail = lazy(() => import('./pages/admin/ApplicationDetail'));
+const AdminNewApplication   = lazy(() => import('./pages/admin/NewApplication'));
+const AdminUsers            = lazy(() => import('./pages/admin/Users'));
+const AdminUserDetail       = lazy(() => import('./pages/admin/UserDetail'));
+const AdminAuditors         = lazy(() => import('./pages/admin/Auditors'));
+const AdminAuditorSignatures = lazy(() => import('./pages/admin/AuditorSignatures'));
+const AdminReports          = lazy(() => import('./pages/admin/AdminReports'));
+const AdminFeedback         = lazy(() => import('./pages/admin/Feedback'));
+const AdminLeads            = lazy(() => import('./pages/admin/Leads'));
+const AdminPayments         = lazy(() => import('./pages/admin/Payments'));
+const AdminStandards        = lazy(() => import('./pages/admin/Standards'));
+const AdminRoles            = lazy(() => import('./pages/admin/Roles'));
+const ApprovalPending       = lazy(() => import('./pages/admin/ApprovalPending'));
+const DMS                   = lazy(() => import('./pages/admin/DMS'));
+const AuditStages           = lazy(() => import('./pages/admin/AuditStages'));
+const Observation           = lazy(() => import('./pages/admin/Observation'));
+const CertificateManagement = lazy(() => import('./pages/admin/CertificateManagement'));
+const SendDocument          = lazy(() => import('./pages/admin/SendDocument'));
+const AdminAnalysisReports  = lazy(() => import('./pages/admin/Reports'));
+const AdminApplicationReview     = lazy(() => import('./pages/admin/ApplicationReview'));
+const AdminApplicationReviewForm = lazy(() => import('./pages/admin/ApplicationReviewForm'));
 
 // ── QMS Forms ──
-import QMSForm01 from './pages/admin/qms/Form01ApplicationForm';
-import QMSForm02 from './pages/admin/qms/Form02ApplicationReview';
-import QMSForm03 from './pages/admin/qms/Form03AuditPlanning';
-import QMSForm04 from './pages/admin/qms/Form04AuditorDeclaration';
-import QMSForm05 from './pages/admin/qms/Form05Stage1AuditPlan';
-import QMSForm06 from './pages/admin/qms/Form06Stage1Meetings';
-import QMSForm07 from './pages/admin/qms/Form07Stage1AuditReport';
-import QMSForm08 from './pages/admin/qms/Form08Stage1ReviewReport';
-import QMSForm09 from './pages/admin/qms/Form09Stage2AuditPlan';
-import QMSForm10 from './pages/admin/qms/Form10Stage2Meetings';
-import QMSForm11 from './pages/admin/qms/Form11Stage2AuditReport';
-import QMSForm12 from './pages/admin/qms/Form12CARRequest';
-import QMSForm13 from './pages/admin/qms/Form13CARReport';
-import QMSForm14 from './pages/admin/qms/Form14DraftCertificate';
-import QMSForm15 from './pages/admin/qms/Form15FinalReviewReport';
-import QMSForm16 from './pages/admin/qms/Form16SurveillanceApplication';
-import QMSForm17 from './pages/admin/qms/Form17SurveillanceAuditPlan';
-import QMSForm18 from './pages/admin/qms/Form18SurveillanceMeetings';
-import QMSForm19 from './pages/admin/qms/Form19SurveillanceAuditReport';
-import QMSForm20 from './pages/admin/qms/Form20SurveillanceReviewReport';
-import QMSForm21 from './pages/admin/qms/Form21SurveillanceCARReport';
-import QMSForm22 from './pages/admin/qms/Form22LetterOfContinuation';
-import QMSForm23 from './pages/admin/qms/Form23OfiObservationSheet';
-import DownloadForms from './pages/admin/DownloadForms';
+const QMSForm01 = lazy(() => import('./pages/admin/qms/Form01ApplicationForm'));
+const QMSForm02 = lazy(() => import('./pages/admin/qms/Form02ApplicationReview'));
+const QMSForm03 = lazy(() => import('./pages/admin/qms/Form03AuditPlanning'));
+const QMSForm04 = lazy(() => import('./pages/admin/qms/Form04AuditorDeclaration'));
+const QMSForm05 = lazy(() => import('./pages/admin/qms/Form05Stage1AuditPlan'));
+const QMSForm06 = lazy(() => import('./pages/admin/qms/Form06Stage1Meetings'));
+const QMSForm07 = lazy(() => import('./pages/admin/qms/Form07Stage1AuditReport'));
+const QMSForm08 = lazy(() => import('./pages/admin/qms/Form08Stage1ReviewReport'));
+const QMSForm09 = lazy(() => import('./pages/admin/qms/Form09Stage2AuditPlan'));
+const QMSForm10 = lazy(() => import('./pages/admin/qms/Form10Stage2Meetings'));
+const QMSForm11 = lazy(() => import('./pages/admin/qms/Form11Stage2AuditReport'));
+const QMSForm12 = lazy(() => import('./pages/admin/qms/Form12CARRequest'));
+const QMSForm13 = lazy(() => import('./pages/admin/qms/Form13CARReport'));
+const QMSForm14 = lazy(() => import('./pages/admin/qms/Form14DraftCertificate'));
+const QMSForm15 = lazy(() => import('./pages/admin/qms/Form15FinalReviewReport'));
+const QMSForm16 = lazy(() => import('./pages/admin/qms/Form16SurveillanceApplication'));
+const QMSForm17 = lazy(() => import('./pages/admin/qms/Form17SurveillanceAuditPlan'));
+const QMSForm18 = lazy(() => import('./pages/admin/qms/Form18SurveillanceMeetings'));
+const QMSForm19 = lazy(() => import('./pages/admin/qms/Form19SurveillanceAuditReport'));
+const QMSForm20 = lazy(() => import('./pages/admin/qms/Form20SurveillanceReviewReport'));
+const QMSForm21 = lazy(() => import('./pages/admin/qms/Form21SurveillanceCARReport'));
+const QMSForm22 = lazy(() => import('./pages/admin/qms/Form22LetterOfContinuation'));
+const QMSForm23 = lazy(() => import('./pages/admin/qms/Form23OfiObservationSheet'));
+const DownloadForms = lazy(() => import('./pages/admin/DownloadForms'));
 
 // ── Client ──
-import ClientDashboard       from './pages/client/Dashboard';
-import ClientApplications    from './pages/client/Applications';
-import ClientApplicationDetail from './pages/client/ApplicationDetail';
-import ClientApplicationForm  from './pages/client/ApplicationForm';
-import ClientNewApplication   from './pages/client/NewApplicationForm';
-import ClientDocuments       from './pages/client/Documents';
-import ClientCertificates    from './pages/client/Certificates';
-import ClientInvoices        from './pages/client/Invoices';
-import ClientFeedback        from './pages/client/Feedback';
-import ClientTeamReports     from './pages/client/TeamReports';
-import ClientQMSFormViewer   from './pages/client/QMSFormViewer';
+const ClientDashboard       = lazy(() => import('./pages/client/Dashboard'));
+const ClientApplications    = lazy(() => import('./pages/client/Applications'));
+const ClientApplicationDetail = lazy(() => import('./pages/client/ApplicationDetail'));
+const ClientApplicationForm  = lazy(() => import('./pages/client/ApplicationForm'));
+const ClientNewApplication   = lazy(() => import('./pages/client/NewApplicationForm'));
+const ClientDocuments       = lazy(() => import('./pages/client/Documents'));
+const ClientCertificates    = lazy(() => import('./pages/client/Certificates'));
+const ClientInvoices        = lazy(() => import('./pages/client/Invoices'));
+const ClientFeedback        = lazy(() => import('./pages/client/Feedback'));
+const ClientTeamReports     = lazy(() => import('./pages/client/TeamReports'));
+const ClientQMSFormViewer   = lazy(() => import('./pages/client/QMSFormViewer'));
 
 // ── Auditor ──
-import AuditorDashboard      from './pages/auditor/Dashboard';
-import AuditorApplications   from './pages/auditor/Applications';
-import AuditorApplicationDetail from './pages/auditor/ApplicationDetail';
+const AuditorDashboard      = lazy(() => import('./pages/auditor/Dashboard'));
+const AuditorApplications   = lazy(() => import('./pages/auditor/Applications'));
+const AuditorApplicationDetail = lazy(() => import('./pages/auditor/ApplicationDetail'));
 
 // ── Sales ──
-import SalesDashboard        from './pages/sales/Dashboard';
-import SalesTeam             from './pages/sales/Team';
-import SalesLeads            from './pages/sales/Leads';
-import SalesAssign           from './pages/sales/Assign';
-import SalesReports          from './pages/sales/Reports';
-import SalesApplicationsList from './pages/sales/ApplicationsList';
+const SalesDashboard        = lazy(() => import('./pages/sales/Dashboard'));
+const SalesTeam             = lazy(() => import('./pages/sales/Team'));
+const SalesLeads            = lazy(() => import('./pages/sales/Leads'));
+const SalesAssign           = lazy(() => import('./pages/sales/Assign'));
+const SalesReports          = lazy(() => import('./pages/sales/Reports'));
+const SalesApplicationsList = lazy(() => import('./pages/sales/ApplicationsList'));
 
 const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -106,6 +106,7 @@ function AppRoutes() {
   const { user } = useAuth();
   const dest = !user ? '/login' : user.role === 'reviewer' ? '/auditor' : `/${user.role}`;
   return (
+    <Suspense fallback={<div className="loading-box"><div className="spinner" /></div>}>
     <Routes>
       <Route path="/login" element={user ? <Navigate to={dest} replace /> : <Login />} />
       <Route path="/login/:role" element={user ? <Navigate to={dest} replace /> : <Login />} />
@@ -231,6 +232,7 @@ function AppRoutes() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }
 

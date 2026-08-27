@@ -9,7 +9,7 @@ const documentSchema = new mongoose.Schema({
   storageUrl:      { type: String },                   // raw S3 object URL (reference; bucket is private)
   docType:         { type: String, enum: ['applicationForm','agreement','signedForm','auditReport','reviewReport','certificate','proofId','document'], default: 'document' },
   applicationId:   { type: String },
-  application:     { type: mongoose.Schema.Types.ObjectId, ref: 'Application' },
+  application:     { type: mongoose.Schema.Types.ObjectId, ref: 'Application', index: true },
   clientId:        { type: String },   // CLT-... code of the application's client
   client:          { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   uploadedBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

@@ -88,7 +88,7 @@ router.get('/prefill/:clientId', protect, authorize('admin'), async (req, res) =
 // GET /api/certificates
 router.get('/', protect, async (req, res) => {
   try {
-    const certs = await Certificate.find().sort({ createdAt: -1 });
+    const certs = await Certificate.find().sort({ createdAt: -1 }).lean();
     res.json(certs);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });

@@ -9,7 +9,7 @@ router.get('/', protect, async (req, res) => {
     const filter = {};
     if (req.query.applicationId) filter.applicationId = req.query.applicationId;
     if (req.query.status)        filter.status        = req.query.status;
-    const obs = await Observation.find(filter).sort({ createdAt: -1 });
+    const obs = await Observation.find(filter).sort({ createdAt: -1 }).lean();
     res.json(obs);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });

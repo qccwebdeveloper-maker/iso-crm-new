@@ -78,10 +78,13 @@ router.post('/public', publicLeadLimiter, async (req, res) => {
     });
 
     // Notify admins so a new public-site submission doesn't sit unnoticed
-    const admins = await User.find({ role: 'admin' }).select('_id');
-    for (const a of admins) {
-      await pushNotif(a._id, `New website enquiry pending review: ${lead.companyName}`, 'info');
-    }
+    await User.updateMany(
+      { role: 'admin' },
+      { $push: { notifications: { $each: [{
+          message: `New website enquiry pending review: ${lead.companyName}`,
+          type: 'info', read: false, link: '/admin/leads', createdAt: new Date(),
+        }], $position: 0, $slice: 50 } } }
+    );
 
     res.status(201).json({ message: 'Thanks — we will get back to you shortly.', leadId: lead.leadId });
   } catch (err) { res.status(500).json({ message: err.message }); }

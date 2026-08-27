@@ -38,17 +38,21 @@ async function resolveStandardForClientId(clientId, fallbackIsoStandard) {
 // Returns null when there's nothing to reuse (brand-new company+standard, or every
 // same-standard match has an expired certificate) — the caller should proceed to
 // generateClientId() as normal in that case.
-async function findReusableClientId({ company, standard }) {
+async function findReusableClientId({ company, standard, branchLabel }) {
   if (!company || !standard) return null;
 
   const escapedCompany = String(company).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const siblings = await User.find({
     role: 'client',
     company: new RegExp(`^${escapedCompany}$`, 'i'),
-  }).select('clientId isoStandard');
+  }).select('clientId isoStandard branchLabel');
+
+  const requestedBranch = String(branchLabel || '').trim().toLowerCase();
 
   for (const sibling of siblings) {
     if (!sibling.clientId) continue;
+    const siblingBranch = String(sibling.branchLabel || '').trim().toLowerCase();
+    if (requestedBranch && siblingBranch !== requestedBranch) continue;
     const siblingStandard = await resolveStandardForClientId(sibling.clientId, sibling.isoStandard);
     if (siblingStandard !== standard) continue;
 

@@ -45,7 +45,7 @@ export default function AdminUsers() {
   const PER_PAGE = 10;
 
   const [form, setForm] = useState({
-    name: '', email: '', password: '', role: 'client', phone: '', company: '', isoStandard: '',
+    name: '', email: '', password: '', role: 'client', phone: '', company: '', branchLabel: '', address: '', isoStandard: '',
   });
 
   const load = () => {
@@ -119,7 +119,7 @@ export default function AdminUsers() {
   const roleColor = { admin: 'var(--primary)', client: '#3b82f6', auditor: '#8b5cf6', reviewer: '#8b5cf6', sales: '#16a34a' };
 
   const openAdd = () => {
-    setForm({ name: '', email: '', password: genPassword(), role: 'client', phone: '', company: '', isoStandard: '' });
+    setForm({ name: '', email: '', password: genPassword(), role: 'client', phone: '', company: '', branchLabel: '', address: '', isoStandard: '' });
     setErrors({});
     setShowPw(false);
     setModal('add');
@@ -187,7 +187,7 @@ export default function AdminUsers() {
                         <button className="btn btn-primary btn-sm" onClick={() => navigate(`/admin/users/${u._id}`)}><Eye size={13} /> Review</button>
                       ) : (
                         <>
-                          <button className="btn btn-ghost btn-sm" onClick={() => { setForm({ name: u.name, email: u.email, password: '', role: u.role, phone: u.phone || '', company: u.company || '', isoStandard: u.isoStandard || '' }); setShowPw(false); setModal(u); }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setForm({ name: u.name, email: u.email, password: '', role: u.role, phone: u.phone || '', company: u.company || '', branchLabel: u.branchLabel || '', address: u.address || '', isoStandard: u.isoStandard || '' }); setShowPw(false); setModal(u); }}>
                             <Edit size={13} /> Edit
                           </button>
                           <button className="btn btn-danger btn-sm" onClick={() => del(u._id)}><Trash2 size={13} /> Delete</button>
@@ -272,17 +272,27 @@ export default function AdminUsers() {
             </div>
           </div>
           {form.role === 'client' && (
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">ISO Standard{isAdd ? ' *' : ''}</label>
+            <>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Branch Label</label>
+                  <input className="form-control" value={form.branchLabel} onChange={e => setForm(p => ({ ...p, branchLabel: e.target.value }))} placeholder="e.g. Pune Plant" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">ISO Standard{isAdd ? ' *' : ''}</label>
                 <select className={`form-control${errors.isoStandard ? ' input-error' : ''}`} value={form.isoStandard}
                   onChange={e => { setForm(p => ({ ...p, isoStandard: e.target.value })); setErrors(p => ({ ...p, isoStandard: '' })); }}>
                   <option value="">Select standard…</option>
                   {ISO_STANDARDS.map(s => <option key={s}>{s}</option>)}
                 </select>
                 {errors.isoStandard && <span className="field-error">{errors.isoStandard}</span>}
+                </div>
               </div>
-            </div>
+              <div className="form-group">
+                <label className="form-label">Branch Address</label>
+                <input className="form-control" value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} placeholder="Full site address" />
+              </div>
+            </>
           )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, borderTop: '1px solid var(--gray-100)', paddingTop: 18 }}>
             <button className="btn btn-ghost" onClick={() => setModal(null)}>Cancel</button>

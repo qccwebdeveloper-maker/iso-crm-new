@@ -11,7 +11,7 @@ import { useUnsavedChangesGuard } from '../../../context/UnsavedChangesContext';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
-  FiEye, FiPrinter, FiMoreVertical, FiUpload, FiUserCheck,
+  FiEye, FiPrinter, FiMoreVertical, FiUpload, FiUserCheck, FiMapPin, FiChevronDown, FiBriefcase,
 } from 'react-icons/fi';
 
 const STATUS_META = {
@@ -535,7 +535,10 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   const isAdmin = user?.role === 'admin';
   const [clientIdInput, setClientIdInput] = useState('');
   const [clientInfo,    setClientInfo]    = useState(null);
-  const [clientMatches, setClientMatches] = useState(null); // array of {clientId,name,company} when a company-name search (F01 only) matches more than one client
+  const [clientMatches, setClientMatches] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('qms_client_directory') || 'null'); }
+    catch { return null; }
+  }); // grouped company -> branches -> client IDs
   const [formData,      setFormData]      = useState(defaultData || {});
   const [existingId,    setExistingId]    = useState(null);
   const [status,        setStatus]        = useState('draft');
@@ -727,18 +730,17 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
         toast.error('No client found with this ID or company name');
         return;
       }
-      if (matches.length > 1) {
-        setClientMatches(matches);
-        return;
-      }
-      await resolveClient(matches[0].clientId);
+      const clients = matches.flatMap(company => company.branches.flatMap(branch => branch.clients));
+      const exact = clients.find(client => client.clientId.toLowerCase() === id.toLowerCase());
+      setClientMatches(matches);
+      sessionStorage.setItem('qms_client_directory', JSON.stringify(matches));
+      if (exact) await resolveClient(exact.clientId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Client not found');
     } finally { setSearching(false); }
   };
 
   const pickClient = async (cid) => {
-    setClientMatches(null);
     setSearching(true);
     try {
       await resolveClient(cid);
@@ -813,7 +815,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
         setFormData(base);
         initialSnapshotRef.current = JSON.stringify(base);
       } catch { /* keep the lean clientRef if the lookup fails */ }
-    }
+      }
   };
 
   const resetForm = () => {
@@ -1160,42 +1162,54 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
         </div>
       )}
 
-      {/* ═══ MULTIPLE CLIENT MATCHES — pick one (company-name search matched >1 client) ═══ */}
+      {/* Company search results: company -> branch -> client IDs */}
       {clientMatches && (
-        <div className="modal-bg" onClick={() => setClientMatches(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <div className="modal-head">
-              <div className="modal-title">
-                <FiSearch size={16} style={{ color: 'var(--primary)', marginRight: 8, verticalAlign: 'middle' }} />
-                {clientMatches.length} clients found — choose one
+          <aside className="branch-drawer branch-drawer-persistent" aria-label="Company branches">
+            <div className="branch-drawer-head">
+              <div>
+                <div className="branch-drawer-kicker">Client directory</div>
+                <h3>Choose a branch and Client ID</h3>
               </div>
-              <button className="modal-close" onClick={() => setClientMatches(null)}>✕</button>
+              <button type="button" className="branch-drawer-close" onClick={() => { setClientMatches(null); sessionStorage.removeItem('qms_client_directory'); }} title="Close"><FiX size={18} /></button>
             </div>
-            <div className="modal-body" style={{ padding: 0 }}>
-              {clientMatches.map(m => (
-                <button
-                  key={m.clientId}
-                  type="button"
-                  onClick={() => pickClient(m.clientId)}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                    width: '100%', padding: '12px 20px', border: 'none', borderBottom: '1px solid var(--gray-100)',
-                    background: 'white', cursor: 'pointer', textAlign: 'left', font: 'inherit',
-                  }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--gray-800)' }}>{m.company || m.name}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--gray-500)' }}>{m.name}{m.isoStandard ? ` · ${m.isoStandard}` : ''}</div>
-                  </div>
-                  <span style={{
-                    background: 'var(--primary-100)', color: 'var(--primary-dark)',
-                    padding: '2px 10px', borderRadius: 6, fontWeight: 700, fontSize: 12.5, flexShrink: 0,
-                  }}>{m.clientId}</span>
-                </button>
+            <div className="branch-drawer-body">
+              {clientMatches.map(company => (
+                <details key={company.company} className="branch-company" open>
+                  <summary className="branch-company-name">
+                    <FiBriefcase size={15} />
+                    <span>{company.company}</span>
+                    <span className="branch-company-count">{company.branches.length}</span>
+                    <FiChevronDown className="branch-chevron" size={13} />
+                  </summary>
+                  <div className="branch-company-tree">{company.branches.map(branch => (
+                    <details key={branch.branchLabel} className="branch-group" open>
+                      <summary className="branch-group-head">
+                        <FiMapPin className="nav-icon" size={15} />
+                        <div className="branch-label">{branch.branchLabel}</div>
+                        <span>{branch.clients.length}</span>
+                        <FiChevronDown className="branch-chevron" size={13} />
+                      </summary>
+                      {branch.address && <div className="branch-address">{branch.address}</div>}
+                      <div className="branch-client-list">
+                        {branch.clients.map(client => (
+                          <button key={client.clientId} type="button" className="branch-client" onClick={() => pickClient(client.clientId)}>
+                            <span className="branch-tree-dot" />
+                            <div>
+                              <strong>{client.clientId}</strong>
+                              <div className="branch-standards">
+                                <span className="branch-meta-label">Standard:</span>{(client.standards.length ? client.standards : ['Not set']).map(standard => <span key={standard}>{standard}</span>)}
+                              </div>
+                            </div>
+                            <span className="branch-cycle-count" title={`${client.cycleCount} certification cycle${client.cycleCount === 1 ? '' : 's'}`}>C{client.cycleCount}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  ))}</div>
+                </details>
               ))}
             </div>
-          </div>
-        </div>
+          </aside>
       )}
 
       {/* ═══ ASSIGN AUDITOR ═══ */}

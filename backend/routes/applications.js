@@ -19,11 +19,19 @@ const populate = [
   { path: 'feedbacks.from',   select: 'name role email' },
 ];
 
-const pushNotif = async (userId, message, type = 'info') => {
+const pushNotif = async (userId, message, type = 'info', link = null) => {
   if (!userId) return;
   await User.findByIdAndUpdate(userId, {
-    $push: { notifications: { $each: [{ message, type, read: false, createdAt: new Date() }], $position: 0, $slice: 50 } }
+    $push: { notifications: { $each: [{ message, type, read: false, link, createdAt: new Date() }], $position: 0, $slice: 50 } }
   });
+};
+
+// Same notification, pushed to every admin in one query instead of one per admin
+const notifyAdmins = async (message, type = 'info', link = null) => {
+  await User.updateMany(
+    { role: 'admin' },
+    { $push: { notifications: { $each: [{ message, type, read: false, link, createdAt: new Date() }], $position: 0, $slice: 50 } } }
+  );
 };
 
 // GET /api/applications
@@ -34,7 +42,7 @@ router.get('/', protect, async (req, res) => {
     if (req.user.role === 'auditor')  filter.assignedAuditor = req.user._id;
     if (req.user.role === 'reviewer') filter.assignedReviewer = req.user._id;
     if (req.query.status) filter.status = req.query.status;
-    const apps = await Application.find(filter).populate(populate).sort({ createdAt: -1 });
+    const apps = await Application.find(filter).populate(populate).sort({ createdAt: -1 }).lean();
     res.json(apps);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -42,7 +50,7 @@ router.get('/', protect, async (req, res) => {
 // GET /api/applications/:id
 router.get('/:id', protect, async (req, res) => {
   try {
-    const app = await Application.findById(req.params.id).populate(populate);
+    const app = await Application.findById(req.params.id).populate(populate).lean();
     if (!app) return res.status(404).json({ message: 'Application not found' });
     res.json(app);
   } catch (err) { res.status(500).json({ message: err.message }); }
@@ -70,15 +78,12 @@ router.post('/', protect, authorize('client', 'admin', 'sales'), async (req, res
       await User.findByIdAndUpdate(clientId, { $addToSet: { assignedApplications: app._id } });
     }
 
-    // Notify admins    
-    const admins = await User.find({ role: 'admin' }).select('_id');
-    for (const a of admins) {
-      await pushNotif(a._id, `New application created: ${app.applicationId}`, 'info');
-    }
+    // Notify admins
+    await notifyAdmins(`New application created: ${app.applicationId}`, 'info', `/admin/applications/${app._id}`);
 
     // If client creates their own app, notify them too
     if (req.user.role === 'client') {
-      await pushNotif(req.user._id, `Your application ${app.applicationId} has been saved as draft. Submit when ready.`, 'info');
+      await pushNotif(req.user._id, `Your application ${app.applicationId} has been saved as draft. Submit when ready.`, 'info', `/client/applications/${app._id}`);
     }
 
     res.status(201).json(app);
@@ -127,10 +132,7 @@ router.post('/:id/submit', protect, async (req, res) => {
       { returnDocument: 'after' }
     ).populate(populate);
     if (!app) return res.status(404).json({ message: 'Not found' });
-    const admins = await User.find({ role: 'admin' }).select('_id');
-    for (const a of admins) {
-      await pushNotif(a._id, `New application submitted: ${app.applicationId} by ${app.client?.name || 'client'}`, 'info');
-    }
+    await notifyAdmins(`New application submitted: ${app.applicationId} by ${app.client?.name || 'client'}`, 'info', `/admin/applications/${app._id}`);
     res.json({ message: 'Application submitted', app });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -150,12 +152,12 @@ router.post('/:id/assign', protect, authorize('admin'), async (req, res) => {
 
     if (auditorId) {
       await User.findByIdAndUpdate(auditorId, { $addToSet: { assignedApplications: app._id } });
-      await pushNotif(auditorId, `You have been assigned to application ${app.applicationId}`, 'info');
-      await pushNotif(app.client?._id, `An auditor has been assigned to your application ${app.applicationId}`, 'info');
+      await pushNotif(auditorId, `You have been assigned to application ${app.applicationId}`, 'info', `/auditor/applications/${app._id}`);
+      await pushNotif(app.client?._id, `An auditor has been assigned to your application ${app.applicationId}`, 'info', `/client/applications/${app._id}`);
     }
     if (reviewerId) {
       await User.findByIdAndUpdate(reviewerId, { $addToSet: { assignedApplications: app._id } });
-      await pushNotif(reviewerId, `You have been assigned to review application ${app.applicationId}`, 'info');
+      await pushNotif(reviewerId, `You have been assigned to review application ${app.applicationId}`, 'info', `/auditor/applications/${app._id}`);
     }
     res.json({ message: 'Assigned successfully', app });
   } catch (err) { res.status(500).json({ message: err.message }); }
@@ -173,7 +175,7 @@ router.put('/:id/status', protect, async (req, res) => {
     }
     const app = await Application.findByIdAndUpdate(req.params.id, updates, { returnDocument: 'after' }).populate(populate);
     if (!app) return res.status(404).json({ message: 'Not found' });
-    await pushNotif(app.client?._id, `Your application ${app.applicationId} status updated to: ${status}${notes ? '. Note: ' + notes : ''}`, 'info');
+    await pushNotif(app.client?._id, `Your application ${app.applicationId} status updated to: ${status}${notes ? '. Note: ' + notes : ''}`, 'info', `/client/applications/${app._id}`);
     res.json({ message: 'Status updated', app });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -244,7 +246,7 @@ router.post('/:id/payment', protect, authorize('admin'), async (req, res) => {
     const app = await Application.findByIdAndUpdate(req.params.id, updates, { returnDocument: 'after' }).populate(populate);
     if (!app) return res.status(404).json({ message: 'Not found' });
     if (paymentStatus === 'received') {
-      await pushNotif(app.client?._id, `Payment received for application ${app.applicationId}. Amount: â‚¹${paymentAmount}`, 'success');
+      await pushNotif(app.client?._id, `Payment received for application ${app.applicationId}. Amount: â‚¹${paymentAmount}`, 'success', `/client/applications/${app._id}`);
     }
     res.json({ message: 'Payment updated', app });
   } catch (err) { res.status(500).json({ message: err.message }); }
@@ -257,10 +259,7 @@ router.post('/:id/feedback', protect, async (req, res) => {
     if (!app) return res.status(404).json({ message: 'Not found' });
     app.feedbacks.push({ from: req.user._id, role: req.user.role, message: req.body.message, rating: req.body.rating || 5 });
     await app.save();
-    const admins = await User.find({ role: 'admin' }).select('_id');
-    for (const a of admins) {
-      await pushNotif(a._id, `New feedback on ${app.applicationId} from ${req.user.role}`, 'info');
-    }
+    await notifyAdmins(`New feedback on ${app.applicationId} from ${req.user.role}`, 'info', `/admin/applications/${app._id}`);
     res.json({ message: 'Feedback submitted' });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -274,10 +273,7 @@ router.post('/:id/accept-audit', protect, authorize('auditor', 'reviewer'), asyn
       { returnDocument: 'after' }
     ).populate(populate);
     if (!app) return res.status(404).json({ message: 'Not found' });
-    const admins = await User.find({ role: 'admin' }).select('_id');
-    for (const a of admins) {
-      await pushNotif(a._id, `${req.user.role} ${req.user.name} ${req.body.status} assignment for ${app.applicationId}`, 'info');
-    }
+    await notifyAdmins(`${req.user.role} ${req.user.name} ${req.body.status} assignment for ${app.applicationId}`, 'info', `/admin/applications/${app._id}`);
     res.json({ message: `Audit ${req.body.status}`, app });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -346,9 +342,9 @@ router.post('/:id/send-document', protect, upload.single('document'), async (req
     const fullMsg = fileUrl ? `${baseMsg} â€” File: ${req.file.originalname}` : baseMsg;
 
     // Notify the correct recipient(s)
-    if (sendTo === 'client'   && app.client)          await pushNotif(app.client._id,          fullMsg, 'info');
-    if (sendTo === 'auditor'  && app.assignedAuditor)  await pushNotif(app.assignedAuditor._id,  fullMsg, 'info');
-    if (sendTo === 'reviewer' && app.assignedReviewer) await pushNotif(app.assignedReviewer._id, fullMsg, 'info');
+    if (sendTo === 'client'   && app.client)          await pushNotif(app.client._id,          fullMsg, 'info', `/client/applications/${app._id}`);
+    if (sendTo === 'auditor'  && app.assignedAuditor)  await pushNotif(app.assignedAuditor._id,  fullMsg, 'info', `/auditor/applications/${app._id}`);
+    if (sendTo === 'reviewer' && app.assignedReviewer) await pushNotif(app.assignedReviewer._id, fullMsg, 'info', `/auditor/applications/${app._id}`);
 
     res.json({ message: `Document sent to ${sendTo}`, fileUrl });
   } catch (err) { res.status(500).json({ message: err.message }); }

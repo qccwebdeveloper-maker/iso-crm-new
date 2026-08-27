@@ -1,9 +1,10 @@
-const express   = require('express');
-const cors      = require('cors');
-const dotenv    = require('dotenv');
-const path      = require('path');
-const fs        = require('fs');
-const connectDB = require('./config/db');
+const express     = require('express');
+const compression = require('compression');
+const cors        = require('cors');
+const dotenv      = require('dotenv');
+const path        = require('path');
+const fs          = require('fs');
+const connectDB   = require('./config/db');
 
 dotenv.config();
 
@@ -14,6 +15,9 @@ const app = express();
 // per-IP rate limiting (routes/leads.js's public submission limiter) by
 // pooling every real visitor into one shared bucket.
 app.set('trust proxy', 1);
+
+// gzip/br-compress API responses and static files (uploads/assets)
+app.use(compression());
 
 // Ensure uploads directory exists and serve it as static
 const uploadsDir = path.join(__dirname, 'uploads');

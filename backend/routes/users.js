@@ -12,7 +12,7 @@ router.get('/', protect, authorize('admin', 'sales'), async (req, res) => {
   try {
     const filter = {};
     if (req.query.role) filter.role = req.query.role;
-    const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
+    const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).lean();
     res.json(users);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });

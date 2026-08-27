@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
    verified  → admin verifies the received amount
    final     → admin sends the final invoice to the client                              */
 const invoiceSchema = new mongoose.Schema({
-  clientId:         { type: String, required: true },
+  clientId:         { type: String, required: true, index: true },
   clientRef:        { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   organizationName: { type: String },
   standard:         { type: String },

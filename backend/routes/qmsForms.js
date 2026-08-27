@@ -375,15 +375,13 @@ router.post('/my', protect, authorize('client'), async (req, res) => {
     // Notify admins when the client submits (not on plain draft saves)
     if (newStatus !== 'draft') {
       const link   = Number(formType) === 1 ? '/admin/applications' : '/admin/qms/form-' + String(formType).padStart(2, '0');
-      const admins = await User.find({ role: 'admin' }).select('_id');
-      for (const a of admins) {
-        await User.findByIdAndUpdate(a._id, {
-          $push: { notifications: { $each: [{
+      await User.updateMany(
+        { role: 'admin' },
+        { $push: { notifications: { $each: [{
             message: `${req.user.name || 'A client'} submitted ${formName || 'a form'} (${req.user.clientId})`,
             type: 'info', read: false, link, createdAt: new Date(),
-          }], $position: 0, $slice: 50 } }
-        });
-      }
+          }], $position: 0, $slice: 50 } } }
+      );
     }
 
     res.json(form);
@@ -441,13 +439,13 @@ router.post('/:id/assign', protect, authorize('admin'), async (req, res) => {
     if (auditorId) {
       await User.findByIdAndUpdate(auditorId, { $addToSet: { assignedApplications: appId } });
       await User.findByIdAndUpdate(auditorId, { $push: { notifications: { $each: [{
-        message: `You have been assigned to application ${app.applicationId}`, type: 'info', read: false, createdAt: new Date(),
+        message: `You have been assigned to application ${app.applicationId}`, type: 'info', read: false, link: `/auditor/applications/${appId}`, createdAt: new Date(),
       }], $position: 0, $slice: 50 } } });
     }
     if (reviewerId) {
       await User.findByIdAndUpdate(reviewerId, { $addToSet: { assignedApplications: appId } });
       await User.findByIdAndUpdate(reviewerId, { $push: { notifications: { $each: [{
-        message: `You have been assigned to review application ${app.applicationId}`, type: 'info', read: false, createdAt: new Date(),
+        message: `You have been assigned to review application ${app.applicationId}`, type: 'info', read: false, link: `/auditor/applications/${appId}`, createdAt: new Date(),
       }], $position: 0, $slice: 50 } } });
     }
 

@@ -34,3 +34,7 @@ backend/uploads/
 
 # Excel lock files (created while a workbook is open)
 ~$*.xlsx
+
+# Playwright QA harness (e2e/) — local test artifacts
+e2e/test-results/
+e2e/playwright-report/

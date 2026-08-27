@@ -373,7 +373,10 @@ export default function Layout({ children, title }) {
         setNotifications(prev => prev.map(x => x._id === n._id ? { ...x, read: true } : x));
       } catch {}
     }
-    if (n.link) { navigate(n.link); setNotifOpen(false); }
+    // Always close on click — older notifications created before links were added
+    // to every notify call site otherwise give zero feedback when clicked.
+    if (n.link) navigate(n.link);
+    setNotifOpen(false);
   };
 
   const markAllRead = async () => {

@@ -17,8 +17,9 @@ export default function Pagination({ total, page, perPage, onChange }) {
   };
   const { pages, start, end } = getPages();
 
-  const btn = (content, onClick, active = false, disabled = false) => (
+  const btn = (content, onClick, active = false, disabled = false, key) => (
     <button
+      key={key}
       onClick={onClick}
       disabled={disabled}
       style={{
@@ -55,7 +56,7 @@ export default function Pagination({ total, page, perPage, onChange }) {
             {start > 2 && <span style={{ color: 'var(--gray-400)', fontSize: 13, padding: '0 2px' }}>…</span>}
           </>
         )}
-        {pages.map(p => btn(p, () => onChange(p), p === page))}
+        {pages.map(p => btn(p, () => onChange(p), p === page, false, p))}
         {end < totalPages && (
           <>
             {end < totalPages - 1 && <span style={{ color: 'var(--gray-400)', fontSize: 13, padding: '0 2px' }}>…</span>}

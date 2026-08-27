@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 // Tracks which client's QMS forms an admin/auditor/reviewer currently has open, so
 // the sidebar (Layout.js) can tailor the QMS Forms nav to that specific Client ID:
@@ -11,10 +11,15 @@ const ActiveClientContext = createContext(null);
 export const ActiveClientProvider = ({ children }) => {
   const [activeClient, setActiveClient] = useState(null); // { clientId, company, isPrimaryClientId, clientRank } | null
 
-  const clearActiveClient = () => setActiveClient(null);
+  const clearActiveClient = useCallback(() => setActiveClient(null), []);
+
+  const value = useMemo(
+    () => ({ activeClient, setActiveClient, clearActiveClient }),
+    [activeClient, clearActiveClient]
+  );
 
   return (
-    <ActiveClientContext.Provider value={{ activeClient, setActiveClient, clearActiveClient }}>
+    <ActiveClientContext.Provider value={value}>
       {children}
     </ActiveClientContext.Provider>
   );

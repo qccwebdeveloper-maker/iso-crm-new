@@ -24,10 +24,10 @@ const observationItemSchema = new mongoose.Schema({
 const auditReportSchema = new mongoose.Schema({
   // ── Ownership & Control ───────────────────────────────────────────────────
   createdBy:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  clientId:        { type: String, default: '' },
-  client:          { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  assignedAuditor:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  assignedReviewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  clientId:        { type: String, default: '', index: true },
+  client:          { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  assignedAuditor:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  assignedReviewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
   status:          { type: String, enum: ['draft', 'in_progress', 'completed'], default: 'draft' },
 
   // ── Step 1: AUD-F-02 §2.1 — Organization Info ────────────────────────────

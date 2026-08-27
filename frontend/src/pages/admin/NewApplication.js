@@ -339,7 +339,9 @@ export default function AdminNewApplication() {
                   <FG label="REFNO"><input className="form-control" placeholder="Auto-generated" value={form.refno} onChange={e=>set('refno',e.target.value)}/></FG>
                   <FG label="Select Client"><select className="form-control" value={form.client} onChange={e=>set('client',e.target.value)}>
                     <option value="">— Assign later —</option>
-                    {clients.map(c=><option key={c._id} value={c._id}>{c.name} ({c.email})</option>)}
+                    {clients.map(c=><option key={c._id} value={c._id}>
+                      {c.company || c.name} — {c.branchLabel || 'Main Branch'} — {c.clientId || c.email}{c.isoStandard ? ` — ${c.isoStandard}` : ''}
+                    </option>)}
                   </select></FG>
                 </Row>
               )}

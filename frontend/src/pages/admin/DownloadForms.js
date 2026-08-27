@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import { useActiveClient } from '../../context/ActiveClientContext';
-import { FiSearch, FiDownload, FiFileText, FiClock, FiCheckCircle } from 'react-icons/fi';
+import { FiSearch, FiDownload, FiFileText, FiClock, FiCheckCircle, FiX, FiMapPin, FiChevronDown, FiBriefcase } from 'react-icons/fi';
 
 /* All QMS forms that have a dedicated form-XX page (F01–F23).
    `name` mirrors the sidebar nav label in Layout.js exactly, so the form
@@ -48,7 +48,10 @@ export default function DownloadForms() {
   const [cidInput, setCidInput] = useState('');
   const [client, setClient]     = useState(null);
   const [byType, setByType]     = useState(null); // { [formType]: record }
-  const [matches, setMatches]   = useState(null); // array of {clientId,name,company} when a company name matches more than one client
+  const [matches, setMatches]   = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('qms_client_directory') || 'null'); }
+    catch { return null; }
+  }); // grouped company -> branches -> client IDs
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
 
@@ -81,18 +84,17 @@ export default function DownloadForms() {
         setError('No client found with this ID or company name');
         return;
       }
-      if (found.length > 1) {
-        setMatches(found);
-        return;
-      }
-      await loadClient(found[0].clientId);
+      const clients = found.flatMap(company => company.branches.flatMap(branch => branch.clients));
+      const exact = clients.find(item => item.clientId.toLowerCase() === id.toLowerCase());
+      setMatches(found);
+      sessionStorage.setItem('qms_client_directory', JSON.stringify(found));
+      if (exact) await loadClient(exact.clientId);
     } catch (err) {
       setError(err.response?.data?.message || 'Client not found');
     } finally { setLoading(false); }
   };
 
   const pick = async (id) => {
-    setMatches(null);
     setLoading(true); setError('');
     try {
       await loadClient(id);
@@ -145,31 +147,26 @@ export default function DownloadForms() {
         )}
 
         {matches && (
-          <div style={{ marginBottom: 20, background: 'white', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <div style={{ padding: '10px 16px', fontSize: 12.5, fontWeight: 700, color: 'var(--gray-600)', borderBottom: '1px solid #f1f5f9' }}>
-              {matches.length} clients found — choose one
-            </div>
-            {matches.map(m => (
-              <button
-                key={m.clientId}
-                type="button"
-                onClick={() => pick(m.clientId)}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                  width: '100%', padding: '12px 16px', border: 'none', borderBottom: '1px solid #f1f5f9',
-                  background: 'white', cursor: 'pointer', textAlign: 'left', font: 'inherit',
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--gray-800)' }}>{m.company || m.name}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--gray-500)' }}>{m.name}{m.isoStandard ? ` · ${m.isoStandard}` : ''}</div>
-                </div>
-                <span style={{ background: 'var(--primary-50)', color: 'var(--primary)', padding: '2px 10px', borderRadius: 6, fontWeight: 700, fontSize: 12.5, flexShrink: 0 }}>
-                  {m.clientId}
-                </span>
-              </button>
-            ))}
-          </div>
+            <aside className="branch-drawer branch-drawer-persistent" aria-label="Company branches">
+              <div className="branch-drawer-head">
+                <div><div className="branch-drawer-kicker">Client directory</div><h3>Choose a branch and Client ID</h3></div>
+                <button type="button" className="branch-drawer-close" onClick={() => { setMatches(null); sessionStorage.removeItem('qms_client_directory'); }} title="Close"><FiX size={18} /></button>
+              </div>
+              <div className="branch-drawer-body">
+                {matches.map(company => <details key={company.company} className="branch-company" open>
+                  <summary className="branch-company-name"><FiBriefcase size={15}/><span>{company.company}</span><span className="branch-company-count">{company.branches.length}</span><FiChevronDown className="branch-chevron" size={13}/></summary>
+                  <div className="branch-company-tree">{company.branches.map(branch => <details key={branch.branchLabel} className="branch-group" open>
+                    <summary className="branch-group-head"><FiMapPin className="nav-icon" size={15} /><div className="branch-label">{branch.branchLabel}</div><span>{branch.clients.length}</span><FiChevronDown className="branch-chevron" size={13} /></summary>
+                    {branch.address && <div className="branch-address">{branch.address}</div>}
+                    <div className="branch-client-list">{branch.clients.map(item => <button key={item.clientId} type="button" className="branch-client" onClick={() => pick(item.clientId)}>
+                      <span className="branch-tree-dot"/><div><strong>{item.clientId}</strong><div className="branch-standards"><span className="branch-meta-label">Standard:</span>{(item.standards.length ? item.standards : ['Not set']).map(standard => <span key={standard}>{standard}</span>)}</div></div>
+                      <span className="branch-cycle-count" title={`${item.cycleCount} certification cycle${item.cycleCount === 1 ? '' : 's'}`}>C{item.cycleCount}</span>
+                    </button>)}</div>
+                  </details>)}
+                  </div>
+                </details>)}
+              </div>
+            </aside>
         )}
 
         {byType && (

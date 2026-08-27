@@ -151,7 +151,7 @@ router.get('/find-clients/:term', protect, authorize('admin', 'auditor', 'review
         { clientId: term },
         { company: new RegExp(`^${escaped}$`, 'i') },
       ],
-    }).select('name company clientId isoStandard');
+    }).select('name company clientId isoStandard branchLabel address');
 
     // Standard shown per candidate — F01's selection is authoritative when filled,
     // otherwise fall back to what was entered at registration. Lets the picker show
@@ -166,12 +166,38 @@ router.get('/find-clients/:term', protect, authorize('admin', 'auditor', 'review
       if (list.length) standardByClientId[f.clientId] = list.join(', ');
     });
 
-    const list = users
-      .map(u => ({
-        clientId: u.clientId, name: u.name, company: u.company,
-        isoStandard: standardByClientId[u.clientId] || u.isoStandard || '',
-      }))
-      .sort((a, b) => (Number(a.clientId) || 0) - (Number(b.clientId) || 0));
+    const companyMap = new Map();
+    for (const u of users) {
+      const company = u.company || u.name || 'Unknown company';
+      const companyKey = company.trim().toLowerCase();
+      if (!companyMap.has(companyKey)) companyMap.set(companyKey, { company, branches: new Map() });
+
+      const group = companyMap.get(companyKey);
+      const branchLabel = String(u.branchLabel || '').trim() || 'Main Branch';
+      const branchKey = branchLabel.toLowerCase();
+      if (!group.branches.has(branchKey)) {
+        group.branches.set(branchKey, { branchLabel, address: u.address || '', clients: [] });
+      }
+
+      const cycles = await getClientCycles(u.clientId);
+      const standard = standardByClientId[u.clientId] || u.isoStandard || '';
+      group.branches.get(branchKey).clients.push({
+        clientId: u.clientId,
+        name: u.name,
+        standard,
+        standards: standard.split(',').map(s => s.trim()).filter(Boolean),
+        cycles,
+        cycleCount: cycles.length,
+      });
+    }
+
+    const list = Array.from(companyMap.values()).map(group => ({
+      company: group.company,
+      branches: Array.from(group.branches.values()).map(branch => ({
+        ...branch,
+        clients: branch.clients.sort((a, b) => (Number(a.clientId) || 0) - (Number(b.clientId) || 0)),
+      })),
+    }));
     res.json(list);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });

@@ -57,7 +57,7 @@ router.get('/:id', protect, async (req, res) => {
 // POST /api/users — create user (password hashed here directly)
 router.post('/', protect, authorize('admin', 'sales'), async (req, res) => {
   try {
-    const { name, email, password, role, phone, company, country, isoStandard } = req.body;
+    const { name, email, password, role, phone, company, country, isoStandard, branchLabel, address } = req.body;
     if (!name || !email || !password || !role) {
       return res.status(400).json({ message: 'Name, email, password and role are required' });
     }
@@ -76,10 +76,10 @@ router.post('/', protect, authorize('admin', 'sales'), async (req, res) => {
     // can only be created once the existing certificate has actually expired
     // (Certificates page → Expire).
     if (role === 'client' && company && isoStandard) {
-      const reusable = await findReusableClientId({ company, standard: isoStandard });
+      const reusable = await findReusableClientId({ company, standard: isoStandard, branchLabel });
       if (reusable) {
         return res.status(409).json({
-          message: `An active Client ID (${reusable.clientId}) already exists for ${company} under ${isoStandard}. Use that Client ID for new cycles instead — a new one can only be created after that certification expires.`,
+          message: `An active Client ID (${reusable.clientId}) already exists for ${company}, ${branchLabel || 'Main Branch'} under ${isoStandard}. Use that Client ID for new cycles instead.`,
           existingClientId: reusable.clientId,
         });
       }
@@ -89,7 +89,8 @@ router.post('/', protect, authorize('admin', 'sales'), async (req, res) => {
     const hashed   = await hashPassword(password);
     const user     = await User.create({
       name, email: email.toLowerCase().trim(),
-      password: hashed, role, phone, company, country,
+      password: hashed, role, phone, company, country, address,
+      branchLabel: role === 'client' ? String(branchLabel || '').trim() : undefined,
       clientId, isoStandard: role === 'client' ? isoStandard : undefined,
       isActive: true, pendingApproval: false,
     });

@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
   isActive:             { type: Boolean, default: true },
   pendingApproval:      { type: Boolean, default: false },
   clientId:             { type: String },
+  branchLabel:          { type: String, trim: true },
   address:              { type: String },
   isoStandard:          { type: String },
   scope:                { type: String },

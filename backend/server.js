@@ -104,6 +104,9 @@ const startServer = async () => {
     // Do not accept API requests until MongoDB is ready. This prevents Mongoose's
     // buffered queries from failing later with a misleading 10-second timeout.
     await connectDB();
+    // Fire-and-forget: pays the Gmail cold-connection cost at boot instead of on
+    // the first real OTP request (see utils/email.js warmGmailTransport).
+    require('./utils/email').warmGmailTransport();
     app.listen(PORT, () => {
       console.log(`\n✅ Server v2.0 running on port ${PORT}`);
       console.log(`🗄️  Database  : MongoDB connected`);

@@ -30,9 +30,34 @@ const withTimeout = async (promise, timeoutMs, label) => {
 // axios timeout and leave the caller with an indefinite hang instead of a clean error.
 // This guarantees callers always get a response within OVERALL_TIMEOUT_MS and keeps
 // the OTP screen responsive even when a fallback provider is unhealthy.
-const OVERALL_TIMEOUT_MS = 25000;
+const OVERALL_TIMEOUT_MS = 24000;
 
-let gmailTransport;
+// A pooled/reused Gmail connection looks free (no per-send handshake) but Gmail
+// silently closes idle SMTP sockets server-side; the client doesn't notice until it
+// tries to send on the dead socket and hangs until socketTimeout. That hang — then a
+// close + reconnect + resend — is what was turning into 30-40s OTP delivery times.
+// A short-lived, non-pooled connection per send costs a ~1-3s handshake but is never
+// stale, which is far cheaper than occasionally eating a full timeout.
+async function warmGmailTransport() {
+  const gmailUser = (process.env.GMAIL_USER || '').trim();
+  const gmailPass = (process.env.GMAIL_PASS || '').replace(/\s/g, '');
+  if (!gmailUser || gmailPass.length < 16) return;
+
+  const nodemailer = require('nodemailer');
+  const t = nodemailer.createTransport({
+    host: 'smtp.gmail.com', port: 587, secure: false,
+    auth: { user: gmailUser, pass: gmailPass },
+    connectionTimeout: 10000, greetingTimeout: 8000, socketTimeout: 10000,
+  });
+  try {
+    await t.verify();
+    console.log('[Email] Gmail SMTP credentials verified');
+  } catch (e) {
+    console.warn('[Email] Gmail verification failed (will retry lazily on first send):', e.message);
+  } finally {
+    t.close();
+  }
+}
 
 async function sendMail(opts) {
   try {
@@ -112,28 +137,29 @@ async function attemptSendMail({ to, subject, html }) {
   const gmailPass = (process.env.GMAIL_PASS || '').replace(/\s/g, '');
 
   if (gmailUser && gmailPass.length >= 16) {
-    // Reuse a pooled SMTP connection. sendMail performs authentication itself, so
-    // a separate verify() call only adds another network round-trip to every OTP.
-    if (!gmailTransport) gmailTransport = nodemailer.createTransport({
-      pool: true,
-      maxConnections: 2,
-      maxMessages: 50,
+    // Always a fresh, non-pooled connection — see the comment on warmGmailTransport
+    // above for why reusing one goes stale and causes exactly the multi-second hang
+    // this is meant to avoid. On networks that traffic-shape outbound SMTP (587), a
+    // single Gmail connect+STARTTLS+AUTH round trip can genuinely take 12-18s — that's
+    // not a transient glitch a retry fixes, so one attempt with a realistic timeout
+    // beats two attempts that both starve at an unrealistically short one.
+    const t = nodemailer.createTransport({
       host: 'smtp.gmail.com', port: 587, secure: false,
       auth: { user: gmailUser, pass: gmailPass },
-      connectionTimeout: 8000, greetingTimeout: 5000, socketTimeout: 10000,
+      connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 15000,
     });
     try {
       await withTimeout(
-        gmailTransport.sendMail({ from: `"QC Certification CRM" <${gmailUser}>`, to, subject, html }),
-        10000,
+        t.sendMail({ from: `"QC Certification CRM" <${gmailUser}>`, to, subject, html }),
+        20000,
         'Gmail email delivery'
       );
       console.log(`✅ Email sent via Gmail → ${to}`);
       return { ok: true, via: 'gmail' };
     } catch (e) {
       console.warn('[Email] Gmail SMTP failed:', e.message);
-      gmailTransport.close();
-      gmailTransport = null;
+    } finally {
+      t.close();
     }
   }
 
@@ -338,4 +364,4 @@ const sendWelcomeEmail = ({ to, name, clientId, email, password }) =>
 
 const sendEmail = ({ to, subject, html }) => sendMail({ to, subject, html });
 
-module.exports = { sendOtpEmail, sendWelcomeEmail, sendEmail };
+module.exports = { sendOtpEmail, sendWelcomeEmail, sendEmail, warmGmailTransport };

@@ -102,18 +102,21 @@ router.post('/client-send-otp', async (req, res) => {
       { upsert: true }
     );
 
-    const result = await sendOtpEmail({ to: user.email, name: user.name, otp, expiresInMinutes: 10 });
-    console.log(`[OTP] Client OTP sent to ${user.email} via ${result.via}`);
+    // Fire-and-forget, same as the admin /send-otp flow: the OTP is already saved,
+    // so the client can move to the "enter code" screen immediately instead of
+    // waiting out the full email-provider round trip (can be 15-25s on networks
+    // that throttle outbound SMTP).
+    sendOtpEmail({ to: user.email, name: user.name, otp, expiresInMinutes: 10 })
+      .then((result) => console.log(`[OTP] Client OTP sent to ${user.email} via ${result.via}`))
+      .catch((err) => console.error(`[OTP] Client OTP delivery to ${user.email} failed: ${err.message}`));
 
     // Mask email: ar***@gmail.com
     const masked = user.email.replace(/^(.{2})(.+)(@.+)$/, (_, a, b, c) => a + '*'.repeat(Math.min(b.length, 4)) + c);
 
     res.json({
-      message:    'OTP sent to your registered email.',
+      message:    'OTP is being sent to your registered email.',
       maskedEmail: masked,
-      emailSent:  result.ok,
-      via:        result.via,
-      previewUrl: result.previewUrl || null,
+      emailQueued: true,
     });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });

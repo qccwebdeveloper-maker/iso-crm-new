@@ -262,6 +262,19 @@ const phaseForSectionName = (secName) => {
   return null;
 };
 
+// NAV defines 'Recertification' as an empty stub per role (its real, per-cycle
+// item list is normally computed dynamically by buildCycleGroupedNav once a
+// client is active). Populate it here too — mirroring 'Initial Audit', filtered
+// the same way — so it isn't empty in the sidebar's default state either (right
+// after login, before any client is searched/selected).
+Object.values(NAV).forEach(sections => {
+  const initial = sections.find(s => s.sec === 'Initial Audit');
+  const recert  = sections.find(s => s.sec === 'Recertification');
+  if (initial && recert) {
+    recert.items = initial.items.filter(item => !HIDDEN_FOR_NON_PRIMARY.has(formTypeFromPath(item.to)));
+  }
+});
+
 // Tailor the QMS Forms nav to whichever Client ID is currently open (see
 // ActiveClientContext): the primary Client ID gets everything as-is; any other
 // Client ID for the same company hides the Initial-Audit-only forms and gets its

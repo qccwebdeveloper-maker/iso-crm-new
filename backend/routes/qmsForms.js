@@ -31,6 +31,7 @@ router.get('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req, 
     if (req.query.clientId) filter.clientId = req.query.clientId;
     if (req.query.status)   filter.status   = req.query.status;
     if (req.query.cycle)    filter.cycleNumber = Number(req.query.cycle);
+    if (req.query.phase)    filter.phase   = req.query.phase;
 
     const forms = await QMSForm.find(filter)
       .populate('clientRef', 'name company clientId email phone')
@@ -50,8 +51,16 @@ async function resolveClientInfo(user, cycle) {
   const cycles      = await getClientCycles(cid);
   const activeCycle = cycle ? Number(cycle) : cycles[cycles.length - 1];
 
-  const appForm = await QMSForm.findOne({ clientId: cid, formType: 1, cycleNumber: activeCycle })
+  // The Application Form (formType 1) exists per-phase now (Initial Audit and
+  // Recertification each have their own copy) — 'initial' is the canonical source
+  // when it exists (cycle 1), falling back to 'recert' for later cycles where an
+  // 'initial' phase never exists.
+  let appForm = await QMSForm.findOne({ clientId: cid, formType: 1, cycleNumber: activeCycle, phase: 'initial' })
     .select('formData');
+  if (!appForm) {
+    appForm = await QMSForm.findOne({ clientId: cid, formType: 1, cycleNumber: activeCycle, phase: 'recert' })
+      .select('formData');
+  }
   const fd = appForm?.formData || {};
   const selected = fd.standards;
   const standards = Array.isArray(selected) ? selected.filter(Boolean) : [];
@@ -228,16 +237,60 @@ router.get('/by-client/:clientId/:formType', protect, authorize('admin', 'audito
       clientId: req.params.clientId,
       formType: Number(req.params.formType),
       cycleNumber: req.query.cycle ? Number(req.query.cycle) : 1,
+      phase: req.query.phase || 'initial',
     }).populate('clientRef', 'name company clientId email phone');
     if (!form) return res.status(404).json({ message: 'No form found' });
     res.json(form);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// POST /api/qms-forms — create or update (upsert by clientId + formType)
+// Keys of Form 15's (AUD-F-22 Review Report B) recertChecks table — see
+// frontend/src/pages/admin/qms/Form15FinalReviewReport.js RECERT_CHECKS.
+const RECERT_CHECK_KEYS = [
+  'withinTimeline', 'siteChange', 'auditorName', 'decSigned', 'recertPlan', 'planSent',
+  'auditDate', 'coreProcessesCovered', 'logoVerified', 'recertDate', 'observations',
+  'minorNC', 'majorNC', 'laRecommendation',
+];
+
+// Cycles only "exist" as an inferred side effect of a QMSForm carrying that
+// cycleNumber (see utils/cycles.js) — there's no separate creation step. Once the
+// Recertification phase's Review Report (B) for a client's latest cycle is saved
+// with "Recertification Audit Applicable" = YES and every recertification check
+// filled in, that cycle's recertification is complete, so the next cycle is
+// auto-started by seeding an empty Surveillance-1 Application Form placeholder
+// under cycle+1 — the client then simply shows up under "Cycle N+1" and picks up
+// filling forms from there (a new cycle only ever has Surveillance-1/2 +
+// Recertification — no Initial Audit phase, see Layout.js buildCycleGroupedNav).
+async function maybeStartNextCycle(client, formType, cycle, phase, formData) {
+  if (formType !== 15 || phase !== 'recert' || formData?.recertApplicable !== 'YES') return;
+  const checks = formData.recertChecks || {};
+  const allFilled = RECERT_CHECK_KEYS.every(k => String(checks[k] ?? '').trim().length > 0);
+  if (!allFilled) return;
+
+  const cycles = await getClientCycles(client.clientId);
+  if (cycle !== cycles[cycles.length - 1]) return; // only the latest cycle can advance
+
+  const nextCycle = cycle + 1;
+  const exists = await QMSForm.exists({ clientId: client.clientId, cycleNumber: nextCycle });
+  if (exists) return;
+
+  await QMSForm.create({
+    clientId: client.clientId,
+    clientRef: client._id,
+    formType: 16,
+    cycleNumber: nextCycle,
+    phase: 'surv1',
+    formCode: 'AUD-F-02-A',
+    formName: 'F02 Application Form',
+    status: 'draft',
+    formData: {},
+  });
+}
+
+// POST /api/qms-forms — create or update (upsert by clientId + formType + cycle + phase)
 router.post('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req, res) => {
   try {
-    const { clientId, formType, formCode, formName, status, formData, cycleNumber } = req.body;
+    const { clientId, formType, formCode, formName, status, formData, cycleNumber, phase } = req.body;
     if (!clientId || !formType) {
       return res.status(400).json({ message: 'clientId and formType are required' });
     }
@@ -245,14 +298,16 @@ router.post('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req,
     const client = await User.findOne({ clientId });
     if (!client) return res.status(404).json({ message: 'No client found with this ID' });
 
-    const cycle = cycleNumber ? Number(cycleNumber) : 1;
+    const cycle     = cycleNumber ? Number(cycleNumber) : 1;
+    const formPhase = phase || 'initial';
     const form = await QMSForm.findOneAndUpdate(
-      { clientId, formType: Number(formType), cycleNumber: cycle },
+      { clientId, formType: Number(formType), cycleNumber: cycle, phase: formPhase },
       {
         clientId,
         clientRef: client._id,
         formType: Number(formType),
         cycleNumber: cycle,
+        phase: formPhase,
         formCode,
         formName,
         status: status || 'draft',
@@ -260,6 +315,7 @@ router.post('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req,
       },
       { upsert: true, new: true, runValidators: false, setDefaultsOnInsert: true }
     );
+    await maybeStartNextCycle(client, Number(formType), cycle, formPhase, formData || {});
     res.json(form);
   } catch (err) {
     console.error('[POST /api/qms-forms]', err.message);
@@ -295,6 +351,7 @@ router.get('/my/:formType', protect, authorize('client'), async (req, res) => {
     const form = await QMSForm.findOne({
       clientId: req.user.clientId,
       formType: Number(req.params.formType),
+      phase: 'initial',
     });
     res.json(form || null);
   } catch (err) { res.status(500).json({ message: err.message }); }
@@ -327,12 +384,13 @@ router.post('/my', protect, authorize('client'), async (req, res) => {
 
     const newStatus = status || 'draft';
     const form = await QMSForm.findOneAndUpdate(
-      { clientId: req.user.clientId, formType: Number(formType), cycleNumber: cycle },
+      { clientId: req.user.clientId, formType: Number(formType), cycleNumber: cycle, phase: 'initial' },
       {
         clientId:  req.user.clientId,
         clientRef: req.user._id,
         formType:  Number(formType),
         cycleNumber: cycle,
+        phase: 'initial',
         formCode,
         formName,
         status:    newStatus,

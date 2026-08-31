@@ -535,13 +535,18 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   // Auditors/reviewers can review & edit these forms exactly like admin, but
   // assigning the audit team and deleting records stay admin-only management actions.
   const isAdmin = user?.role === 'admin';
+  // `defaultData` may be a plain object, or (for a form shared across phases —
+  // Form16 etc.) a function of the active phase, so a brand-new record can start
+  // with phase-appropriate defaults (e.g. Audit Type "Surveillance II" for a new
+  // form opened under the Surveillance-2 section) instead of one hardcoded value.
+  const resolveDefaultData = (phase) => (typeof defaultData === 'function' ? defaultData(phase) : (defaultData || {}));
   const [clientIdInput, setClientIdInput] = useState('');
   const [clientInfo,    setClientInfo]    = useState(null);
   const [clientMatches, setClientMatches] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('qms_client_directory') || 'null'); }
     catch { return null; }
   }); // grouped company -> branches -> client IDs
-  const [formData,      setFormData]      = useState(defaultData || {});
+  const [formData,      setFormData]      = useState(resolveDefaultData());
   const [existingId,    setExistingId]    = useState(null);
   const [status,        setStatus]        = useState('draft');
   const [view,          setView]          = useState('list');
@@ -693,13 +698,13 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     let base, st = 'draft', exId = null;
     try {
       const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}?cycle=${activeCycle}&phase=${activePhase}`);
-      base = withAppDefaults(existing.formData || defaultData || {}, client);
+      base = withAppDefaults(existing.formData || resolveDefaultData(activePhase), client);
       st = existing.status || 'draft';
       exId = existing._id;
       toast.success('Existing form loaded');
     } catch {
       base = {
-        ...(defaultData || {}),
+        ...resolveDefaultData(activePhase),
         idNo:                 client.clientId      || '',
         refno:                client.refno         || client.clientId || '',
         acceptanceRefNo:      client.clientId      || '',
@@ -719,6 +724,11 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
         isoStandards:         client.isoStandard   || '',
         standard:             client.isoStandard   || '',
       };
+      // Form01's own "Standard(s) — tick all applicable" picker (`standards`, an
+      // array) is the ORIGINAL source client.isoStandard is itself derived from —
+      // only pre-tick it here (brand-new record), never on an existing one, so a
+      // later manual change on this form is never fought/overridden.
+      if (client.standards && client.standards.length) base.standards = client.standards;
       toast.success('Client found — new form opened with pre-filled details');
     }
     base = await applyPrefill(cid, base);
@@ -766,6 +776,35 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   // can reorder/append based on the latest state, e.g. drag-reordering a table).
   const set = (key, val) => setFormData(p => ({ ...p, [key]: typeof val === 'function' ? val(p[key]) : val }));
 
+  // A save can silently start a brand-new cycle server-side with no separate
+  // creation step the UI is told about (Form 15's recert completion — see
+  // backend/routes/qmsForms.js maybeStartNextCycle). Re-pull this Client ID's
+  // cycle list right after saving so the sidebar (ActiveClientContext) and the
+  // branch drawer's per-client cycle badge (clientMatches) pick it up
+  // immediately instead of only after a page reload or a fresh search.
+  const refreshClientCycleInfo = async (clientId, cycle) => {
+    try {
+      const { data: client } = await axios.get(`/api/qms-forms/client/${clientId}?cycle=${cycle}`);
+      setActiveClient(prev => (prev && prev.clientId === clientId)
+        ? { ...prev, cycles: client.cycles, cycleCount: client.cycleCount, activeCycle: client.activeCycle }
+        : prev);
+      setClientMatches(prev => {
+        if (!prev) return prev;
+        const next = prev.map(company => ({
+          ...company,
+          branches: company.branches.map(branch => ({
+            ...branch,
+            clients: branch.clients.map(c => c.clientId === clientId
+              ? { ...c, cycles: client.cycles, cycleCount: client.cycleCount }
+              : c),
+          })),
+        }));
+        sessionStorage.setItem('qms_client_directory', JSON.stringify(next));
+        return next;
+      });
+    } catch { /* non-critical — sidebar/drawer just stay stale until next reload/search */ }
+  };
+
   const handleSave = async (saveStatus) => {
     if (!clientInfo) return false;
     setSaving(true);
@@ -781,6 +820,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
       });
       setStatus(saveStatus);
       toast.success(saveStatus === 'draft' ? 'Saved as draft' : 'Form saved successfully');
+      await refreshClientCycleInfo(clientInfo.clientId, clientInfo.activeCycle || 1);
       fetchList();
       resetForm();
       return true;
@@ -837,7 +877,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     setView('list');
     setClientIdInput('');
     setClientInfo(null);
-    setFormData(defaultData || {});
+    setFormData(resolveDefaultData());
     initialSnapshotRef.current = null;
     setExistingId(null);
     setStatus('draft');
@@ -1030,7 +1070,10 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                     style={{ padding: '4px 8px' }}
                     title="Switch audit phase"
                   >
-                    <option value="initial">Initial Audit</option>
+                    {/* A new cycle only ever has Surveillance-1/2 + Recertification —
+                        no Initial Audit phase (see backend maybeStartNextCycle) — so
+                        hide this option once the client is past cycle 1. */}
+                    {(clientInfo.activeCycle || 1) === 1 && <option value="initial">Initial Audit</option>}
                     <option value="surv1">Surveillance 1</option>
                     <option value="surv2">Surveillance 2</option>
                     <option value="recert">Recertification</option>
@@ -1042,7 +1085,14 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   {clientInfo.cycleCount > 1 && (
                     <select
                       value={clientInfo.activeCycle || 1}
-                      onChange={(e) => resolveClient(clientInfo.clientId, Number(e.target.value), clientInfo.activePhase)}
+                      onChange={(e) => {
+                        const nextCycle = Number(e.target.value);
+                        // Initial Audit doesn't exist past cycle 1 (see the phase
+                        // <select> above) — jumping to a later cycle while it's the
+                        // active phase would carry over a now-hidden selection.
+                        const nextPhase = nextCycle === 1 ? clientInfo.activePhase : (clientInfo.activePhase === 'initial' ? 'surv1' : clientInfo.activePhase);
+                        resolveClient(clientInfo.clientId, nextCycle, nextPhase);
+                      }}
                       className="btn btn-sm"
                       style={{ padding: '4px 8px' }}
                       title="Switch certification cycle"

@@ -153,6 +153,8 @@ const NAV = {
       { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
       { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
     ]},
+    { sec: 'Recertification', items: [
+    ]},
     { sec: 'Documents', items: [
       { to: '/auditor/documents', icon: FiFolder, label: 'Documents' },
     ]},
@@ -205,6 +207,8 @@ const NAV = {
       { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
       { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
     ]},
+    { sec: 'Recertification', items: [
+    ]},
     { sec: 'Documents', items: [
       { to: '/auditor/documents', icon: FiFolder, label: 'Documents' },
     ]},
@@ -245,6 +249,19 @@ const formTypeFromPath = (to) => {
   return m ? Number(m[1]) : null;
 };
 
+// Several formTypes (the CAR forms 12/13, the Application Form 1, …) are reachable
+// from more than one of these sections — the "phase" tags which stage's copy of
+// that formType a click should open (see backend/models/QMSForm.js `phase`).
+// Matched by prefix because applyActiveClientNav relabels the Surveillance
+// sections to "Surveillance - 1-<rank>" / "Surveillance - 2-<rank>".
+const phaseForSectionName = (secName) => {
+  if (secName === 'Initial Audit') return 'initial';
+  if (secName.startsWith('Surveillance - 1')) return 'surv1';
+  if (secName.startsWith('Surveillance - 2')) return 'surv2';
+  if (secName === 'Recertification') return 'recert';
+  return null;
+};
+
 // Tailor the QMS Forms nav to whichever Client ID is currently open (see
 // ActiveClientContext): the primary Client ID gets everything as-is; any other
 // Client ID for the same company hides the Initial-Audit-only forms and gets its
@@ -271,24 +288,35 @@ function applyActiveClientNav(sections, activeClient) {
 // (the common case) is untouched, so the sidebar looks exactly like it does today.
 const CYCLE_SECTION_NAMES = new Set(['Initial Audit', 'Surveillance - 1', 'Surveillance - 2', 'Recertification']);
 function buildCycleGroupedNav(sections, activeClient) {
-  if (!activeClient || !(activeClient.cycleCount > 1)) return sections;
-  const cycleSections = sections.filter(s => CYCLE_SECTION_NAMES.has(s.sec) && s.items.length);
+  if (!activeClient) return sections;
+  const cycleSections = sections.filter(s => CYCLE_SECTION_NAMES.has(s.sec));
   if (!cycleSections.length) return sections;
 
   const cycles     = (activeClient.cycles && activeClient.cycles.length) ? activeClient.cycles : [1];
   const firstCycle = Math.min(...cycles);
-  const cycleGroups = cycles.map(c => ({
-    sec: `Cycle ${c}`, collapsible: true, key: `cycle-${c}`,
+  const initialAuditSection = cycleSections.find(s => s.sec === 'Initial Audit');
+  const cycleGroups = cycles.map(c => {
+    const isFirst = c === firstCycle;
     // Only the first cycle actually went through Initial Audit — every later
-    // cycle (recertification-before-expiry) is surveillance/recertification only,
-    // same rule as the legacy primary/non-primary Client ID scheme above.
-    groups: cycleSections.map(s => ({
-      label: s.sec,
-      items: (s.sec === 'Initial Audit' && c !== firstCycle)
-        ? s.items.filter(item => !HIDDEN_FOR_NON_PRIMARY.has(formTypeFromPath(item.to)))
-        : s.items,
-    })),
-  }));
+    // cycle (recertification-before-expiry) never gets an Initial Audit section.
+    // The Recertification group always mirrors the same (filtered) form set —
+    // in every cycle, including the first — regardless of whether Initial Audit
+    // is also showing them. Groups with no items are dropped so an empty
+    // Initial Audit / Recertification header never renders.
+    const groups = cycleSections.map(s => {
+      if (s.sec === 'Initial Audit') {
+        return { label: s.sec, phase: 'initial', items: isFirst ? s.items : [] };
+      }
+      if (s.sec === 'Recertification' && initialAuditSection) {
+        return {
+          label: s.sec, phase: 'recert',
+          items: initialAuditSection.items.filter(item => !HIDDEN_FOR_NON_PRIMARY.has(formTypeFromPath(item.to))),
+        };
+      }
+      return { label: s.sec, phase: phaseForSectionName(s.sec) || 'initial', items: s.items };
+    }).filter(g => g.items.length).map(g => ({ ...g, key: `cyclegrp-${c}-${g.label}` }));
+    return { sec: `Cycle ${c}`, collapsible: true, key: `cycle-${c}`, groups };
+  });
 
   const result = [];
   let inserted = false;
@@ -300,6 +328,33 @@ function buildCycleGroupedNav(sections, activeClient) {
     result.push(s);
   });
   return result;
+}
+
+// QMSFormPage has no way to know which client (or cycle) a sidebar click was
+// meant to open — without this, navigating to e.g. /admin/qms/form-12 always lands
+// on the generic "search a client" list view, which reads as "the form doesn't
+// open." Once a client is active (picked via company search elsewhere), decorate
+// every QMS form link with ?client=&cycle=&edit=1 so QMSFormPage's deep-link effect
+// auto-resolves that exact client/cycle straight into the editable form.
+function withClientDeepLinks(sections, activeClient) {
+  if (!activeClient || !activeClient.clientId) return sections;
+  const cid = encodeURIComponent(activeClient.clientId);
+  const decorateItem = (item, cycle, phase) => {
+    if (formTypeFromPath(item.to) == null || item.to.includes('?')) return item;
+    return { ...item, to: `${item.to}?client=${cid}&cycle=${cycle}&edit=1&phase=${phase}` };
+  };
+  return sections.map(s => {
+    if (s.groups) {
+      const m = /^cycle-(\d+)$/.exec(s.key || '');
+      const cycle = m ? m[1] : (activeClient.activeCycle || 1);
+      return { ...s, groups: s.groups.map(g => ({ ...g, items: g.items.map(item => decorateItem(item, cycle, g.phase || 'initial')) })) };
+    }
+    if (s.items) {
+      const phase = phaseForSectionName(s.sec) || 'initial';
+      return { ...s, items: s.items.map(item => decorateItem(item, activeClient.activeCycle || 1, phase)) };
+    }
+    return s;
+  });
 }
 
 export default function Layout({ children, title }) {
@@ -321,13 +376,19 @@ export default function Layout({ children, title }) {
   const [profileImg,      setProfileImg]      = useState(null);
   const [collapsed,       setCollapsed]       = useState({ master: true, qmsForms: true });
 
-  // Cycle-grouped nav (built when this Client ID has more than one cycle) takes
-  // priority over the legacy clientRank relabeling (built for the old scheme of a
-  // brand-new Client ID per cycle) — a given active client should only ever be
-  // using one of the two mechanisms at a time.
-  const secs = (activeClient && activeClient.cycleCount > 1)
-    ? buildCycleGroupedNav(NAV[user?.role] || [], activeClient)
-    : applyActiveClientNav(NAV[user?.role] || [], activeClient);
+  // Cycle-grouped nav (every "primary" Client ID — the common case, including a
+  // brand-new one still on cycle 1) takes priority over the legacy clientRank
+  // relabeling (built for the old scheme of a brand-new Client ID per cycle) — a
+  // given active client should only ever be using one of the two mechanisms at a
+  // time. A fresh single-cycle client still gets grouped as "Cycle 1" so its
+  // Recertification phase (and the auto-next-cycle feature) is reachable from the
+  // very first cycle, not only once a second cycle already exists.
+  const secs = withClientDeepLinks(
+    (activeClient && activeClient.isPrimaryClientId !== false)
+      ? buildCycleGroupedNav(NAV[user?.role] || [], activeClient)
+      : applyActiveClientNav(NAV[user?.role] || [], activeClient),
+    activeClient
+  );
 
   // "Cycle 1" starts open, every later cycle starts collapsed — every cycle points
   // at the same routes (the admin picks which cycle from the form page's own
@@ -335,6 +396,7 @@ export default function Layout({ children, title }) {
   // useful signal to auto-open one over another here.
   const isSectionCollapsed = (key) => {
     if (key in collapsed) return collapsed[key];
+    if (key && key.startsWith('cyclegrp-')) return false;
     if (key && key.startsWith('cycle-')) return key !== 'cycle-1';
     return false;
   };
@@ -546,9 +608,20 @@ export default function Layout({ children, title }) {
                   {!isSectionCollapsed(s.key) && (
                     <div className="nav-sub">
                       {s.groups ? s.groups.map((g, gi) => (
-                        <div key={g.label + gi}>
-                          <div className="nav-group-label" style={{ paddingLeft: 34, fontSize: 10 }}>{g.label}</div>
-                          {g.items.map(item => (
+                        <div key={g.key || g.label + gi}>
+                          <button
+                            className="nav-group-label"
+                            style={{ paddingLeft: 34, display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, fontWeight: 800, color: 'var(--primary-dark)', textAlign: 'left' }}
+                            onClick={() => toggleCollapse(g.key)}
+                          >
+                            {g.label}
+                            <FiChevronDown
+                              size={11}
+                              style={{ marginRight: 12 }}
+                              className={`nav-chevron ${!isSectionCollapsed(g.key) ? 'open' : ''}`}
+                            />
+                          </button>
+                          {!isSectionCollapsed(g.key) && g.items.map(item => (
                             <Link
                               key={item.to + item.label}
                               to={item.to}

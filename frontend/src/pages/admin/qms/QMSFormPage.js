@@ -14,6 +14,8 @@ import {
   FiEye, FiPrinter, FiMoreVertical, FiUpload, FiUserCheck, FiMapPin, FiChevronDown, FiBriefcase,
 } from 'react-icons/fi';
 
+const PHASE_LABELS = { initial: 'Initial', surv1: 'Surv-1', surv2: 'Surv-2', recert: 'Recert' };
+
 const STATUS_META = {
   draft:     { bg: '#fef3c7', color: '#92400e', Icon: FiClock,       label: 'Draft'     },
   saved:     { bg: '#d1fae5', color: '#065f46', Icon: FiCheckCircle, label: 'Saved'     },
@@ -621,11 +623,21 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   // Deep-link support for the "Download Forms" page: when opened as
   // /admin/qms/form-XX?client=<id>, auto-open this form's read-only preview (which
   // carries the Download PDF / Print buttons) for that client's saved record.
+  //
+  // The sidebar (Layout.js withClientDeepLinks) links into the SAME routes but adds
+  // &edit=1 — once a client is active, sidebar clicks should open the form for
+  // editing, not just preview it, since there'd otherwise be no way for this page to
+  // know which client/cycle the click was for and it'd fall back to the generic
+  // "search a client" list view.
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const cid = searchParams.get('client');
     if (!cid) return;
     const cycle = searchParams.get('cycle') || '1';
+    if (searchParams.get('edit') === '1') {
+      resolveClient(cid, cycle, searchParams.get('phase') || 'initial');
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -666,10 +678,11 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   // Resolve one exact Client ID and open its form — the shared tail end of both the
   // single-match path and the multi-match picker path (company name matched more
   // than one Client ID).
-  const resolveClient = async (id, cycleOverride) => {
+  const resolveClient = async (id, cycleOverride, phaseOverride) => {
     const q = cycleOverride ? `?cycle=${cycleOverride}` : '';
     const { data: client } = await axios.get(`/api/qms-forms/client/${id}${q}`);
-    setClientInfo(client);
+    const activePhase = phaseOverride || 'initial';
+    setClientInfo({ ...client, activePhase });
     setActiveClient({
       clientId: client.clientId, company: client.company,
       isPrimaryClientId: client.isPrimaryClientId, clientRank: client.clientRank,
@@ -679,7 +692,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     const activeCycle = client.activeCycle || 1;
     let base, st = 'draft', exId = null;
     try {
-      const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}?cycle=${activeCycle}`);
+      const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}?cycle=${activeCycle}&phase=${activePhase}`);
       base = withAppDefaults(existing.formData || defaultData || {}, client);
       st = existing.status || 'draft';
       exId = existing._id;
@@ -760,6 +773,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
       await axios.post('/api/qms-forms', {
         clientId: clientInfo.clientId,
         cycleNumber: clientInfo.activeCycle || 1,
+        phase: clientInfo.activePhase || 'initial',
         formType, formCode,
         formName: formTitle,
         status:   saveStatus,
@@ -788,8 +802,9 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   const openExisting = async (row) => {
     const cid = row.clientRef?.clientId || row.clientId || '';
     const cycleNum = row.cycleNumber || 1;
+    const phase = row.phase || 'initial';
     setClientIdInput(cid);
-    setClientInfo(row.clientRef ? { ...row.clientRef, activeCycle: cycleNum } : { clientId: cid, activeCycle: cycleNum });
+    setClientInfo(row.clientRef ? { ...row.clientRef, activeCycle: cycleNum, activePhase: phase } : { clientId: cid, activeCycle: cycleNum, activePhase: phase });
     setFormData(row.formData || {});
     initialSnapshotRef.current = JSON.stringify(row.formData || {});
     setStatus(row.status);
@@ -801,7 +816,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     if (cid) {
       try {
         const { data: client } = await axios.get(`/api/qms-forms/client/${cid}?cycle=${cycleNum}`);
-        setClientInfo(prev => ({ ...(prev || {}), ...client, activeCycle: cycleNum }));
+        setClientInfo(prev => ({ ...(prev || {}), ...client, activeCycle: cycleNum, activePhase: phase }));
         setActiveClient({
           clientId: client.clientId, company: client.company,
           isPrimaryClientId: client.isPrimaryClientId, clientRank: client.clientRank,
@@ -933,6 +948,12 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                                 C{row.cycleNumber}
                               </span>
                             )}
+                            <span title="Audit phase" style={{
+                              marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#6b7280',
+                              background: '#f1f5f9', padding: '1px 6px', borderRadius: 5,
+                            }}>
+                              {PHASE_LABELS[row.phase] || 'Initial'}
+                            </span>
                           </td>
                           <td style={{ fontWeight: 600 }}>{row.clientRef?.name || '—'}</td>
                           <td style={{ color: 'var(--gray-500)' }}>{row.clientRef?.company || '—'}</td>
@@ -999,6 +1020,21 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   </div>
                 </div>
                 <div className="qms-client-banner-right">
+                  {/* Several formTypes (CAR forms, the Application Form, …) are
+                      reachable from more than one stage — each stage keeps its own
+                      independent record, so switching this picks which one is open. */}
+                  <select
+                    value={clientInfo.activePhase || 'initial'}
+                    onChange={(e) => resolveClient(clientInfo.clientId, clientInfo.activeCycle || 1, e.target.value)}
+                    className="btn btn-sm"
+                    style={{ padding: '4px 8px' }}
+                    title="Switch audit phase"
+                  >
+                    <option value="initial">Initial Audit</option>
+                    <option value="surv1">Surveillance 1</option>
+                    <option value="surv2">Surveillance 2</option>
+                    <option value="recert">Recertification</option>
+                  </select>
                   {/* Only shown once this Client ID actually has more than one cycle
                       (Initial+Surveillances, then a fresh one per recertification-
                       before-expiry) — a brand-new/single-cycle client keeps today's
@@ -1006,7 +1042,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   {clientInfo.cycleCount > 1 && (
                     <select
                       value={clientInfo.activeCycle || 1}
-                      onChange={(e) => resolveClient(clientInfo.clientId, Number(e.target.value))}
+                      onChange={(e) => resolveClient(clientInfo.clientId, Number(e.target.value), clientInfo.activePhase)}
                       className="btn btn-sm"
                       style={{ padding: '4px 8px' }}
                       title="Switch certification cycle"

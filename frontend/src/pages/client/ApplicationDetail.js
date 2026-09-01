@@ -5,6 +5,7 @@ import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import{ArrowLeft,Upload,Download,Eye,Send,Star,FileText,CheckCircle,PenLine,Edit2,Save,X}from 'lucide-react';
 import { localMobileNumber } from '../../utils/phone';
+import { COUNTRY_CODES } from '../../utils/countryCodes';
 
 const FL=['draft','submitted','under_review','audit_stage1','audit_stage2','approved','certified'];
 const ISO_LIST=['ISO 9001:2015','ISO 14001:2015','ISO 45001:2018','ISO 22000:2018','ISO 27001:2022','ISO/IEC 27701:2025','ISO/IEC 42001:2023','ISO 22301:2019','ISO 37001:2016','ISO 21001:2018'];
@@ -13,19 +14,6 @@ const ACCRED=['EAS','UASL'];
 const EMP_ROWS=['Top Management','Production Area / Service','Quality Control / Technical','Administration','Other'];
 const EMP_COLS=['Full Time','Part Time','Performing Same type of Job','Temporary Unskilled Workers','Effective No. Filled by QCC'];
 const LOC_CONDS=['Special countermeasure area','Protection area of source water','Industrial complex','City'];
-const COUNTRY_CODES=[
-  {code:'+1',country:'US/Canada'},{code:'+7',country:'Russia'},{code:'+20',country:'Egypt'},
-  {code:'+27',country:'South Africa'},{code:'+31',country:'Netherlands'},{code:'+33',country:'France'},
-  {code:'+34',country:'Spain'},{code:'+39',country:'Italy'},{code:'+44',country:'UK'},
-  {code:'+45',country:'Denmark'},{code:'+46',country:'Sweden'},{code:'+49',country:'Germany'},
-  {code:'+52',country:'Mexico'},{code:'+55',country:'Brazil'},{code:'+60',country:'Malaysia'},
-  {code:'+61',country:'Australia'},{code:'+62',country:'Indonesia'},{code:'+65',country:'Singapore'},
-  {code:'+66',country:'Thailand'},{code:'+81',country:'Japan'},{code:'+82',country:'South Korea'},
-  {code:'+86',country:'China'},{code:'+90',country:'Turkey'},{code:'+91',country:'India'},
-  {code:'+92',country:'Pakistan'},{code:'+94',country:'Sri Lanka'},{code:'+234',country:'Nigeria'},
-  {code:'+254',country:'Kenya'},{code:'+880',country:'Bangladesh'},{code:'+966',country:'Saudi Arabia'},
-  {code:'+971',country:'UAE'},{code:'+974',country:'Qatar'},{code:'+977',country:'Nepal'},
-];
 
 const emptyEmpTable=()=>EMP_ROWS.map(()=>Array(EMP_COLS.length).fill(0));
 

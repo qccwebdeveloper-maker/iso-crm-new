@@ -1,4 +1,4 @@
-import React,{useState,useEffect}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,Search,ArrowLeft,Upload,FileText,Download,Archive,FolderOpen,Folder,ChevronRight,Link2,RefreshCw}from 'lucide-react';
+import React,{useState,useEffect}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,Search,ArrowLeft,Upload,FileText,Download,Archive,FolderOpen,Folder,ChevronRight,Link2,RefreshCw,Filter}from 'lucide-react';
 
 const EMPTY_FORM={companyName:'',contactPerson:'',phone:'',email:'',address:'',isoStandard:'',gstNumber:'',udyamNumber:'',notes:''};
 const DOC_TYPES=[{v:'agreement',l:'Agreement'},{v:'invoice',l:'Invoice'},{v:'certificate',l:'Certificate'},{v:'gstCertificate',l:'GST Certificate'},{v:'udyamCertificate',l:'Udyam Registration'},{v:'other',l:'Other'}];
@@ -17,6 +17,26 @@ export default function AdminOldClients(){
   const[driveEntries,setDriveEntries]=useState([]);const[driveStack,setDriveStack]=useState([]);
   const[attachingId,setAttachingId]=useState(null);
   const[syncing,setSyncing]=useState(false);
+  const[filterType,setFilterType]=useState('all');
+
+  // Synced-from-Drive documents keep their source sub-folder in `name`, e.g.
+  // "admin/5341.jpeg" or "Client/GST certificate.pdf" — mirror that grouping
+  // in the UI instead of showing one flat list. Manually uploaded files (no
+  // "/" in the name) fall into "Other".
+  const GROUP_ORDER=['Admin','Client'];
+  const docGroup=d=>{
+    const name=d.name||'';
+    if(!name.includes('/'))return'Other';
+    const top=name.split('/')[0];
+    const topLower=top.toLowerCase();
+    if(topLower==='admin')return'Admin';
+    if(topLower==='client')return'Client';
+    return top;
+  };
+  const docFileName=d=>{
+    const name=d.name||'';
+    return name.includes('/')?name.split('/').slice(1).join('/'):(d.originalName||name);
+  };
 
   const load=()=>{setLoading(true);axios.get('/api/oldclients').then(r=>setList(r.data||[])).catch(()=>toast.error('Failed to load old clients')).finally(()=>setLoading(false));};
   useEffect(load,[]);
@@ -117,7 +137,7 @@ export default function AdminOldClients(){
           <div><h1 className="page-title">{isEdit?'Edit Old Client':'Add Old Client'}</h1><p className="page-subtitle">{isEdit?'Update company details and manage documents':'Save the company first, then attach its documents'}</p></div>
         </div>
       </div>
-      <div className="card" style={{width:'100%',maxWidth:640,padding:24,marginBottom:isEdit?20:0}}>
+      <div className="card" style={{width:'100%',padding:24,marginBottom:isEdit?20:0}}>
         <div className="form-group"><label className="form-label">Company Name *</label><input className="form-control" value={form.companyName} onChange={e=>setForm(p=>({...p,companyName:e.target.value}))} placeholder="e.g. TAP Engineering"/></div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
           <div className="form-group"><label className="form-label">Contact Person</label><input className="form-control" value={form.contactPerson} onChange={e=>setForm(p=>({...p,contactPerson:e.target.value}))}/></div>
@@ -135,9 +155,10 @@ export default function AdminOldClients(){
         </div>
       </div>
 
-      {isEdit&&(<div className="card" style={{width:'100%',maxWidth:640,padding:24}}>
+      {isEdit&&(<div className="card" style={{width:'100%',padding:24}}>
         <h3 style={{margin:'0 0 14px',fontSize:15,display:'flex',alignItems:'center',gap:8}}><Archive size={16} style={{color:'var(--primary)'}}/>Documents</h3>
         <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:16}}>
+          <label style={{fontSize:12,color:'var(--gray-500)'}}>Upload as:</label>
           <select className="form-control" style={{maxWidth:220}} value={docType} onChange={e=>setDocType(e.target.value)}>
             {DOC_TYPES.map(t=><option key={t.v} value={t.v}>{t.l}</option>)}
           </select>
@@ -177,19 +198,44 @@ export default function AdminOldClients(){
           )}
         </div>)}
 
+        {(modal.documents||[]).length>0&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+          <Filter size={13} style={{color:'var(--gray-400)'}}/>
+          <label style={{fontSize:12,color:'var(--gray-500)'}}>Filter by type:</label>
+          <select className="form-control" style={{maxWidth:220}} value={filterType} onChange={e=>setFilterType(e.target.value)}>
+            <option value="all">All Types</option>
+            {DOC_TYPES.map(t=><option key={t.v} value={t.v}>{t.l}</option>)}
+          </select>
+        </div>)}
+
         {(modal.documents||[]).length===0
           ?<p style={{fontSize:12,color:'var(--gray-400)'}}>No documents uploaded yet.</p>
-          :<div className="tbl-wrap"><table className="tbl"><thead><tr><th>File</th><th>Type</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>
-            {modal.documents.map(d=>(<tr key={d._id}>
-              <td><div style={{display:'flex',alignItems:'center',gap:8}}><FileText size={13} style={{color:'var(--primary)'}}/>{d.originalName||d.name}</div></td>
-              <td><span className="badge bdg-info">{DOC_TYPES.find(t=>t.v===d.docType)?.l||d.docType}</span></td>
-              <td style={{fontSize:12,color:'var(--gray-400)'}}>{d.uploadedAt?new Date(d.uploadedAt).toLocaleDateString():'—'}</td>
-              <td><div className="tbl-actions">
-                <a className="btn btn-ghost btn-sm" href={d.path} target="_blank" rel="noreferrer"><Download size={13}/>View</a>
-                <button className="btn btn-danger btn-sm" onClick={()=>delDoc(d._id)}><Trash2 size={13}/>Remove</button>
-              </div></td>
-            </tr>))}
-          </tbody></table></div>}
+          :(()=>{
+              const docsFiltered=modal.documents.filter(d=>filterType==='all'||d.docType===filterType);
+              if(docsFiltered.length===0)return<p style={{fontSize:12,color:'var(--gray-400)'}}>No documents match this filter.</p>;
+              const groups={};
+              docsFiltered.forEach(d=>{const g=docGroup(d);(groups[g]=groups[g]||[]).push(d);});
+              const groupNames=Object.keys(groups).sort((a,b)=>{
+                const idx=n=>GROUP_ORDER.indexOf(n);
+                const ai=idx(a),bi=idx(b);
+                if(ai!==-1||bi!==-1)return(ai===-1?99:ai)-(bi===-1?99:bi);
+                if(a==='Other')return 1;if(b==='Other')return -1;
+                return a.localeCompare(b);
+              });
+              return groupNames.map(g=>(<div key={g} style={{marginBottom:20}}>
+                <h4 style={{margin:'0 0 8px',fontSize:13,display:'flex',alignItems:'center',gap:6,color:'var(--gray-600)'}}><Folder size={13} style={{color:'var(--primary)'}}/>{g} <span style={{color:'var(--gray-400)',fontWeight:400}}>({groups[g].length})</span></h4>
+                <div className="tbl-wrap"><table className="tbl"><thead><tr><th>File</th><th>Type</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>
+                  {groups[g].map(d=>(<tr key={d._id}>
+                    <td><div style={{display:'flex',alignItems:'center',gap:8}}><FileText size={13} style={{color:'var(--primary)'}}/>{docFileName(d)}</div></td>
+                    <td><span className="badge bdg-info">{DOC_TYPES.find(t=>t.v===d.docType)?.l||d.docType}</span></td>
+                    <td style={{fontSize:12,color:'var(--gray-400)'}}>{d.uploadedAt?new Date(d.uploadedAt).toLocaleDateString():'—'}</td>
+                    <td><div className="tbl-actions">
+                      <a className="btn btn-ghost btn-sm" href={d.path} target="_blank" rel="noreferrer"><Download size={13}/>View</a>
+                      <button className="btn btn-danger btn-sm" onClick={()=>delDoc(d._id)}><Trash2 size={13}/>Remove</button>
+                    </div></td>
+                  </tr>))}
+                </tbody></table></div>
+              </div>));
+            })()}
       </div>)}
     </Layout>);
   }

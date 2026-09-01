@@ -21,6 +21,7 @@ const AdminFeedback         = lazy(() => import('./pages/admin/Feedback'));
 const AdminLeads            = lazy(() => import('./pages/admin/Leads'));
 const AdminPayments         = lazy(() => import('./pages/admin/Payments'));
 const AdminStandards        = lazy(() => import('./pages/admin/Standards'));
+const AdminOldClients       = lazy(() => import('./pages/admin/OldClients'));
 const AdminRoles            = lazy(() => import('./pages/admin/Roles'));
 const ApprovalPending       = lazy(() => import('./pages/admin/ApprovalPending'));
 const DMS                   = lazy(() => import('./pages/admin/DMS'));
@@ -127,6 +128,7 @@ function AppRoutes() {
       <Route path="/admin/admin-reports"     element={<ProtectedRoute roles={['admin']}><AdminReports /></ProtectedRoute>} />
       <Route path="/admin/feedback"          element={<ProtectedRoute roles={['admin']}><AdminFeedback /></ProtectedRoute>} />
       <Route path="/admin/standards"         element={<ProtectedRoute roles={['admin']}><AdminStandards /></ProtectedRoute>} />
+      <Route path="/admin/old-clients"       element={<ProtectedRoute roles={['admin']}><AdminOldClients /></ProtectedRoute>} />
       <Route path="/admin/roles"             element={<ProtectedRoute roles={['admin']}><AdminRoles /></ProtectedRoute>} />
       <Route path="/admin/approval-pending"  element={<ProtectedRoute roles={['admin']}><ApprovalPending /></ProtectedRoute>} />
       <Route path="/admin/dms"               element={<ProtectedRoute roles={['admin']}><DMS /></ProtectedRoute>} />

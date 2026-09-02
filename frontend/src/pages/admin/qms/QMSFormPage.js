@@ -5,11 +5,16 @@ import axios from 'axios';
 import Layout from '../../../components/common/Layout';
 import toast from 'react-hot-toast';
 import useStandards from './useStandards';
+import { useAuth } from '../../../context/AuthContext';
+import { useActiveClient } from '../../../context/ActiveClientContext';
+import { useUnsavedChangesGuard } from '../../../context/UnsavedChangesContext';
 import {
   FiSearch, FiUser, FiSave, FiFileText, FiList, FiPlusCircle,
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
-  FiEye, FiPrinter, FiMoreVertical, FiUpload, FiUserCheck,
+  FiEye, FiPrinter, FiMoreVertical, FiUpload, FiUserCheck, FiMapPin, FiChevronDown, FiBriefcase,
 } from 'react-icons/fi';
+
+const PHASE_LABELS = { initial: 'Initial', surv1: 'Surv-1', surv2: 'Surv-2', recert: 'Recert' };
 
 const STATUS_META = {
   draft:     { bg: '#fef3c7', color: '#92400e', Icon: FiClock,       label: 'Draft'     },
@@ -525,9 +530,23 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellCha
 // ─── Main page wrapper ────────────────────────────────────────────────────────
 
 export default function QMSFormPage({ formType, formCode, formTitle, defaultData, prefillFrom, children }) {
+  const { user } = useAuth();
+  const { setActiveClient } = useActiveClient();
+  // Auditors/reviewers can review & edit these forms exactly like admin, but
+  // assigning the audit team and deleting records stay admin-only management actions.
+  const isAdmin = user?.role === 'admin';
+  // `defaultData` may be a plain object, or (for a form shared across phases —
+  // Form16 etc.) a function of the active phase, so a brand-new record can start
+  // with phase-appropriate defaults (e.g. Audit Type "Surveillance II" for a new
+  // form opened under the Surveillance-2 section) instead of one hardcoded value.
+  const resolveDefaultData = (phase) => (typeof defaultData === 'function' ? defaultData(phase) : (defaultData || {}));
   const [clientIdInput, setClientIdInput] = useState('');
   const [clientInfo,    setClientInfo]    = useState(null);
-  const [formData,      setFormData]      = useState(defaultData || {});
+  const [clientMatches, setClientMatches] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('qms_client_directory') || 'null'); }
+    catch { return null; }
+  }); // grouped company -> branches -> client IDs
+  const [formData,      setFormData]      = useState(resolveDefaultData());
   const [existingId,    setExistingId]    = useState(null);
   const [status,        setStatus]        = useState('draft');
   const [view,          setView]          = useState('list');
@@ -543,6 +562,30 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   const [assignSel,     setAssignSel]     = useState({ auditorId: '', reviewerId: '' });
   const [assigning,     setAssigning]     = useState(false);
 
+  // Unsaved-changes guard: snapshot of formData as it was when the form was opened
+  // (fresh or existing), compared against the live formData to decide whether
+  // leaving should prompt to save. Reset whenever a form is (re)opened.
+  const unsavedGuard = useUnsavedChangesGuard();
+  const initialSnapshotRef = useRef(null);
+  const isDirty = view === 'form'
+    && initialSnapshotRef.current !== null
+    && JSON.stringify(formData) !== initialSnapshotRef.current;
+
+  useEffect(() => {
+    if (!unsavedGuard) return;
+    unsavedGuard.current = isDirty
+      ? { isDirty: true, onSave: () => handleSave('draft'), onDiscard: resetForm }
+      : null;
+  }); // no deps — keep the ref's callbacks pointing at the latest formData/status
+
+  useEffect(() => {
+    const handler = (e) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  useEffect(() => () => { if (unsavedGuard) unsavedGuard.current = null; }, []); // eslint-disable-line
+
   const fetchList = useCallback(async () => {
     setListLoading(true);
     try {
@@ -555,11 +598,12 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   useEffect(() => { fetchList(); }, [fetchList]);
 
   useEffect(() => {
+    if (!isAdmin) return;
     axios.get('/api/auditors').then(({ data }) => {
       setAuditors((data || []).filter(u => u.role === 'auditor'));
       setReviewers((data || []).filter(u => u.role === 'reviewer'));
     }).catch(() => {});
-  }, []);
+  }, [isAdmin]);
 
   const openAssign = (row) => {
     setAssignRow(row);
@@ -584,19 +628,30 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   // Deep-link support for the "Download Forms" page: when opened as
   // /admin/qms/form-XX?client=<id>, auto-open this form's read-only preview (which
   // carries the Download PDF / Print buttons) for that client's saved record.
+  //
+  // The sidebar (Layout.js withClientDeepLinks) links into the SAME routes but adds
+  // &edit=1 — once a client is active, sidebar clicks should open the form for
+  // editing, not just preview it, since there'd otherwise be no way for this page to
+  // know which client/cycle the click was for and it'd fall back to the generic
+  // "search a client" list view.
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const cid = searchParams.get('client');
     if (!cid) return;
+    const cycle = searchParams.get('cycle') || '1';
+    if (searchParams.get('edit') === '1') {
+      resolveClient(cid, cycle, searchParams.get('phase') || 'initial');
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
-        const { data: rec } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}`);
+        const { data: rec } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}?cycle=${cycle}`);
         if (cancelled || !rec || !rec._id) return;
         let clientRef = rec.clientRef;
         if (!clientRef || !clientRef.company) {
           try {
-            const { data: client } = await axios.get(`/api/qms-forms/client/${cid}`);
+            const { data: client } = await axios.get(`/api/qms-forms/client/${cid}?cycle=${cycle}`);
             clientRef = { clientId: cid, ...(clientRef || {}), ...client };
           } catch { /* keep the lean ref */ }
         }
@@ -625,51 +680,93 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     return prefillFrom.apply(sources, base);
   };
 
+  // Resolve one exact Client ID and open its form — the shared tail end of both the
+  // single-match path and the multi-match picker path (company name matched more
+  // than one Client ID).
+  const resolveClient = async (id, cycleOverride, phaseOverride) => {
+    const q = cycleOverride ? `?cycle=${cycleOverride}` : '';
+    const { data: client } = await axios.get(`/api/qms-forms/client/${id}${q}`);
+    const activePhase = phaseOverride || 'initial';
+    setClientInfo({ ...client, activePhase });
+    setActiveClient({
+      clientId: client.clientId, company: client.company,
+      isPrimaryClientId: client.isPrimaryClientId, clientRank: client.clientRank,
+      cycles: client.cycles, cycleCount: client.cycleCount, activeCycle: client.activeCycle,
+    });
+    const cid = client.clientId || id;
+    const activeCycle = client.activeCycle || 1;
+    let base, st = 'draft', exId = null;
+    try {
+      const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}?cycle=${activeCycle}&phase=${activePhase}`);
+      base = withAppDefaults(existing.formData || resolveDefaultData(activePhase), client);
+      st = existing.status || 'draft';
+      exId = existing._id;
+      toast.success('Existing form loaded');
+    } catch {
+      base = {
+        ...resolveDefaultData(activePhase),
+        idNo:                 client.clientId      || '',
+        refno:                client.refno         || client.clientId || '',
+        acceptanceRefNo:      client.clientId      || '',
+        noOfPersons:          client.empTotal ? String(client.empTotal) : '',
+        orgName:              client.company       || '',
+        organizationName:     client.company       || '',
+        contactPerson:        client.contactPerson || client.name || '',
+        emailId:              client.email         || '',
+        email:                client.email         || '',
+        contactDetails:       client.phone         || '',
+        contactNumbers:       client.phone         || '',
+        mobileNumber:         client.phone         || '',
+        address:              client.address       || '',
+        scopeOfCertification: client.scope         || '',
+        modeOfAudit:          client.modeOfWorking || '',
+        auditStandards:       client.isoStandard   || '',
+        isoStandards:         client.isoStandard   || '',
+        standard:             client.isoStandard   || '',
+      };
+      // Form01's own "Standard(s) — tick all applicable" picker (`standards`, an
+      // array) is the ORIGINAL source client.isoStandard is itself derived from —
+      // only pre-tick it here (brand-new record), never on an existing one, so a
+      // later manual change on this form is never fought/overridden.
+      if (client.standards && client.standards.length) base.standards = client.standards;
+      toast.success('Client found — new form opened with pre-filled details');
+    }
+    base = await applyPrefill(cid, base);
+    setFormData(base);
+    initialSnapshotRef.current = JSON.stringify(base);
+    setStatus(st);
+    setExistingId(exId);
+    setView('form');
+  };
+
   const handleClientSearch = async (e) => {
     e.preventDefault();
     const id = clientIdInput.trim();
     if (!id) return;
     setSearching(true);
     try {
-      const { data: client } = await axios.get(`/api/qms-forms/client/${id}`);
-      setClientInfo(client);
-      const cid = client.clientId || id;
-      let base, st = 'draft', exId = null;
-      try {
-        const { data: existing } = await axios.get(`/api/qms-forms/by-client/${cid}/${formType}`);
-        base = withAppDefaults(existing.formData || defaultData || {}, client);
-        st = existing.status || 'draft';
-        exId = existing._id;
-        toast.success('Existing form loaded');
-      } catch {
-        base = {
-          ...(defaultData || {}),
-          idNo:                 client.clientId      || '',
-          refno:                client.refno         || client.clientId || '',
-          acceptanceRefNo:      client.clientId      || '',
-          noOfPersons:          client.empTotal ? String(client.empTotal) : '',
-          orgName:              client.company       || '',
-          organizationName:     client.company       || '',
-          contactPerson:        client.contactPerson || client.name || '',
-          emailId:              client.email         || '',
-          email:                client.email         || '',
-          contactDetails:       client.phone         || '',
-          contactNumbers:       client.phone         || '',
-          mobileNumber:         client.phone         || '',
-          address:              client.address       || '',
-          scopeOfCertification: client.scope         || '',
-          modeOfAudit:          client.modeOfWorking || '',
-          auditStandards:       client.isoStandard   || '',
-          isoStandards:         client.isoStandard   || '',
-          standard:             client.isoStandard   || '',
-        };
-        toast.success('Client found — new form opened with pre-filled details');
+      // Every form can be searched by company name, and one company may have more
+      // than one Client ID (e.g. separate certifications/sites) — offer a picker in
+      // that case instead of silently opening an arbitrary match.
+      const { data: matches } = await axios.get(`/api/qms-forms/find-clients/${encodeURIComponent(id)}`);
+      if (!matches || matches.length === 0) {
+        toast.error('No client found with this ID or company name');
+        return;
       }
-      base = await applyPrefill(cid, base);
-      setFormData(base);
-      setStatus(st);
-      setExistingId(exId);
-      setView('form');
+      const clients = matches.flatMap(company => company.branches.flatMap(branch => branch.clients));
+      const exact = clients.find(client => client.clientId.toLowerCase() === id.toLowerCase());
+      setClientMatches(matches);
+      sessionStorage.setItem('qms_client_directory', JSON.stringify(matches));
+      if (exact) await resolveClient(exact.clientId);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Client not found');
+    } finally { setSearching(false); }
+  };
+
+  const pickClient = async (cid) => {
+    setSearching(true);
+    try {
+      await resolveClient(cid);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Client not found');
     } finally { setSearching(false); }
@@ -679,12 +776,43 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   // can reorder/append based on the latest state, e.g. drag-reordering a table).
   const set = (key, val) => setFormData(p => ({ ...p, [key]: typeof val === 'function' ? val(p[key]) : val }));
 
+  // A save can silently start a brand-new cycle server-side with no separate
+  // creation step the UI is told about (Form 15's recert completion — see
+  // backend/routes/qmsForms.js maybeStartNextCycle). Re-pull this Client ID's
+  // cycle list right after saving so the sidebar (ActiveClientContext) and the
+  // branch drawer's per-client cycle badge (clientMatches) pick it up
+  // immediately instead of only after a page reload or a fresh search.
+  const refreshClientCycleInfo = async (clientId, cycle) => {
+    try {
+      const { data: client } = await axios.get(`/api/qms-forms/client/${clientId}?cycle=${cycle}`);
+      setActiveClient(prev => (prev && prev.clientId === clientId)
+        ? { ...prev, cycles: client.cycles, cycleCount: client.cycleCount, activeCycle: client.activeCycle }
+        : prev);
+      setClientMatches(prev => {
+        if (!prev) return prev;
+        const next = prev.map(company => ({
+          ...company,
+          branches: company.branches.map(branch => ({
+            ...branch,
+            clients: branch.clients.map(c => c.clientId === clientId
+              ? { ...c, cycles: client.cycles, cycleCount: client.cycleCount }
+              : c),
+          })),
+        }));
+        sessionStorage.setItem('qms_client_directory', JSON.stringify(next));
+        return next;
+      });
+    } catch { /* non-critical — sidebar/drawer just stay stale until next reload/search */ }
+  };
+
   const handleSave = async (saveStatus) => {
-    if (!clientInfo) return;
+    if (!clientInfo) return false;
     setSaving(true);
     try {
       await axios.post('/api/qms-forms', {
         clientId: clientInfo.clientId,
+        cycleNumber: clientInfo.activeCycle || 1,
+        phase: clientInfo.activePhase || 'initial',
         formType, formCode,
         formName: formTitle,
         status:   saveStatus,
@@ -692,10 +820,13 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
       });
       setStatus(saveStatus);
       toast.success(saveStatus === 'draft' ? 'Saved as draft' : 'Form saved successfully');
+      await refreshClientCycleInfo(clientInfo.clientId, clientInfo.activeCycle || 1);
       fetchList();
       resetForm();
+      return true;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed');
+      return false;
     } finally { setSaving(false); }
   };
 
@@ -710,9 +841,12 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
 
   const openExisting = async (row) => {
     const cid = row.clientRef?.clientId || row.clientId || '';
+    const cycleNum = row.cycleNumber || 1;
+    const phase = row.phase || 'initial';
     setClientIdInput(cid);
-    setClientInfo(row.clientRef || { clientId: cid });
+    setClientInfo(row.clientRef ? { ...row.clientRef, activeCycle: cycleNum, activePhase: phase } : { clientId: cid, activeCycle: cycleNum, activePhase: phase });
     setFormData(row.formData || {});
+    initialSnapshotRef.current = JSON.stringify(row.formData || {});
     setStatus(row.status);
     setExistingId(row._id);
     setView('form');
@@ -721,23 +855,30 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
     // that read from the application — e.g. F03 — get the same data as a fresh search.
     if (cid) {
       try {
-        const { data: client } = await axios.get(`/api/qms-forms/client/${cid}`);
-        setClientInfo(prev => ({ ...(prev || {}), ...client }));
+        const { data: client } = await axios.get(`/api/qms-forms/client/${cid}?cycle=${cycleNum}`);
+        setClientInfo(prev => ({ ...(prev || {}), ...client, activeCycle: cycleNum, activePhase: phase }));
+        setActiveClient({
+          clientId: client.clientId, company: client.company,
+          isPrimaryClientId: client.isPrimaryClientId, clientRank: client.clientRank,
+          cycles: client.cycles, cycleCount: client.cycleCount, activeCycle: cycleNum,
+        });
         // Fill any blank shared fields (address, scope, REFNO, ID, mode of audit)
         // from the application record, preserving anything already entered, then
         // pull any still-empty linked data (e.g. NCs from F07) via prefillFrom.
         let base = withAppDefaults(row.formData || {}, client);
         base = await applyPrefill(cid, base);
         setFormData(base);
+        initialSnapshotRef.current = JSON.stringify(base);
       } catch { /* keep the lean clientRef if the lookup fails */ }
-    }
+      }
   };
 
   const resetForm = () => {
     setView('list');
     setClientIdInput('');
     setClientInfo(null);
-    setFormData(defaultData || {});
+    setFormData(resolveDefaultData());
+    initialSnapshotRef.current = null;
     setExistingId(null);
     setStatus('draft');
   };
@@ -826,7 +967,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                 <table className="qms-tbl">
                   <thead>
                     <tr>
-                      {['Client ID', 'Client Name', 'Company', 'Status', 'Auditor', 'Last Updated', 'Actions'].map(h => (
+                      {['Client ID', 'Client Name', 'Company', 'Status', 'Auditor', 'Actions'].map(h => (
                         <th key={h}>{h}</th>
                       ))}
                     </tr>
@@ -837,7 +978,23 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                       const SIcon = sm.Icon;
                       return (
                         <tr key={row._id}>
-                          <td><span className="mono">{row.clientId}</span></td>
+                          <td>
+                            <span className="mono">{row.clientId}</span>
+                            {row.cycleNumber > 1 && (
+                              <span title="Certification cycle" style={{
+                                marginLeft: 6, fontSize: 10, fontWeight: 700, color: 'var(--primary-dark)',
+                                background: 'var(--primary-100)', padding: '1px 6px', borderRadius: 5,
+                              }}>
+                                C{row.cycleNumber}
+                              </span>
+                            )}
+                            <span title="Audit phase" style={{
+                              marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#6b7280',
+                              background: '#f1f5f9', padding: '1px 6px', borderRadius: 5,
+                            }}>
+                              {PHASE_LABELS[row.phase] || 'Initial'}
+                            </span>
+                          </td>
                           <td style={{ fontWeight: 600 }}>{row.clientRef?.name || '—'}</td>
                           <td style={{ color: 'var(--gray-500)' }}>{row.clientRef?.company || '—'}</td>
                           <td>
@@ -846,9 +1003,6 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                             </span>
                           </td>
                           <td style={{ fontSize: 12, color: 'var(--gray-500)' }}>{row.application?.assignedAuditor?.name || '—'}</td>
-                          <td style={{ color: 'var(--gray-400)', whiteSpace: 'nowrap' }}>
-                            {new Date(row.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </td>
                           <td>
                             <div className="qms-tbl-actions">
                               <button type="button" onClick={() => openExisting(row)} className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -857,12 +1011,16 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                               <button type="button" onClick={() => setPreviewRow(row)} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                 <FiEye size={11} /> View
                               </button>
-                              <button type="button" onClick={() => openAssign(row)} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                <FiUserCheck size={11} /> {row.application?.assignedAuditor ? 'Reassign' : 'Assign'}
-                              </button>
-                              <button type="button" onClick={() => setDeleteId(row._id)} className="btn btn-danger btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                <FiTrash2 size={11} />
-                              </button>
+                              {isAdmin && (
+                                <button type="button" onClick={() => openAssign(row)} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <FiUserCheck size={11} /> {row.application?.assignedAuditor ? 'Reassign' : 'Assign'}
+                                </button>
+                              )}
+                              {isAdmin && (
+                                <button type="button" onClick={() => setDeleteId(row._id)} className="btn btn-danger btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <FiTrash2 size={11} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -902,6 +1060,48 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                   </div>
                 </div>
                 <div className="qms-client-banner-right">
+                  {/* Several formTypes (CAR forms, the Application Form, …) are
+                      reachable from more than one stage — each stage keeps its own
+                      independent record, so switching this picks which one is open. */}
+                  <select
+                    value={clientInfo.activePhase || 'initial'}
+                    onChange={(e) => resolveClient(clientInfo.clientId, clientInfo.activeCycle || 1, e.target.value)}
+                    className="btn btn-sm"
+                    style={{ padding: '4px 8px' }}
+                    title="Switch audit phase"
+                  >
+                    {/* A new cycle only ever has Surveillance-1/2 + Recertification —
+                        no Initial Audit phase (see backend maybeStartNextCycle) — so
+                        hide this option once the client is past cycle 1. */}
+                    {(clientInfo.activeCycle || 1) === 1 && <option value="initial">Initial Audit</option>}
+                    <option value="surv1">Surveillance 1</option>
+                    <option value="surv2">Surveillance 2</option>
+                    <option value="recert">Recertification</option>
+                  </select>
+                  {/* Only shown once this Client ID actually has more than one cycle
+                      (Initial+Surveillances, then a fresh one per recertification-
+                      before-expiry) — a brand-new/single-cycle client keeps today's
+                      plain banner with no cycle UI at all. */}
+                  {clientInfo.cycleCount > 1 && (
+                    <select
+                      value={clientInfo.activeCycle || 1}
+                      onChange={(e) => {
+                        const nextCycle = Number(e.target.value);
+                        // Initial Audit doesn't exist past cycle 1 (see the phase
+                        // <select> above) — jumping to a later cycle while it's the
+                        // active phase would carry over a now-hidden selection.
+                        const nextPhase = nextCycle === 1 ? clientInfo.activePhase : (clientInfo.activePhase === 'initial' ? 'surv1' : clientInfo.activePhase);
+                        resolveClient(clientInfo.clientId, nextCycle, nextPhase);
+                      }}
+                      className="btn btn-sm"
+                      style={{ padding: '4px 8px' }}
+                      title="Switch certification cycle"
+                    >
+                      {(clientInfo.cycles || [1]).map(c => (
+                        <option key={c} value={c}>Cycle {c}</option>
+                      ))}
+                    </select>
+                  )}
                   <span className="qms-status-pill" style={{ background: statusMeta.bg, color: statusMeta.color }}>
                     <statusMeta.Icon size={11} /> {statusMeta.label}
                   </span>
@@ -1046,6 +1246,56 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
             </div>
           </div>
         </div>
+      )}
+
+      {/* Company search results: company -> branch -> client IDs */}
+      {clientMatches && (
+          <aside className="branch-drawer branch-drawer-persistent" aria-label="Company branches">
+            <div className="branch-drawer-head">
+              <div>
+                <div className="branch-drawer-kicker">Client directory</div>
+                <h3>Choose a branch and Client ID</h3>
+              </div>
+              <button type="button" className="branch-drawer-close" onClick={() => { setClientMatches(null); sessionStorage.removeItem('qms_client_directory'); }} title="Close"><FiX size={18} /></button>
+            </div>
+            <div className="branch-drawer-body">
+              {clientMatches.map(company => (
+                <details key={company.company} className="branch-company" open>
+                  <summary className="branch-company-name">
+                    <FiBriefcase size={15} />
+                    <span>{company.company}</span>
+                    <span className="branch-company-count">{company.branches.length}</span>
+                    <FiChevronDown className="branch-chevron" size={13} />
+                  </summary>
+                  <div className="branch-company-tree">{company.branches.map(branch => (
+                    <details key={branch.branchLabel} className="branch-group" open>
+                      <summary className="branch-group-head">
+                        <FiMapPin className="nav-icon" size={15} />
+                        <div className="branch-label">{branch.branchLabel}</div>
+                        <span>{branch.clients.length}</span>
+                        <FiChevronDown className="branch-chevron" size={13} />
+                      </summary>
+                      {branch.address && <div className="branch-address">{branch.address}</div>}
+                      <div className="branch-client-list">
+                        {branch.clients.map(client => (
+                          <button key={client.clientId} type="button" className="branch-client" onClick={() => pickClient(client.clientId)}>
+                            <span className="branch-tree-dot" />
+                            <div>
+                              <strong>{client.clientId}</strong>
+                              <div className="branch-standards">
+                                <span className="branch-meta-label">Standard:</span>{(client.standards.length ? client.standards : ['Not set']).map(standard => <span key={standard}>{standard}</span>)}
+                              </div>
+                            </div>
+                            <span className="branch-cycle-count" title={`${client.cycleCount} certification cycle${client.cycleCount === 1 ? '' : 's'}`}>C{client.cycleCount}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  ))}</div>
+                </details>
+              ))}
+            </div>
+          </aside>
       )}
 
       {/* ═══ ASSIGN AUDITOR ═══ */}

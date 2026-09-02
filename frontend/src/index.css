@@ -407,6 +407,7 @@ pre { max-width: 100%; overflow-x: auto; }
 .bdg-active, .bdg-Active   { background: var(--green-50);   color: var(--green); }
 .bdg-inactive, .bdg-Inactive { background: var(--gray-100); color: var(--gray-500); }
 .bdg-info     { background: var(--blue-50);     color: var(--blue); }
+.bdg-pending_review { background: var(--red-50); color: var(--red); }
 .bdg-new      { background: var(--blue-50);     color: var(--blue); }
 .bdg-contacted { background: var(--amber-50);   color: #92400e; }
 .bdg-qualified { background: var(--purple-50);  color: var(--purple); }
@@ -458,7 +459,7 @@ select.form-control { cursor: pointer; }
 .audit-wrap        { padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
 .audit-layout      { display: grid; grid-template-columns: 230px 1fr; gap: 20px; align-items: start; }
 .audit-sidebar     { position: sticky; top: 76px; }
-.audit-meta-row    { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.audit-meta-row    { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .audit-section-hdr { display: flex; align-items: center; gap: 10px; padding: 13px 20px; background: #fafafa; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background .15s; }
 .audit-section-hdr:hover   { background: #fff7ed; }
 .audit-section-hdr.active  { background: #fff7ed; border-left: 3px solid var(--primary); }
@@ -555,6 +556,51 @@ select.form-control { cursor: pointer; }
 .modal-close:hover { background: var(--gray-100); color: var(--text-1); }
 .modal-body { padding: 20px 22px; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 22px; border-top: 1.5px solid var(--primary-50); }
+
+/* Company search branch directory */
+.branch-drawer-bg { position: fixed; inset: 0; z-index: 520; background: rgba(15,23,42,.36); backdrop-filter: blur(2px); animation: fadeIn .15s; }
+.branch-drawer { position: absolute; top: 0; right: 0; height: 100%; width: min(var(--sidebar-w), 94vw); background: var(--white); border-left: 1.5px solid var(--primary-100); box-shadow: -2px 0 24px rgba(21,101,192,.12); display: flex; flex-direction: column; animation: branchDrawerIn .2s ease-out; }
+.branch-drawer-persistent { position: fixed; top: 0; right: 0; bottom: 0; height: auto; z-index: 180; }
+@media (min-width: 769px) {
+  .layout:has(.branch-drawer-persistent) .main-content { margin-right: var(--sidebar-w); }
+}
+@keyframes branchDrawerIn { from { transform: translateX(28px); opacity: .6; } to { transform: none; opacity: 1; } }
+.branch-drawer-head { padding: 18px 16px 14px; border-bottom: 1.5px solid var(--primary-100); background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%); display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 77px; }
+.branch-drawer-head h3 { margin: 2px 0 0; color: var(--text-1); font-size: 12px; font-weight: 800; letter-spacing: 0; }
+.branch-drawer-kicker { color: var(--primary); font-size: 9.5px; font-weight: 600; }
+.branch-drawer-close { width: 28px; height: 28px; border: 1.5px solid var(--primary-200); background: #fff; color: var(--primary-dark); display: grid; place-items: center; cursor: pointer; border-radius: 50%; }
+.branch-drawer-close:hover { background: var(--primary-50); }
+.branch-drawer-body { flex: 1; padding: 12px 10px; overflow-y: auto; }
+.branch-company + .branch-company { margin-top: 14px; }
+.branch-company > summary { list-style: none; }
+.branch-company > summary::-webkit-details-marker { display: none; }
+.branch-company-name { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: var(--r-sm); background: linear-gradient(135deg, var(--primary-50), #fff); border: 1px solid var(--primary-100); color: var(--primary-dark); cursor: pointer; }
+.branch-company-name > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 800; }
+.branch-company-count { min-width: 18px; padding: 1px 4px; border-radius: 99px; background: var(--primary); color: #fff; font-size: 8px; font-weight: 800; text-align: center; }
+.branch-company[open] > .branch-company-name > .branch-chevron { transform: rotate(180deg); }
+.branch-company-tree { margin: 3px 0 4px 15px; padding-left: 8px; border-left: 1px solid var(--primary-100); }
+.branch-group { margin-bottom: 1px; }
+.branch-group > summary { list-style: none; }
+.branch-group > summary::-webkit-details-marker { display: none; }
+.branch-group-head { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--r-sm); color: var(--gray-600); cursor: pointer; transition: all var(--transition); border: 1px solid transparent; }
+.branch-group-head:hover { background: var(--primary-50); color: var(--primary-dark); }
+.branch-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 600; }
+.branch-group-head > span { min-width: 18px; padding: 1px 4px; border-radius: 99px; background: var(--primary); color: #fff; font-size: 8px; font-weight: 800; text-align: center; }
+.branch-chevron { flex-shrink: 0; color: var(--primary-300); transition: transform .2s ease; }
+.branch-group[open] .branch-chevron { transform: rotate(180deg); }
+.branch-address { margin: 0 8px 3px 35px; padding-left: 8px; border-left: 1px solid var(--gray-200); font-size: 9px; line-height: 1.35; color: var(--gray-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.branch-client-list { margin-left: 17px; padding-left: 9px; border-left: 1px solid var(--gray-200); overflow: hidden; }
+.branch-client { width: 100%; min-height: 44px; padding: 6px 10px; border: 0; border-radius: var(--r-sm); background: none; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--gray-500); font: inherit; transition: all var(--transition); }
+.branch-client:hover { background: var(--primary-50); }
+.branch-client > div { min-width: 0; }
+.branch-tree-dot { width: 5px; height: 5px; margin-left: -12px; border-radius: 50%; background: var(--gray-300); flex-shrink: 0; }
+.branch-client:hover .branch-tree-dot { background: var(--primary); }
+.branch-client strong { display: block; font-size: 11px; color: var(--gray-600); }
+.branch-standards { margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.branch-standards span { color: var(--gray-400); font-size: 9px; }
+.branch-standards span + span::before { content: ' '; }
+.branch-standards .branch-meta-label { color: var(--gray-500); font-weight: 600; margin-right: 3px; }
+.branch-cycle-count { flex-shrink: 0; min-width: 22px; height: 18px; padding: 0 4px; border-radius: 4px; display: grid; place-items: center; background: var(--primary-50); color: var(--primary-dark); font-size: 8px; font-weight: 700; }
 
 /* ── Tabs ── */
 .tabs-bar { display: flex; gap: 2px; border-bottom: 1.5px solid var(--primary-100); margin-bottom: 20px; overflow-x: auto; -webkit-overflow-scrolling: touch; }

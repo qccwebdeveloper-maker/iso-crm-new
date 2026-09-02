@@ -8,7 +8,7 @@ const auditTeamMemberSchema = new mongoose.Schema({
 }, { _id: false });
 
 const applicationReviewSchema = new mongoose.Schema({
-  applicationRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Application' },
+  applicationRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Application', index: true },
 
   /* Section 1 — Basic Info */
   idNo:                   { type: String, default: '' },

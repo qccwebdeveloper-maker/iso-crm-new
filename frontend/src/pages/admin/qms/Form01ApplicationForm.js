@@ -3,32 +3,9 @@ import { Save, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import QMSFormPage from './QMSFormPage';
 import useStandards from './useStandards';
 import { localMobileNumber } from '../../../utils/phone';
+import { COUNTRY_CODES } from '../../../utils/countryCodes';
 const APP_TYPES = ['Initial','Surveillance','Re-certification','Un-Announced','Follow-up', 'Special Audit'];
 const ACCRED = ['EAS','UASL'];
-const COUNTRY_CODES = [
-  {code:'+1',country:'US/Canada'},{code:'+7',country:'Russia'},{code:'+20',country:'Egypt'},
-  {code:'+27',country:'South Africa'},{code:'+30',country:'Greece'},{code:'+31',country:'Netherlands'},
-  {code:'+32',country:'Belgium'},{code:'+33',country:'France'},{code:'+34',country:'Spain'},
-  {code:'+36',country:'Hungary'},{code:'+39',country:'Italy'},{code:'+40',country:'Romania'},
-  {code:'+41',country:'Switzerland'},{code:'+43',country:'Austria'},{code:'+44',country:'UK'},
-  {code:'+45',country:'Denmark'},{code:'+46',country:'Sweden'},{code:'+47',country:'Norway'},
-  {code:'+48',country:'Poland'},{code:'+49',country:'Germany'},{code:'+52',country:'Mexico'},
-  {code:'+54',country:'Argentina'},{code:'+55',country:'Brazil'},{code:'+56',country:'Chile'},
-  {code:'+57',country:'Colombia'},{code:'+60',country:'Malaysia'},{code:'+61',country:'Australia'},
-  {code:'+62',country:'Indonesia'},{code:'+63',country:'Philippines'},{code:'+64',country:'New Zealand'},
-  {code:'+65',country:'Singapore'},{code:'+66',country:'Thailand'},{code:'+81',country:'Japan'},
-  {code:'+82',country:'South Korea'},{code:'+84',country:'Vietnam'},{code:'+86',country:'China'},
-  {code:'+90',country:'Turkey'},{code:'+91',country:'India'},{code:'+92',country:'Pakistan'},
-  {code:'+94',country:'Sri Lanka'},{code:'+98',country:'Iran'},{code:'+212',country:'Morocco'},
-  {code:'+213',country:'Algeria'},{code:'+216',country:'Tunisia'},{code:'+234',country:'Nigeria'},
-  {code:'+254',country:'Kenya'},{code:'+255',country:'Tanzania'},{code:'+351',country:'Portugal'},
-  {code:'+353',country:'Ireland'},{code:'+358',country:'Finland'},{code:'+380',country:'Ukraine'},
-  {code:'+420',country:'Czech Republic'},{code:'+880',country:'Bangladesh'},{code:'+960',country:'Maldives'},
-  {code:'+961',country:'Lebanon'},{code:'+962',country:'Jordan'},{code:'+964',country:'Iraq'},
-  {code:'+965',country:'Kuwait'},{code:'+966',country:'Saudi Arabia'},{code:'+968',country:'Oman'},
-  {code:'+971',country:'UAE'},{code:'+972',country:'Israel'},{code:'+973',country:'Bahrain'},
-  {code:'+974',country:'Qatar'},{code:'+977',country:'Nepal'},
-];
 const EMP_ROWS = ['Top Management','Production Area / Service','Quality Control / Technical','Administration','Other'];
 const EMP_COLS = ['Full Time','Part Time','Performing Same type of Job','Temporary Unskilled Workers','Effective No. Filled by QCC'];
 const LOCATION_CONDITIONS = ['Special countermeasure area','Protection area of source water','Industrial complex','City'];
@@ -470,8 +447,19 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
               <FG label="No. of personnel working away from site (if applicable)">
                 <input className="form-control" type="number" min="0" value={data.remotePersonnel||0} onChange={e=>set('remotePersonnel',Number(e.target.value)||0)}/>
               </FG>
-              <FG label="No. of Employees (auto)">
-                <input className="form-control" value={effectiveTotal()} readOnly style={{background:'var(--primary-50)',fontWeight:700,color:'var(--primary)'}}/>
+              <FG label={<span>No. of Employees {data.totalEmployeesOverride!==undefined && data.totalEmployeesOverride!=='' && (
+                <button type="button" onClick={()=>set('totalEmployeesOverride','')}
+                  style={{marginLeft:6,fontSize:11,fontWeight:600,color:'var(--primary)',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
+                  reset to auto
+                </button>
+              )}</span>}>
+                <input
+                  className="form-control" type="number" min="0"
+                  value={(data.totalEmployeesOverride!==undefined && data.totalEmployeesOverride!=='') ? data.totalEmployeesOverride : effectiveTotal()}
+                  onChange={e=>set('totalEmployeesOverride', e.target.value)}
+                  style={{background:'var(--primary-50)',fontWeight:700,color:'var(--primary)'}}
+                  title="Auto-filled from the employee table above — edit to override"
+                />
               </FG>
               <FG label="Operation for Weekend / Weekly Holiday" full>
                 <GrowText placeholder="e.g. Saturday half day, Sunday off" value={data.weekendOperation} onChange={v=>set('weekendOperation',v)}/>
@@ -1159,7 +1147,7 @@ export function Form01Inner({ data, set, onSaveDraft, onSave, saving }) {
                   {l:'App. Type',    v:data.applicationType||'—'},
                   {l:'Mode',         v:data.modeOfWorking||'—'},
                   {l:'Contact',      v:data.contactPerson||'—'},
-                  {l:'Total Emp.',   v:effectiveTotal()},
+                  {l:'Total Emp.',   v:(data.totalEmployeesOverride!==undefined && data.totalEmployeesOverride!=='') ? data.totalEmployeesOverride : effectiveTotal()},
                   {l:'Accreditation',v:data.accreditationBody||'—'},
                   {l:'Scope',        v:data.scopeOfCertification?(data.scopeOfCertification.slice(0,60)+'…'):'—'},
                 ].map(({l,v})=>(
@@ -1226,7 +1214,7 @@ export default function Form01ApplicationForm() {
     <QMSFormPage
       formType={1}
       formCode="AUD-F-02"
-      formTitle="F02 Application Form"
+      formTitle="AUD-F-02 Application Form"
       defaultData={INIT}
     >
       {({ data, set, clientInfo, onSaveDraft, onSave, saving }) => (

@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useActiveClient } from '../../context/ActiveClientContext';
+import { useUnsavedChangesGuard } from '../../context/UnsavedChangesContext';
+import { groupLegacyDocs, legacyDocFileName } from '../../utils/legacyDocs';
 import axios from 'axios';
 import { MdDashboard, MdShield } from 'react-icons/md';
 import {
@@ -8,7 +11,7 @@ import {
   FiStar, FiMessageSquare, FiAward, FiFolder, FiSettings, FiPlus,
   FiCamera, FiTarget, FiTrendingUp, FiUserCheck, FiBookOpen,
   FiSend, FiAlertTriangle, FiChevronDown, FiActivity,
-  FiSearch, FiCreditCard, FiClipboard, FiDownload, FiPenTool
+  FiSearch, FiCreditCard, FiClipboard, FiDownload, FiPenTool, FiArchive
 } from 'react-icons/fi';
 
 
@@ -24,6 +27,9 @@ const NAV = {
       { to: '/admin/auditor-signatures', icon: FiPenTool, label: 'Auditor Signatures' },
       { to: '/admin/users',         icon: FiUsers,      label: 'Users' },
       { to: '/admin/roles',         icon: MdShield,     label: 'Roles' },
+    ]},
+    { sec: 'Old Clients', items: [
+      { to: '/admin/old-clients',   icon: FiArchive,    label: 'Old Clients' },
     ]},
 
     { sec: 'Applications', items: [
@@ -42,31 +48,55 @@ const NAV = {
       { to: '/admin/leads', icon: FiTarget, label: 'Lead Management', badge: 'NEW' },
     ]},
     { sec: 'Initial Audit', items: [
-      { to: '/admin/qms/form-01', icon: FiFileText, label: 'F02 Application Form' },
-      { to: '/admin/qms/form-02', icon: FiFileText, label: 'F03 App Rev & F03-01 Aud Pln' },
-      { to: '/admin/qms/form-03', icon: FiFileText, label: 'F03A Audit Planning for 3 years' },
-      { to: '/admin/qms/form-04', icon: FiFileText, label: 'F-03 Auditor(s) Declaration' },
-      { to: '/admin/qms/form-05', icon: FiFileText, label: 'F05&F06 S1Plan&Schedule' },
-      { to: '/admin/qms/form-06', icon: FiFileText, label: 'F07 S1Opening&Closing Meeting' },
-      { to: '/admin/qms/form-07', icon: FiFileText, label: 'F09A S1Report' },
-      { to: '/admin/qms/form-23', icon: FiFileText, label: 'AUD-F-09-B_OFI_O Sheet' },
-      { to: '/admin/qms/form-08', icon: FiFileText, label: 'AUD-F-22-REVIEW REPORT (A)' },
-      { to: '/admin/qms/form-09', icon: FiFileText, label: 'F11&F12 S2Plan&Schedule' },
-      { to: '/admin/qms/form-10', icon: FiFileText, label: 'F07 S2 Open&Clos Meeting' },
-      { to: '/admin/qms/form-11', icon: FiFileText, label: 'F15A S2Report' },
-      { to: '/admin/qms/form-12', icon: FiFileText, label: 'F16&F17 CAR' },
+      { to: '/admin/qms/form-01', icon: FiFileText, label: 'AUD-F-02 Application Form' },
+      { to: '/admin/qms/form-02', icon: FiFileText, label: 'AUD-F-03 App Rev & F03-01 Aud Pln' },
+      { to: '/admin/qms/form-03', icon: FiFileText, label: 'AUD-F-03A Audit Planning for 3 years' },
+      { to: '/admin/qms/form-04', icon: FiFileText, label: 'AD-F-03 Auditor(s) Declaration' },
+      { to: '/admin/qms/form-05', icon: FiFileText, label: 'AUD-F-05 S1 Plan & Schedule' },
+      { to: '/admin/qms/form-06', icon: FiFileText, label: 'AUD-F-07 S1 Opening & Closing Meeting' },
+      { to: '/admin/qms/form-07', icon: FiFileText, label: 'AUD-F-09 S1 Report' },
+      { to: '/admin/qms/form-23', icon: FiFileText, label: 'AUD-F-09-B OFI/O Sheet' },
+      { to: '/admin/qms/form-08', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (A)' },
+      { to: '/admin/qms/form-09', icon: FiFileText, label: 'AUD-F-11 S2 Plan & Schedule' },
+      { to: '/admin/qms/form-10', icon: FiFileText, label: 'AUD-F-07 S2 Open & Clos Meeting' },
+      { to: '/admin/qms/form-11', icon: FiFileText, label: 'AUD-F-15 S2 Report' },
+      { to: '/admin/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
       { to: '/admin/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
       { to: '/admin/qms/form-14', icon: FiFileText, label: 'AUD-F-21 Draft' },
-      { to: '/admin/qms/form-15', icon: FiFileText, label: 'AUD-F-22-REVIEW REPORT (B)' },
+      { to: '/admin/qms/form-15', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (B)' },
     ]},
-    { sec: 'Surveillance / Recertification', items: [
-      { to: '/admin/qms/form-16', icon: FiFileText, label: 'F16 · Application Form' },
-      { to: '/admin/qms/form-17', icon: FiFileText, label: 'F17 · Audit Plan' },
-      { to: '/admin/qms/form-18', icon: FiFileText, label: 'F18 · Meetings' },
-      { to: '/admin/qms/form-19', icon: FiFileText, label: 'F19 · Audit Report' },
-      { to: '/admin/qms/form-20', icon: FiFileText, label: 'F20 · Report Review' },
-      { to: '/admin/qms/form-21', icon: FiFileText, label: 'F21 · Surveillance CAR Report' },
-      { to: '/admin/qms/form-22', icon: FiFileText, label: 'F22 · Letter of Continuation' },
+    { sec: 'Surveillance - 1', items: [
+      { to: '/admin/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/admin/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance I' },
+      { to: '/admin/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/admin/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/admin/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/admin/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/admin/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Surveillance - 2', items: [
+      { to: '/admin/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/admin/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance II' },
+      { to: '/admin/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/admin/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/admin/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/admin/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/admin/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Recertification', items: [
+    ]},
+  ],
+  // Legacy clients (migrated from the pre-CRM Old Clients records — see
+  // routes/oldClients.js create-login) have no QMS/application data, so they
+  // get a minimal nav pointing straight at their own documents instead of the
+  // full application/QMS-forms nav below.
+  legacyClient: [
+    { sec: 'Overview', items: [
+      { to: '/client',                 icon: MdDashboard, label: 'Dashboard' },
+      { to: '/client/legacy-documents', icon: FiArchive,  label: 'My Documents' },
+    ]},
+    { sec: 'Support', items: [
+      { to: '/client/feedback', icon: FiMessageSquare, label: 'Feedback' },
     ]},
   ],
   client: [
@@ -75,7 +105,13 @@ const NAV = {
       { to: '/client/applications', icon: FiFileText,   label: 'My Applications' },
     ]},
     { sec: 'Application', items: [
-      { to: '/client/qms/form-01', icon: FiFileText, label: 'F01 · Application Form' },
+      { to: '/client/qms/form-01',   icon: FiFileText, label: 'AUD-F-02 Application Form' },
+      { to: '/client/qms/view/5',    icon: FiFileText, label: 'AUD-F-05 S1 Plan & Schedule' },
+      { to: '/client/qms/view/7',    icon: FiFileText, label: 'AUD-F-09 S1 Report' },
+      { to: '/client/qms/view/23',   icon: FiFileText, label: 'AUD-F-09-B OFI/O Sheet' },
+      { to: '/client/qms/view/9',    icon: FiFileText, label: 'AUD-F-11 S2 Plan & Schedule' },
+      { to: '/client/qms/view/11',   icon: FiFileText, label: 'AUD-F-15 S2 Report' },
+      { to: '/client/qms/view/12',   icon: FiFileText, label: 'AUD-F-16 CAR' },
     ]},
     { sec: 'Reports', items: [
       { to: '/client/team-reports',   icon: FiClipboard, label: 'Team & Reports' },
@@ -98,6 +134,44 @@ const NAV = {
       { to: '/auditor/review-queue', icon: FiStar,      label: 'Review Queue' },
       { to: '/auditor/reports',      icon: FiBarChart2, label: 'Reports' },
     ]},
+    { sec: 'Initial Audit', items: [
+      { to: '/auditor/qms/form-01', icon: FiFileText, label: 'AUD-F-02 Application Form' },
+      { to: '/auditor/qms/form-02', icon: FiFileText, label: 'AUD-F-03 App Rev & F03-01 Aud Pln' },
+      { to: '/auditor/qms/form-03', icon: FiFileText, label: 'AUD-F-03A Audit Planning for 3 years' },
+      { to: '/auditor/qms/form-04', icon: FiFileText, label: 'AD-F-03 Auditor(s) Declaration' },
+      { to: '/auditor/qms/form-05', icon: FiFileText, label: 'AUD-F-05 S1 Plan & Schedule' },
+      { to: '/auditor/qms/form-06', icon: FiFileText, label: 'AUD-F-07 S1 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-07', icon: FiFileText, label: 'AUD-F-09 S1 Report' },
+      { to: '/auditor/qms/form-23', icon: FiFileText, label: 'AUD-F-09-B OFI/O Sheet' },
+      { to: '/auditor/qms/form-08', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (A)' },
+      { to: '/auditor/qms/form-09', icon: FiFileText, label: 'AUD-F-11 S2 Plan & Schedule' },
+      { to: '/auditor/qms/form-10', icon: FiFileText, label: 'AUD-F-07 S2 Open & Clos Meeting' },
+      { to: '/auditor/qms/form-11', icon: FiFileText, label: 'AUD-F-15 S2 Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-14', icon: FiFileText, label: 'AUD-F-21 Draft' },
+      { to: '/auditor/qms/form-15', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (B)' },
+    ]},
+    { sec: 'Surveillance - 1', items: [
+      { to: '/auditor/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/auditor/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance I' },
+      { to: '/auditor/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Surveillance - 2', items: [
+      { to: '/auditor/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/auditor/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance II' },
+      { to: '/auditor/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Recertification', items: [
+    ]},
     { sec: 'Documents', items: [
       { to: '/auditor/documents', icon: FiFolder, label: 'Documents' },
     ]},
@@ -113,6 +187,44 @@ const NAV = {
     { sec: 'Review', items: [
       { to: '/auditor/review-queue', icon: FiStar,      label: 'Review Queue' },
       { to: '/auditor/reports',      icon: FiBarChart2, label: 'Reports' },
+    ]},
+    { sec: 'Initial Audit', items: [
+      { to: '/auditor/qms/form-01', icon: FiFileText, label: 'AUD-F-02 Application Form' },
+      { to: '/auditor/qms/form-02', icon: FiFileText, label: 'AUD-F-03 App Rev & F03-01 Aud Pln' },
+      { to: '/auditor/qms/form-03', icon: FiFileText, label: 'AUD-F-03A Audit Planning for 3 years' },
+      { to: '/auditor/qms/form-04', icon: FiFileText, label: 'AD-F-03 Auditor(s) Declaration' },
+      { to: '/auditor/qms/form-05', icon: FiFileText, label: 'AUD-F-05 S1 Plan & Schedule' },
+      { to: '/auditor/qms/form-06', icon: FiFileText, label: 'AUD-F-07 S1 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-07', icon: FiFileText, label: 'AUD-F-09 S1 Report' },
+      { to: '/auditor/qms/form-23', icon: FiFileText, label: 'AUD-F-09-B OFI/O Sheet' },
+      { to: '/auditor/qms/form-08', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (A)' },
+      { to: '/auditor/qms/form-09', icon: FiFileText, label: 'AUD-F-11 S2 Plan & Schedule' },
+      { to: '/auditor/qms/form-10', icon: FiFileText, label: 'AUD-F-07 S2 Open & Clos Meeting' },
+      { to: '/auditor/qms/form-11', icon: FiFileText, label: 'AUD-F-15 S2 Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-14', icon: FiFileText, label: 'AUD-F-21 Draft' },
+      { to: '/auditor/qms/form-15', icon: FiFileText, label: 'AUD-F-22 REVIEW REPORT (B)' },
+    ]},
+    { sec: 'Surveillance - 1', items: [
+      { to: '/auditor/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/auditor/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance I' },
+      { to: '/auditor/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Surveillance - 2', items: [
+      { to: '/auditor/qms/form-16', icon: FiFileText, label: 'F02 Application Form' },
+      { to: '/auditor/qms/form-17', icon: FiFileText, label: 'AUD-F-06 Audit Schedule Surveillance II' },
+      { to: '/auditor/qms/form-18', icon: FiFileText, label: 'AUD-F-07 Opening & Closing Meeting' },
+      { to: '/auditor/qms/form-19', icon: FiFileText, label: 'AUD-F-15 Audit Report' },
+      { to: '/auditor/qms/form-12', icon: FiFileText, label: 'AUD-F-16 CAR' },
+      { to: '/auditor/qms/form-13', icon: FiFileText, label: 'AUD-F-17 CAR' },
+      { to: '/auditor/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
+    ]},
+    { sec: 'Recertification', items: [
     ]},
     { sec: 'Documents', items: [
       { to: '/auditor/documents', icon: FiFolder, label: 'Documents' },
@@ -145,8 +257,142 @@ const NAV = {
   ],
 };
 
+// Initial-Audit-only forms (by formType, parsed from the route's /form-XX suffix):
+// only the company's original (smallest) Client ID went through Initial Audit —
+// every other Client ID for the same company is surveillance/recertification only.
+const HIDDEN_FOR_NON_PRIMARY = new Set([3, 4, 5, 6, 7, 8, 23]);
+const formTypeFromPath = (to) => {
+  const m = to.match(/form-(\d+)$/);
+  return m ? Number(m[1]) : null;
+};
+
+// Several formTypes (the CAR forms 12/13, the Application Form 1, …) are reachable
+// from more than one of these sections — the "phase" tags which stage's copy of
+// that formType a click should open (see backend/models/QMSForm.js `phase`).
+// Matched by prefix because applyActiveClientNav relabels the Surveillance
+// sections to "Surveillance - 1-<rank>" / "Surveillance - 2-<rank>".
+const phaseForSectionName = (secName) => {
+  if (secName === 'Initial Audit') return 'initial';
+  if (secName.startsWith('Surveillance - 1')) return 'surv1';
+  if (secName.startsWith('Surveillance - 2')) return 'surv2';
+  if (secName === 'Recertification') return 'recert';
+  return null;
+};
+
+// NAV defines 'Recertification' as an empty stub per role (its real, per-cycle
+// item list is normally computed dynamically by buildCycleGroupedNav once a
+// client is active). Populate it here too — mirroring 'Initial Audit', filtered
+// the same way — so it isn't empty in the sidebar's default state either (right
+// after login, before any client is searched/selected).
+Object.values(NAV).forEach(sections => {
+  const initial = sections.find(s => s.sec === 'Initial Audit');
+  const recert  = sections.find(s => s.sec === 'Recertification');
+  if (initial && recert) {
+    recert.items = initial.items.filter(item => !HIDDEN_FOR_NON_PRIMARY.has(formTypeFromPath(item.to)));
+  }
+});
+
+// Tailor the QMS Forms nav to whichever Client ID is currently open (see
+// ActiveClientContext): the primary Client ID gets everything as-is; any other
+// Client ID for the same company hides the Initial-Audit-only forms and gets its
+// own numbered Surveillance cycle instead of the plain "Surveillance - 1/2" labels.
+function applyActiveClientNav(sections, activeClient) {
+  if (!activeClient || activeClient.isPrimaryClientId !== false) return sections;
+  const rank = activeClient.clientRank || 1;
+  return sections.map(s => {
+    if (s.sec === 'Initial Audit') {
+      return { ...s, items: s.items.filter(item => !HIDDEN_FOR_NON_PRIMARY.has(formTypeFromPath(item.to))) };
+    }
+    if (s.sec === 'Surveillance - 1') return { ...s, sec: `Surveillance - 1-${rank}` };
+    if (s.sec === 'Surveillance - 2') return { ...s, sec: `Surveillance - 2-${rank}` };
+    return s;
+  });
+}
+
+// Once a Client ID itself has more than one certification cycle (Initial +
+// Surveillances, then a fresh cycle per recertification-before-expiry — see
+// ActiveClientContext/cycleCount), replace the flat Initial Audit / Surveillance -
+// 1 / Surveillance - 2 / Recertification sections with one collapsible "Cycle N"
+// group per cycle, each containing the same items (routes are unchanged — the admin
+// still picks the client/cycle from the form page itself). A single-cycle client
+// (the common case) is untouched, so the sidebar looks exactly like it does today.
+const CYCLE_SECTION_NAMES = new Set(['Initial Audit', 'Surveillance - 1', 'Surveillance - 2', 'Recertification']);
+function buildCycleGroupedNav(sections, activeClient) {
+  if (!activeClient) return sections;
+  const cycleSections = sections.filter(s => CYCLE_SECTION_NAMES.has(s.sec));
+  if (!cycleSections.length) return sections;
+
+  const cycles     = (activeClient.cycles && activeClient.cycles.length) ? activeClient.cycles : [1];
+  const firstCycle = Math.min(...cycles);
+  const initialAuditSection = cycleSections.find(s => s.sec === 'Initial Audit');
+  const cycleGroups = cycles.map(c => {
+    const isFirst = c === firstCycle;
+    // Only the first cycle actually went through Initial Audit — every later
+    // cycle (recertification-before-expiry) never gets an Initial Audit section.
+    // The Recertification group always mirrors the same (filtered) form set —
+    // in every cycle, including the first — regardless of whether Initial Audit
+    // is also showing them. Groups with no items are dropped so an empty
+    // Initial Audit / Recertification header never renders.
+    const groups = cycleSections.map(s => {
+      if (s.sec === 'Initial Audit') {
+        return { label: s.sec, phase: 'initial', items: isFirst ? s.items : [] };
+      }
+      if (s.sec === 'Recertification' && initialAuditSection) {
+        return {
+          label: s.sec, phase: 'recert',
+          items: initialAuditSection.items.filter(item => !HIDDEN_FOR_NON_PRIMARY.has(formTypeFromPath(item.to))),
+        };
+      }
+      return { label: s.sec, phase: phaseForSectionName(s.sec) || 'initial', items: s.items };
+    }).filter(g => g.items.length).map(g => ({ ...g, key: `cyclegrp-${c}-${g.label}` }));
+    return { sec: `Cycle ${c}`, collapsible: true, key: `cycle-${c}`, groups };
+  });
+
+  const result = [];
+  let inserted = false;
+  sections.forEach(s => {
+    if (CYCLE_SECTION_NAMES.has(s.sec)) {
+      if (!inserted) { result.push(...cycleGroups); inserted = true; }
+      return;
+    }
+    result.push(s);
+  });
+  return result;
+}
+
+// QMSFormPage has no way to know which client (or cycle) a sidebar click was
+// meant to open — without this, navigating to e.g. /admin/qms/form-12 always lands
+// on the generic "search a client" list view, which reads as "the form doesn't
+// open." Once a client is active (picked via company search elsewhere), decorate
+// every QMS form link with ?client=&cycle=&edit=1 so QMSFormPage's deep-link effect
+// auto-resolves that exact client/cycle straight into the editable form.
+function withClientDeepLinks(sections, activeClient) {
+  if (!activeClient || !activeClient.clientId) return sections;
+  const cid = encodeURIComponent(activeClient.clientId);
+  const decorateItem = (item, cycle, phase) => {
+    if (formTypeFromPath(item.to) == null || item.to.includes('?')) return item;
+    return { ...item, to: `${item.to}?client=${cid}&cycle=${cycle}&edit=1&phase=${phase}` };
+  };
+  return sections.map(s => {
+    if (s.groups) {
+      const m = /^cycle-(\d+)$/.exec(s.key || '');
+      const cycle = m ? m[1] : (activeClient.activeCycle || 1);
+      return { ...s, groups: s.groups.map(g => ({ ...g, items: g.items.map(item => decorateItem(item, cycle, g.phase || 'initial')) })) };
+    }
+    if (s.items) {
+      const phase = phaseForSectionName(s.sec) || 'initial';
+      return { ...s, items: s.items.map(item => decorateItem(item, activeClient.activeCycle || 1, phase)) };
+    }
+    return s;
+  });
+}
+
 export default function Layout({ children, title }) {
   const { user, logout } = useAuth();
+  const { activeClient } = useActiveClient();
+  const unsavedGuard = useUnsavedChangesGuard();
+  const [pendingNav, setPendingNav] = useState(null); // target path while the unsaved-changes prompt is open
+  const [navSaving,  setNavSaving]  = useState(false);
   const loc = useLocation();
   const navigate = useNavigate();
   const [open,            setOpen]            = useState(false);   // mobile drawer
@@ -159,27 +405,70 @@ export default function Layout({ children, title }) {
   const [notifications,   setNotifications]   = useState([]);
   const [profileImg,      setProfileImg]      = useState(null);
   const [collapsed,       setCollapsed]       = useState({ master: true, qmsForms: true });
+  const isLegacyClient = user?.role === 'client' && user?.isLegacyClient;
+  const [legacyDocs, setLegacyDocs] = useState([]);
 
-  // Auto-expand the section that contains the active route
+  // Legacy clients' own document list, fetched once so it can be listed
+  // directly in the sidebar (grouped the same way as the admin Old Clients
+  // page) — clicking one opens that single document in the main content area.
   useEffect(() => {
-    const nav = NAV[user?.role] || [];
+    if (!isLegacyClient) { setLegacyDocs([]); return; }
+    axios.get('/api/oldclients/me').then(({ data }) => setLegacyDocs(data.documents || [])).catch(() => setLegacyDocs([]));
+  }, [isLegacyClient]);
+
+  // Cycle-grouped nav (every "primary" Client ID — the common case, including a
+  // brand-new one still on cycle 1) takes priority over the legacy clientRank
+  // relabeling (built for the old scheme of a brand-new Client ID per cycle) — a
+  // given active client should only ever be using one of the two mechanisms at a
+  // time. A fresh single-cycle client still gets grouped as "Cycle 1" so its
+  // Recertification phase (and the auto-next-cycle feature) is reachable from the
+  // very first cycle, not only once a second cycle already exists.
+  const baseNav = isLegacyClient
+    ? (() => {
+        const overviewSec = NAV.legacyClient.find(s => s.sec === 'Overview');
+        const supportSec  = NAV.legacyClient.find(s => s.sec === 'Support');
+        const docSections = groupLegacyDocs(legacyDocs).map(([name, docs]) => ({
+          sec: name, collapsible: true, key: `legacydoc-${name}`,
+          items: docs.map(d => ({ to: `/client/legacy-documents/${d._id}`, icon: FiFileText, label: legacyDocFileName(d), keepOpen: true })),
+        }));
+        return [overviewSec, ...docSections, supportSec];
+      })()
+    : (NAV[user?.role] || []);
+  const secs = withClientDeepLinks(
+    (activeClient && activeClient.isPrimaryClientId !== false)
+      ? buildCycleGroupedNav(baseNav, activeClient)
+      : applyActiveClientNav(baseNav, activeClient),
+    activeClient
+  );
+
+  // "Cycle 1" starts open, every later cycle starts collapsed — every cycle points
+  // at the same routes (the admin picks which cycle from the form page's own
+  // selector, not the URL), so "the active route is inside this section" isn't a
+  // useful signal to auto-open one over another here.
+  const isSectionCollapsed = (key) => {
+    if (key in collapsed) return collapsed[key];
+    if (key && key.startsWith('cyclegrp-')) return false;
+    if (key && key.startsWith('cycle-')) return key !== 'cycle-1';
+    return false;
+  };
+
+  // Auto-expand the (non-cycle) section that contains the active route
+  useEffect(() => {
     const updates = {};
-    nav.forEach(s => {
-      if (s.collapsible && s.key) {
-        const hasActive = s.items.some(item => {
-          if (item.to.endsWith('/new')) return loc.pathname === item.to;
-          return loc.pathname.startsWith(item.to);
-        });
-        if (hasActive) updates[s.key] = false; // false = expanded
-      }
+    secs.forEach(s => {
+      if (!s.collapsible || !s.key || s.key.startsWith('cycle-')) return;
+      const hasActive = (s.items || []).some(item => {
+        if (item.to.endsWith('/new')) return loc.pathname === item.to;
+        return loc.pathname.startsWith(item.to);
+      });
+      if (hasActive) updates[s.key] = false; // false = expanded
     });
     if (Object.keys(updates).length) setCollapsed(p => ({ ...p, ...updates }));
-  }, [loc.pathname, user?.role]);
+  }, [loc.pathname, user?.role]); // eslint-disable-line
   const nRef        = useRef(null);
   const imgRef      = useRef(null);
   const sidebarNavRef = useRef(null);
 
-  const secs   = NAV[user?.role] || [];
   const unread = notifications.filter(n => !n.read).length;
 
   const fetchNotifs = useCallback(async () => {
@@ -197,7 +486,10 @@ export default function Layout({ children, title }) {
         setNotifications(prev => prev.map(x => x._id === n._id ? { ...x, read: true } : x));
       } catch {}
     }
-    if (n.link) { navigate(n.link); setNotifOpen(false); }
+    // Always close on click — older notifications created before links were added
+    // to every notify call site otherwise give zero feedback when clicked.
+    if (n.link) navigate(n.link);
+    setNotifOpen(false);
   };
 
   const markAllRead = async () => {
@@ -267,10 +559,45 @@ export default function Layout({ children, title }) {
   // Nav item click: on desktop, collapse sidebar to icon-only mode.
   // Hovering the icon strip temporarily expands it (CSS); the hamburger
   // button restores the full sidebar permanently. Mobile drawer just closes.
-  const handleNavClick = () => {
-    setOpen(false);
+  // If the currently-open QMS form has unsaved changes (see
+  // UnsavedChangesContext), the navigation is held and a prompt is shown instead —
+  // preventDefault() on the Link's click stops React Router from navigating.
+  // keepOpen: true skips the auto-close/collapse — used for the legacy-client
+  // document links so browsing several files in a row doesn't require
+  // reopening the sidebar (mobile drawer) or re-expanding it (desktop mini
+  // mode) after every single click.
+  const finishNavClick = (keepOpen) => {
+    if (!keepOpen) setOpen(false);
     window.scrollTo(0, 0);
-    if (window.innerWidth > 768) setMini(true);
+    if (!keepOpen && window.innerWidth > 768) setMini(true);
+  };
+  const handleNavClick = (e, to, keepOpen) => {
+    if (unsavedGuard?.current?.isDirty && to && to !== loc.pathname) {
+      e.preventDefault();
+      setPendingNav(to);
+      return;
+    }
+    finishNavClick(keepOpen);
+  };
+  const proceedPendingNav = () => {
+    const to = pendingNav;
+    setPendingNav(null);
+    finishNavClick();
+    if (to) navigate(to);
+  };
+  const handleSaveAndLeave = async () => {
+    const guard = unsavedGuard?.current;
+    setNavSaving(true);
+    let ok = true;
+    try { if (guard?.onSave) ok = await guard.onSave(); } catch { ok = false; }
+    setNavSaving(false);
+    // Only leave once the save actually succeeded — if it failed, the form's own
+    // save handler already showed an error toast; stay put so nothing is lost.
+    if (ok !== false) proceedPendingNav();
+  };
+  const handleDiscardAndLeave = () => {
+    unsavedGuard?.current?.onDiscard?.();
+    proceedPendingNav();
   };
 
   const handleMenuToggle = () => {
@@ -330,18 +657,45 @@ export default function Layout({ children, title }) {
                     </div>
                     <FiChevronDown
                       size={13}
-                      className={`nav-chevron ${!collapsed[s.key] ? 'open' : ''}`}
+                      className={`nav-chevron ${!isSectionCollapsed(s.key) ? 'open' : ''}`}
                     />
                   </button>
-                  {!collapsed[s.key] && (
+                  {!isSectionCollapsed(s.key) && (
                     <div className="nav-sub">
-                      {s.items.map(item => (
+                      {s.groups ? s.groups.map((g, gi) => (
+                        <div key={g.key || g.label + gi}>
+                          <button
+                            className="nav-group-label"
+                            style={{ paddingLeft: 34, display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, fontWeight: 800, color: 'var(--primary-dark)', textAlign: 'left' }}
+                            onClick={() => toggleCollapse(g.key)}
+                          >
+                            {g.label}
+                            <FiChevronDown
+                              size={11}
+                              style={{ marginRight: 12 }}
+                              className={`nav-chevron ${!isSectionCollapsed(g.key) ? 'open' : ''}`}
+                            />
+                          </button>
+                          {!isSectionCollapsed(g.key) && g.items.map(item => (
+                            <Link
+                              key={item.to + item.label}
+                              to={item.to}
+                              className={`nav-sub-item ${isOn(item.to) ? 'active' : ''}`}
+                              title={item.label}
+                              onClick={(e) => handleNavClick(e, item.to, item.keepOpen)}
+                            >
+                              <span className="nav-sub-dot" />
+                              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      )) : s.items.map(item => (
                         <Link
                           key={item.to + item.label}
                           to={item.to}
                           className={`nav-sub-item ${isOn(item.to) ? 'active' : ''}`}
                           title={item.label}
-                          onClick={handleNavClick}
+                          onClick={(e) => handleNavClick(e, item.to, item.keepOpen)}
                         >
                           <span className="nav-sub-dot" />
                           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
@@ -359,7 +713,7 @@ export default function Layout({ children, title }) {
                       to={item.to}
                       className={`nav-link ${isOn(item.to) ? 'active' : ''}`}
                       title={item.label}
-                      onClick={handleNavClick}
+                      onClick={(e) => handleNavClick(e, item.to)}
                     >
                       <item.icon className="nav-icon" size={15} />
                       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
@@ -478,11 +832,6 @@ export default function Layout({ children, title }) {
                                   <div className="notif-msg">{n.message}</div>
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
                                     <span className="notif-time">{relTime}</span>
-                                    {n.link && (
-                                      <span style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                        View →
-                                      </span>
-                                    )}
                                     {!n.read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />}
                                   </div>
                                 </div>
@@ -514,6 +863,31 @@ export default function Layout({ children, title }) {
 
         <main className="page">{children}</main>
       </div>
+
+      {/* Unsaved-changes prompt — shown when navigating away from a QMS form
+          page that still has edits not yet saved (see UnsavedChangesContext) */}
+      {pendingNav && (
+        <div className="modal-bg" onClick={() => !navSaving && setPendingNav(null)}>
+          <div className="modal-box" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div className="modal-title">Unsaved changes</div>
+              {!navSaving && <button className="modal-close" onClick={() => setPendingNav(null)}>✕</button>}
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 13.5, color: 'var(--gray-600)', margin: 0 }}>
+                You're leaving this form without saving. Save your changes as a draft before you go?
+              </p>
+            </div>
+            <div className="modal-foot" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost" disabled={navSaving} onClick={() => setPendingNav(null)}>Cancel</button>
+              <button className="btn btn-ghost" disabled={navSaving} onClick={handleDiscardAndLeave}>Leave without saving</button>
+              <button className="btn btn-primary" disabled={navSaving} onClick={handleSaveAndLeave}>
+                {navSaving ? 'Saving…' : 'Save & Leave'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

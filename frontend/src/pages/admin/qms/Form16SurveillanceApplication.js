@@ -52,6 +52,7 @@ function DesignationFetcher({ clientInfo, data, set }) {
 }
 
 const AUDIT_TYPES = ['Surveillance I', 'Surveillance II', 'Re-certification'];
+const AUDIT_TYPE_BY_PHASE = { surv1: 'Surveillance I', surv2: 'Surveillance II', recert: 'Re-certification' };
 const YN = ['No', 'Yes'];
 
 /* Each "change since last audit" question is a Yes/No with a details box that
@@ -80,13 +81,19 @@ const DEFAULT = {
   applicationReviewDate: '', applicationReviewedBy: '',
 };
 
+// Form-16 is shared by the Surveillance-1, Surveillance-2 and Recertification
+// sections (each keeps its own independent record — see QMSForm `phase`), so a
+// brand-new record's Audit Type should default to whichever phase it was opened
+// under, not always "Surveillance I".
+const defaultDataForPhase = (phase) => ({ ...DEFAULT, auditType: AUDIT_TYPE_BY_PHASE[phase] || 'Surveillance I' });
+
 export default function Form16SurveillanceApplication() {
   return (
     <QMSFormPage
       formType={16}
       formCode="AUD-F-02-A"
-      formTitle="F16 · Application Form"
-      defaultData={DEFAULT}
+      formTitle="F02 Application Form"
+      defaultData={defaultDataForPhase}
     >
       {({ data, set, clientInfo }) => {
         const changes = data.changes || {};

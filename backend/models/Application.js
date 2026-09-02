@@ -21,9 +21,12 @@ const uploadedDocSchema = new mongoose.Schema({
 const applicationSchema = new mongoose.Schema({
   applicationId:      { type: String, unique: true, sparse: true },
   refno:              { type: String },
+  // Which certification cycle (under the same Client ID) this Application belongs
+  // to — mirrors QMSForm.cycleNumber, kept in sync when created from an F01 submit.
+  cycleNumber:        { type: Number, default: 1 },
 
   // BUG FIX 1: removed required:true — allows draft saves without orgName
-  status:             { type: String, enum: ['draft','submitted','under_review','audit_stage1','audit_stage2','approved','certified','rejected'], default: 'draft' },
+  status:             { type: String, enum: ['draft','submitted','under_review','audit_stage1','audit_stage2','approved','certified','rejected'], default: 'draft', index: true },
   progressPercentage: { type: Number, default: 0 },
   progressStages:     [{ type: String }],
 
@@ -123,9 +126,9 @@ const applicationSchema = new mongoose.Schema({
   relevantLaws:          { type: String },
 
   // ── Assignment
-  client:           { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  assignedAuditor:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  assignedReviewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  client:           { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  assignedAuditor:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  assignedReviewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
   // BUG FIX 3: null is not in enum — removed default:null, use sparse allow
   auditAcceptanceStatus: { type: String, enum: ['pending','accepted','rejected',null,''] },
   auditAcceptedDate:     { type: Date },

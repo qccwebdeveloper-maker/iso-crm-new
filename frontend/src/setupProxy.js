@@ -9,7 +9,7 @@ module.exports = function (app) {
   app.use(
     ['/api', '/uploads'],
     createProxyMiddleware({
-      target: 'http://localhost:5000',
+      target: 'http://localhost:5001',
       changeOrigin: true,
     })
   );

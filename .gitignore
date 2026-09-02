@@ -20,6 +20,11 @@ frontend/.env
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+backend/server.log
+frontend/frontend.log
+
+# Claude Code internal worktrees
+.claude/worktrees/
 
 # OS files
 .DS_Store
@@ -34,3 +39,7 @@ backend/uploads/
 
 # Excel lock files (created while a workbook is open)
 ~$*.xlsx
+
+# Playwright QA harness (e2e/) — local test artifacts
+e2e/test-results/
+e2e/playwright-report/

@@ -1,14 +1,23 @@
-const express   = require('express');
-const cors      = require('cors');
-const dotenv    = require('dotenv');
-const path      = require('path');
-const fs        = require('fs');
-const connectDB = require('./config/db');
+const express     = require('express');
+const compression = require('compression');
+const cors        = require('cors');
+const dotenv      = require('dotenv');
+const path        = require('path');
+const fs          = require('fs');
+const connectDB   = require('./config/db');
 
 dotenv.config();
-connectDB();
 
 const app = express();
+
+// Production runs behind nginx (see Caddyfile/docker-compose) — without this,
+// every request looks like it comes from the proxy's own IP, which breaks
+// per-IP rate limiting (routes/leads.js's public submission limiter) by
+// pooling every real visitor into one shared bucket.
+app.set('trust proxy', 1);
+
+// gzip/br-compress API responses and static files (uploads/assets)
+app.use(compression());
 
 // Ensure uploads directory exists and serve it as static
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -19,19 +28,22 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 // survives every deploy/restart on hosts with an ephemeral filesystem.
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
-const allowedOrigins = [
-  'https://iso-crm-new-r6ca.vercel.app',
-  'http://crm.qccertification.com',
-  'https://crm.qccertification.com',
-  process.env.CLIENT_URL,
-].filter(Boolean);
-// Allow localhost / 127.0.0.1 with or without a port (e.g. http://localhost:3000 for the
-// CRA dev server, or http://localhost on port 80 from the nginx Docker container).
+// Each allowed URL lives in its own CORS_ORIGIN_* environment variable. New origins
+// can be added in the deployment environment without changing this file. Paths and
+// trailing slashes are harmless: only the URL origin is used for comparison.
+const allowedOrigins = Object.entries(process.env)
+  .filter(([key]) => key.startsWith('CORS_ORIGIN_'))
+  .map(([, value]) => value.trim())
+  .filter(Boolean)
+  .map((value) => {
+    try { return new URL(value).origin; } catch { return value; }
+  });
+const allowLocalhost = process.env.CORS_ALLOW_LOCALHOST === 'true';
 const isLocalhost = (o) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
-    if (isLocalhost(origin)) return cb(null, true);
+    if (allowLocalhost && isLocalhost(origin)) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
     return cb(new Error('CORS: origin not allowed'));
   },
@@ -68,11 +80,12 @@ app.use('/api/application-reviews',  require('./routes/applicationReviews'));
 app.use('/api/qms-forms',            require('./routes/qmsForms'));
 app.use('/api/auditor-signatures',   require('./routes/auditorSignatures'));
 app.use('/api/files',        require('./routes/files'));
+app.use('/api/oldclients',   require('./routes/oldClients'));
 
 // ── Health check ─────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({
   status : 'ok',
-  db     : 'mongodb',
+  db     : 'connected',
   version: '2.0',
   time   : new Date().toISOString(),
 }));
@@ -87,14 +100,29 @@ console.log("GMAIL_USER:", process.env.GMAIL_USER || '(not set)');
 console.log("GMAIL_PASS set:", !!(process.env.GMAIL_PASS || '').replace(/\s/g, ''));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`\n✅ Server v2.0 running on port ${PORT}`);
-  console.log(`🗄️  Database  : MongoDB`);
-  console.log(`👤 User model : Fixed (Mongoose 9 compatible)`);
-  console.log(`\n🔑 Login credentials:`);
-  console.log(`   admin@crm.com    / admin123  (OTP)`);
-  console.log(`   client@crm.com   / client123`);
-  console.log(`   auditor@crm.com  / auditor123`);
-  console.log(`   sales@crm.com    / sales123`);
-  console.log(`\n📌 Seed: POST http://localhost:${PORT}/api/auth/seed?force=true\n`);
-});
+const startServer = async () => {
+  try {
+    // Do not accept API requests until MongoDB is ready. This prevents Mongoose's
+    // buffered queries from failing later with a misleading 10-second timeout.
+    await connectDB();
+    // Fire-and-forget: pays the Gmail cold-connection cost at boot instead of on
+    // the first real OTP request (see utils/email.js warmGmailTransport).
+    require('./utils/email').warmGmailTransport();
+    app.listen(PORT, () => {
+      console.log(`\n✅ Server v2.0 running on port ${PORT}`);
+      console.log(`🗄️  Database  : MongoDB connected`);
+      console.log(`👤 User model : Fixed (Mongoose 9 compatible)`);
+      console.log(`\n🔑 Login credentials:`);
+      console.log(`   admin@crm.com    / admin123  (OTP)`);
+      console.log(`   client@crm.com   / client123`);
+      console.log(`   auditor@crm.com  / auditor123`);
+      console.log(`   sales@crm.com    / sales123`);
+      console.log(`\n📌 Seed: POST http://localhost:${PORT}/api/auth/seed?force=true\n`);
+    });
+  } catch (err) {
+    console.error(`❌ Server startup aborted: ${err.message}`);
+    process.exit(1);
+  }
+};
+
+startServer();

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import {
@@ -75,7 +75,7 @@ function Alert({ type, msg }) {
   );
 }
 
-function OtpInput({ value, onChange }) {
+function OtpInput({ value, onChange, onEnter }) {
   const refs = useRef([]);
   const boxes = Array.from({ length: 6 });
 
@@ -91,6 +91,8 @@ function OtpInput({ value, onChange }) {
       const arr = (value || '      ').split('');
       if (!arr[i] || arr[i] === ' ') { if (i > 0) { refs.current[i - 1]?.focus(); } }
       else { arr[i] = ' '; onChange(arr.join('')); }
+    } else if (e.key === 'Enter') {
+      onEnter?.();
     }
   };
   const handlePaste = (e) => {
@@ -117,14 +119,17 @@ function OtpInput({ value, onChange }) {
 
 // ═══════════════════════════════════════════════
 export default function Login() {
-  const [tab, setTab] = useState('login');
   // Role is chosen by the URL path: /login/admin | /login/client | /login/auditor | /login/sales.
   // Bare /login defaults to client.
   const { role } = useParams();
+  const [searchParams] = useSearchParams();
   const initialMode = ['admin', 'auditor', 'sales', 'client'].includes(role) ? role : 'client';
+  const allowRegister = initialMode === 'client'; // only clients can self-register (Create Account)
+  // The QCC marketing site's "Create Account" button links here with ?tab=register
+  // (see qcc frontend's LoginClient.tsx) so the Create Account tab opens directly.
+  const [tab, setTab] = useState(searchParams.get('tab') === 'register' && allowRegister ? 'register' : 'login');
   const [loginMode, setLoginMode] = useState(initialMode);
   const showRoleTabs = false;                  // single-form login per link — hide the role switcher
-  const allowRegister = initialMode === 'client'; // only clients can self-register (Create Account)
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -138,7 +143,7 @@ export default function Login() {
   const [otpVia, setOtpVia]    = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
 
-  const [reg, setReg] = useState({ companyName: '', email: '', password: '', mobile: '', address: '', standard: '', scope: '' });
+  const [reg, setReg] = useState({ companyName: '', branchLabel: '', email: '', password: '', mobile: '', address: '', standard: '', scope: '' });
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -160,6 +165,25 @@ export default function Login() {
     warmUp();
     return () => { clearInterval(timerRef.current); };
   }, []);
+
+  // SSO handoff from the QCC marketing site: its login form authenticates
+  // directly against our /api/auth/client-login|login, base64-encodes the
+  // resulting { ...user, token } and redirects here as ?sso=... . Complete the
+  // session here exactly like the admin OTP flow does (loginWithToken), so the
+  // visitor lands on their dashboard already signed in instead of typing
+  // credentials a second time.
+  useEffect(() => {
+    const sso = searchParams.get('sso');
+    if (!sso) return;
+    try {
+      const data = JSON.parse(atob(sso));
+      if (!data || !data.token || !data.role) throw new Error('Malformed session');
+      loginWithToken(data, data.token);
+      navigate(data.role === 'reviewer' ? '/auditor' : `/${data.role}`, { replace: true });
+    } catch {
+      setErr('Could not complete sign-in from qccertification.com. Please try logging in again.');
+    }
+  }, [searchParams]);
 
   const startTimer = (sec = 60) => {
     setTimer(sec);
@@ -232,7 +256,7 @@ export default function Login() {
     try {
       const { data } = await axios.post('/api/auth/client-login', { clientId: email.trim(), password });
       loginWithToken(data, data.token);
-      navigate('/client');
+      navigate(data.isLegacyClient ? '/client/legacy-documents' : '/client');
     } catch (ex) {
       setErr(getErrMsg(ex, 'Invalid Client ID or password.'));
     } finally { setLoading(false); }
@@ -323,11 +347,11 @@ export default function Login() {
                           <input
                             type="email" placeholder="Enter admin email" value={adminEmail}
                             onChange={e => setAdminEmail(e.target.value)}
-                            style={{ ...inp(false), flex: 1 }}
+                            style={{ ...inp(false), flex: 1, height: 42, boxSizing: 'border-box' }}
                             onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
                           />
                           <button onClick={handleSendOtp} disabled={loading}
-                            style={{ ...S.btnMain, width: 'auto', padding: '0 18px', flexShrink: 0, boxShadow: 'none', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            style={{ ...S.btnMain, width: 'auto', height: 42, boxSizing: 'border-box', padding: '0 18px', flexShrink: 0, boxShadow: 'none', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                             {loading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={13} />}
                             {loading ? 'Sending…' : 'Send OTP'}
                           </button>
@@ -357,7 +381,7 @@ export default function Login() {
                       </div>
 
                       <p style={{ textAlign: 'center', fontSize: 11.5, color: '#9ca3af', margin: '6px 0 2px' }}>Enter the 6-digit code below</p>
-                      <OtpInput value={otp} onChange={setOtp} />
+                      <OtpInput value={otp} onChange={setOtp} onEnter={handleVerifyOtp} />
                       <button onClick={handleVerifyOtp} disabled={loading || otp.replace(/\s/g,'').length < 6}
                         style={{ ...S.btnMain, opacity: (loading || otp.replace(/\s/g,'').length < 6) ? 0.55 : 1, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                         {loading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <ArrowRight size={14} />}
@@ -445,6 +469,11 @@ export default function Login() {
                 <div style={{ gridColumn: '1/-1' }}>
                   <Field label="Company Name" required>
                     <FInput placeholder="ABC Manufacturing Ltd" value={reg.companyName} onChange={e => setReg(r => ({ ...r, companyName: e.target.value }))} />
+                  </Field>
+                </div>
+                <div style={{ gridColumn: '1/-1' }}>
+                  <Field label="Branch Label">
+                    <FInput placeholder="e.g. Pune Plant or Mumbai HQ" value={reg.branchLabel} onChange={e => setReg(r => ({ ...r, branchLabel: e.target.value }))} />
                   </Field>
                 </div>
                 <Field label="Email" required>

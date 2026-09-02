@@ -9,7 +9,7 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
     const filter = {};
     if (req.query.status)        filter.paymentStatus = req.query.status;
     if (req.query.applicationId) filter.applicationId = req.query.applicationId;
-    const payments = await Payment.find(filter).sort({ createdAt: -1 });
+    const payments = await Payment.find(filter).sort({ createdAt: -1 }).lean();
     res.json(payments);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -17,7 +17,7 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
 // GET /api/payments/:id
 router.get('/:id', protect, authorize('admin'), async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id);
+    const payment = await Payment.findById(req.params.id).lean();
     if (!payment) return res.status(404).json({ message: 'Payment not found' });
     res.json(payment);
   } catch (err) { res.status(500).json({ message: err.message }); }

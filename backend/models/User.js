@@ -13,13 +13,18 @@ const userSchema = new mongoose.Schema({
   name:                 { type: String, required: true, trim: true },
   email:                { type: String, required: true, lowercase: true, trim: true },
   password:             { type: String, required: true },
-  role:                 { type: String, enum: ['admin','client','auditor','reviewer','sales'], required: true },
+  role:                 { type: String, enum: ['admin','client','auditor','reviewer','sales'], required: true, index: true },
   company:              { type: String, trim: true },
   country:              { type: String, trim: true },
   phone:                { type: String, trim: true },
   isActive:             { type: Boolean, default: true },
   pendingApproval:      { type: Boolean, default: false },
-  clientId:             { type: String },
+  clientId:             { type: String, index: true },
+  // Set for client accounts auto-created from a legacy OldClient record (see
+  // routes/oldClients.js POST /:id/create-login) — lets the frontend point them
+  // at their legacy document viewer instead of the QMS/application dashboard.
+  isLegacyClient:       { type: Boolean, default: false },
+  branchLabel:          { type: String, trim: true },
   address:              { type: String },
   isoStandard:          { type: String },
   scope:                { type: String },
@@ -27,6 +32,9 @@ const userSchema = new mongoose.Schema({
   assignedApplications: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Application' }],
   notifications:        { type: [notificationSchema], default: [] },
 }, { timestamps: true });
+
+// Admin OTP login queries by both fields; keep that lookup indexed as user data grows.
+userSchema.index({ email: 1, role: 1 });
 
 // Static helper — hash any password string
 userSchema.statics.hashPassword = (password) => bcrypt.hash(password, 10);

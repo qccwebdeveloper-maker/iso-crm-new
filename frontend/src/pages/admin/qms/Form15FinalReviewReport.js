@@ -149,7 +149,7 @@ export default function Form15FinalReviewReport() {
     <QMSFormPage
       formType={15}
       formCode="AUD-F-22"
-      formTitle="AUD-F-22-REVIEW REPORT (B)"
+      formTitle="AUD-F-22 REVIEW REPORT (B)"
       defaultData={DEFAULT}
     >
       {({ data, set, clientInfo }) => {

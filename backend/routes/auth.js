@@ -7,7 +7,7 @@ const Otp         = require('../models/Otp');
 const AppSetting  = require('../models/AppSetting');
 const { protect } = require('../middleware/auth');
 const { sendOtpEmail, sendWelcomeEmail } = require('../utils/email');
-const { generateClientId } = require('../utils/clientId');
+const { generateClientId, findReusableClientId } = require('../utils/clientId');
 
 const SECRET   = process.env.JWT_SECRET || 'crm_secret_key_2024';
 const genToken = (id) => jwt.sign({ id }, SECRET, { expiresIn: '7d' });
@@ -102,18 +102,21 @@ router.post('/client-send-otp', async (req, res) => {
       { upsert: true }
     );
 
-    const result = await sendOtpEmail({ to: user.email, name: user.name, otp, expiresInMinutes: 10 });
-    console.log(`[OTP] Client OTP sent to ${user.email} via ${result.via}`);
+    // Fire-and-forget, same as the admin /send-otp flow: the OTP is already saved,
+    // so the client can move to the "enter code" screen immediately instead of
+    // waiting out the full email-provider round trip (can be 15-25s on networks
+    // that throttle outbound SMTP).
+    sendOtpEmail({ to: user.email, name: user.name, otp, expiresInMinutes: 10 })
+      .then((result) => console.log(`[OTP] Client OTP sent to ${user.email} via ${result.via}`))
+      .catch((err) => console.error(`[OTP] Client OTP delivery to ${user.email} failed: ${err.message}`));
 
     // Mask email: ar***@gmail.com
     const masked = user.email.replace(/^(.{2})(.+)(@.+)$/, (_, a, b, c) => a + '*'.repeat(Math.min(b.length, 4)) + c);
 
     res.json({
-      message:    'OTP sent to your registered email.',
+      message:    'OTP is being sent to your registered email.',
       maskedEmail: masked,
-      emailSent:  result.ok,
-      via:        result.via,
-      previewUrl: result.previewUrl || null,
+      emailQueued: true,
     });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -170,30 +173,35 @@ router.post('/send-otp', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Admin email required' });
 
-    const admin = await User.findOne({ email: email.toLowerCase().trim(), role: 'admin' });
+    const admin = await User.findOne({ email: email.toLowerCase().trim(), role: 'admin' })
+      .select('_id name email isActive')
+      .lean();
     if (!admin) return res.status(404).json({ message: 'No admin account found with this email' });
     if (!admin.isActive) return res.status(403).json({ message: 'Admin account is inactive' });
 
     const otp       = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await Otp.findOneAndReplace(
+    await Otp.updateOne(
       { email: admin.email },
-      { email: admin.email, otp, userId: admin._id, expiresAt },
+      { $set: { email: admin.email, otp, userId: admin._id, expiresAt } },
       { upsert: true }
     );
 
-    const result = await sendOtpEmail({ to: admin.email, name: admin.name, otp, expiresInMinutes: 10 });
-
-    console.log(`[OTP] Sent to ${admin.email} via ${result.via}`);
-    if (result.previewUrl) console.log(`[OTP] Preview: ${result.previewUrl}`);
+    // The user can enter the OTP while delivery completes. Waiting for the email
+    // provider here adds its full network latency (typically 6-7 seconds) before
+    // the OTP input appears, even though the OTP is already safely stored.
+    sendOtpEmail({ to: admin.email, name: admin.name, otp, expiresInMinutes: 10 })
+      .then((result) => {
+        console.log(`[OTP] Sent to ${admin.email} via ${result.via}`);
+        if (result.previewUrl) console.log(`[OTP] Preview: ${result.previewUrl}`);
+      })
+      .catch((err) => console.error(`[OTP] Delivery to ${admin.email} failed: ${err.message}`));
 
     res.json({
-      message:    `OTP sent to ${admin.email}. Check your inbox.`,
+      message:    `OTP is being sent to ${admin.email}. Check your inbox.`,
       adminName:  admin.name,
-      emailSent:  result.ok,
-      via:        result.via,
-      previewUrl: result.previewUrl || null,
+      emailQueued: true,
     });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -222,7 +230,7 @@ router.post('/verify-otp', async (req, res) => {
 // POST /api/auth/register-client
 router.post('/register-client', async (req, res) => {
   try {
-    const { companyName, email, password, mobile, address, standard, scope } = req.body;
+    const { companyName, email, password, mobile, address, standard, scope, branchLabel } = req.body;
     if (!companyName || !email || !password || !mobile || !address || !standard || !scope)
       return res.status(400).json({ message: 'All fields are required' });
     if (password.length < 6) return res.status(400).json({ message: 'Password must be at least 6 characters' });
@@ -230,12 +238,25 @@ router.post('/register-client', async (req, res) => {
     const exists = await User.findOne({ email: email.toLowerCase() });
     if (exists) return res.status(409).json({ message: 'An account with this email already exists' });
 
+    // Same company + same standard + a still-active (non-expired) certification is
+    // one lifecycle and must keep the same Client ID — a public visitor can't judge
+    // whether a second registration is a legitimate second site, so this is a hard
+    // stop here (unlike the admin-facing create-user flow, which can confirm past it).
+    const reusable = await findReusableClientId({ company: companyName, standard, branchLabel });
+    if (reusable) {
+      return res.status(409).json({
+        message: `An active Client ID (${reusable.clientId}) already exists for ${companyName} under ${standard}. Please log in with that Client ID instead of registering again, or contact your certification body if you believe this is a separate site.`,
+        existingClientId: reusable.clientId,
+      });
+    }
+
     const clientId = await generateClientId();
     const hashed   = await hashPw(password);
 
     const user = await User.create({
       name: companyName, email: email.toLowerCase(), password: hashed, role: 'client',
       phone: mobile, company: companyName, address, isoStandard: standard, scope,
+      branchLabel: String(branchLabel || '').trim(),
       clientId, isActive: false, pendingApproval: true,
     });
 

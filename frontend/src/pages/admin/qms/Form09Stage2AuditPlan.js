@@ -31,7 +31,7 @@ The audit objectives include:
 • To evaluate the organization’s capability to consistently provide products and/or services that meet customer and applicable statutory and regulatory requirements.
 • To determine whether the Management System is suitable, adequate, effective, and capable of supporting certification.`;
 
-const DEFAULT = {
+export const DEFAULT = {
   idNo: '', orgName: '', address: '', contactPerson: '', contactDetails: '',
   auditType: '', auditStandards: '', auditPlanDate: '',
   auditDateFrom: '', auditDateTo: '', modeOfAudit: '', onlineMeetingLink: '',
@@ -49,7 +49,7 @@ export default function Form09Stage2AuditPlan() {
     <QMSFormPage
       formType={9}
       formCode="AUD-F-11"
-      formTitle="F11&F12 S2Plan&Schedule"
+      formTitle="AUD-F-11 S2 Plan & Schedule"
       defaultData={DEFAULT}
     >
       {(props) => <Stage2PlanBody {...props} />}
@@ -57,7 +57,7 @@ export default function Form09Stage2AuditPlan() {
   );
 }
 
-function Stage2PlanBody({ data, set, clientInfo }) {
+export function Stage2PlanBody({ data, set, clientInfo }) {
   const { byName, names, loading } = useStandards();
 
   // Standards the client selected in their Application Form (F01) drive the

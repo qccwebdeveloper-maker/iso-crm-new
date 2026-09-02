@@ -3,7 +3,7 @@ const router  = express.Router();
 const bcrypt  = require('bcryptjs');
 const User    = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
-const { generateClientId } = require('../utils/clientId');
+const { generateClientId, findReusableClientId } = require('../utils/clientId');
 
 const hashPassword = (pw) => bcrypt.hash(pw, 10);
 
@@ -12,7 +12,7 @@ router.get('/', protect, authorize('admin', 'sales'), async (req, res) => {
   try {
     const filter = {};
     if (req.query.role) filter.role = req.query.role;
-    const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
+    const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).lean();
     res.json(users);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -57,7 +57,7 @@ router.get('/:id', protect, async (req, res) => {
 // POST /api/users — create user (password hashed here directly)
 router.post('/', protect, authorize('admin', 'sales'), async (req, res) => {
   try {
-    const { name, email, password, role, phone, company, country } = req.body;
+    const { name, email, password, role, phone, company, country, isoStandard, branchLabel, address } = req.body;
     if (!name || !email || !password || !role) {
       return res.status(400).json({ message: 'Name, email, password and role are required' });
     }
@@ -70,12 +70,28 @@ router.post('/', protect, authorize('admin', 'sales'), async (req, res) => {
       if (exists) return res.status(400).json({ message: 'Email already in use' });
     }
 
+    // Same client + same standard + a still-active (non-expired) certification is
+    // one lifecycle and must keep the same Client ID (see backend/utils/clientId.js
+    // findReusableClientId). Hard block — a new Client ID for this company+standard
+    // can only be created once the existing certificate has actually expired
+    // (Certificates page → Expire).
+    if (role === 'client' && company && isoStandard) {
+      const reusable = await findReusableClientId({ company, standard: isoStandard, branchLabel });
+      if (reusable) {
+        return res.status(409).json({
+          message: `An active Client ID (${reusable.clientId}) already exists for ${company}, ${branchLabel || 'Main Branch'} under ${isoStandard}. Use that Client ID for new cycles instead.`,
+          existingClientId: reusable.clientId,
+        });
+      }
+    }
+
     const clientId = role === 'client' ? await generateClientId() : undefined;
     const hashed   = await hashPassword(password);
     const user     = await User.create({
       name, email: email.toLowerCase().trim(),
-      password: hashed, role, phone, company, country,
-      clientId,
+      password: hashed, role, phone, company, country, address,
+      branchLabel: role === 'client' ? String(branchLabel || '').trim() : undefined,
+      clientId, isoStandard: role === 'client' ? isoStandard : undefined,
       isActive: true, pendingApproval: false,
     });
 

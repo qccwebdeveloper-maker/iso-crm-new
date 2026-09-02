@@ -19,9 +19,23 @@ services:
         sync: false
       - key: S3_BUCKET
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
       - key: GMAIL_USER
         sync: false
       - key: GMAIL_PASS
         sync: false
-      - key: CLIENT_URL
+      - key: CORS_ORIGIN_VERCEL
+        sync: false
+      - key: CORS_ORIGIN_CRM_HTTP
+        sync: false
+      - key: CORS_ORIGIN_CRM_HTTPS
+        sync: false
+      - key: CORS_ORIGIN_QCC
+        sync: false
+      - key: CORS_ORIGIN_QCC_WWW
+        sync: false
+      - key: CORS_ALLOW_LOCALHOST
         sync: false

@@ -2,35 +2,36 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../../components/common/Layout';
-import { FiSearch, FiDownload, FiFileText, FiClock, FiCheckCircle } from 'react-icons/fi';
+import { useActiveClient } from '../../context/ActiveClientContext';
+import { FiSearch, FiDownload, FiFileText, FiClock, FiCheckCircle, FiX, FiMapPin, FiChevronDown, FiBriefcase } from 'react-icons/fi';
 
 /* All QMS forms that have a dedicated form-XX page (F01–F23).
    `name` mirrors the sidebar nav label in Layout.js exactly, so the form
    name shown here matches the sidebar, the form header, and the preview. */
 const ALL_FORMS = [
-  { formType: 1,  code: 'AUD-F-02',      name: 'F02 Application Form' },
-  { formType: 2,  code: 'AUD-F-03',      name: 'F03 App Rev & F03-01 Aud Pln' },
-  { formType: 3,  code: 'AUD-F-03A',     name: 'F03A Audit Planning for 3 years' },
-  { formType: 4,  code: 'AD-F-03',       name: 'F-03 Auditor(s) Declaration' },
-  { formType: 5,  code: 'AUD-F-05',      name: 'F05&F06 S1Plan&Schedule' },
-  { formType: 6,  code: 'AUD-F-07 S1',   name: 'F07 S1Opening&Closing Meeting' },
-  { formType: 7,  code: 'AUD-F-09',      name: 'F09A S1Report' },
-  { formType: 23, code: 'AUD-F-09-B',    name: 'AUD-F-09-B_OFI_O Sheet' },
-  { formType: 8,  code: 'AUD-F-22',      name: 'AUD-F-22-REVIEW REPORT (A)' },
-  { formType: 9,  code: 'AUD-F-11',      name: 'F11&F12 S2Plan&Schedule' },
-  { formType: 10, code: 'AUD-F-07 S2',   name: 'F07 S2 Open&Clos Meeting' },
-  { formType: 11, code: 'AUD-F-15',      name: 'F15A S2Report' },
-  { formType: 12, code: 'AUD-F-16',      name: 'F16&F17 CAR' },
+  { formType: 1,  code: 'AUD-F-02',      name: 'AUD-F-02 Application Form' },
+  { formType: 2,  code: 'AUD-F-03',      name: 'AUD-F-03 App Rev & F03-01 Aud Pln' },
+  { formType: 3,  code: 'AUD-F-03A',     name: 'AUD-F-03A Audit Planning for 3 years' },
+  { formType: 4,  code: 'AD-F-03',       name: 'AD-F-03 Auditor(s) Declaration' },
+  { formType: 5,  code: 'AUD-F-05',      name: 'AUD-F-05 S1 Plan & Schedule' },
+  { formType: 6,  code: 'AUD-F-07 S1',   name: 'AUD-F-07 S1 Opening & Closing Meeting' },
+  { formType: 7,  code: 'AUD-F-09',      name: 'AUD-F-09 S1 Report' },
+  { formType: 23, code: 'AUD-F-09-B',    name: 'AUD-F-09-B OFI/O Sheet' },
+  { formType: 8,  code: 'AUD-F-22',      name: 'AUD-F-22 REVIEW REPORT (A)' },
+  { formType: 9,  code: 'AUD-F-11',      name: 'AUD-F-11 S2 Plan & Schedule' },
+  { formType: 10, code: 'AUD-F-07 S2',   name: 'AUD-F-07 S2 Open & Clos Meeting' },
+  { formType: 11, code: 'AUD-F-15',      name: 'AUD-F-15 S2 Report' },
+  { formType: 12, code: 'AUD-F-16',      name: 'AUD-F-16 CAR' },
   { formType: 13, code: 'AUD-F-17',      name: 'AUD-F-17 CAR' },
   { formType: 14, code: 'AUD-F-21',      name: 'AUD-F-21 Draft' },
-  { formType: 15, code: 'AUD-F-22',      name: 'AUD-F-22-REVIEW REPORT (B)' },
-  { formType: 16, code: 'AUD-F-02-A',    name: 'F16 · Application Form' },
-  { formType: 17, code: 'AUD-F-05 / 06', name: 'F17 · Audit Plan' },
-  { formType: 18, code: 'AUD-F-07 (S)',  name: 'F18 · Meetings' },
-  { formType: 19, code: 'AUD-F-15 (S)',  name: 'F19 · Audit Report' },
+  { formType: 15, code: 'AUD-F-22',      name: 'AUD-F-22 REVIEW REPORT (B)' },
+  { formType: 16, code: 'AUD-F-02-A',    name: 'F02 Application Form' },
+  { formType: 17, code: 'AUD-F-05 / 06', name: 'AUD-F-06 Audit Schedule' },
+  { formType: 18, code: 'AUD-F-07 (S)',  name: 'AUD-F-07 Opening & Closing Meeting' },
+  { formType: 19, code: 'AUD-F-15 (S)',  name: 'AUD-F-15 Audit Report' },
   { formType: 20, code: 'AUD-F-22 (S)',  name: 'F20 · Report Review' },
   { formType: 21, code: 'AUD-F-17 (S)',  name: 'F21 · Surveillance CAR Report' },
-  { formType: 22, code: 'ADMN-F-01',     name: 'F22 · Letter of Continuation' },
+  { formType: 22, code: 'ADMN-F-01',     name: 'ADMN-F-01 Continuation Letter' },
 ];
 
 const STATUS_META = {
@@ -43,25 +44,60 @@ const formPath = (formType) => `/admin/qms/form-${String(formType).padStart(2, '
 
 export default function DownloadForms() {
   const navigate = useNavigate();
+  const { setActiveClient } = useActiveClient();
   const [cidInput, setCidInput] = useState('');
   const [client, setClient]     = useState(null);
   const [byType, setByType]     = useState(null); // { [formType]: record }
+  const [matches, setMatches]   = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('qms_client_directory') || 'null'); }
+    catch { return null; }
+  }); // grouped company -> branches -> client IDs
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
+
+  const loadClient = async (id, cycleOverride) => {
+    const q = cycleOverride ? `?cycle=${cycleOverride}` : '';
+    const { data: c } = await axios.get(`/api/qms-forms/client/${id}${q}`);
+    setClient(c);
+    setActiveClient({
+      clientId: c.clientId, company: c.company,
+      isPrimaryClientId: c.isPrimaryClientId, clientRank: c.clientRank,
+      cycles: c.cycles, cycleCount: c.cycleCount, activeCycle: c.activeCycle,
+    });
+    const realId = c.clientId || id;
+    const { data } = await axios.get('/api/qms-forms', { params: { clientId: realId, cycle: c.activeCycle || 1 } });
+    const map = {};
+    (data || []).forEach(rec => { map[rec.formType] = rec; });
+    setByType(map);
+  };
 
   const search = async (e) => {
     e?.preventDefault();
     const id = cidInput.trim();
     if (!id) return;
-    setLoading(true); setError(''); setByType(null); setClient(null);
+    setLoading(true); setError(''); setByType(null); setClient(null); setMatches(null);
     try {
-      const { data: c } = await axios.get(`/api/qms-forms/client/${id}`);
-      setClient(c);
-      const realId = c.clientId || id;
-      const { data } = await axios.get('/api/qms-forms', { params: { clientId: realId } });
-      const map = {};
-      (data || []).forEach(rec => { map[rec.formType] = rec; });
-      setByType(map);
+      // A company name can match more than one Client ID (e.g. separate
+      // certifications/sites) — offer a picker instead of an arbitrary match.
+      const { data: found } = await axios.get(`/api/qms-forms/find-clients/${encodeURIComponent(id)}`);
+      if (!found || found.length === 0) {
+        setError('No client found with this ID or company name');
+        return;
+      }
+      const clients = found.flatMap(company => company.branches.flatMap(branch => branch.clients));
+      const exact = clients.find(item => item.clientId.toLowerCase() === id.toLowerCase());
+      setMatches(found);
+      sessionStorage.setItem('qms_client_directory', JSON.stringify(found));
+      if (exact) await loadClient(exact.clientId);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Client not found');
+    } finally { setLoading(false); }
+  };
+
+  const pick = async (id) => {
+    setLoading(true); setError('');
+    try {
+      await loadClient(id);
     } catch (err) {
       setError(err.response?.data?.message || 'Client not found');
     } finally { setLoading(false); }
@@ -69,7 +105,8 @@ export default function DownloadForms() {
 
   const open = (formType) => {
     const realId = client?.clientId || cidInput.trim();
-    navigate(`${formPath(formType)}?client=${encodeURIComponent(realId)}`);
+    const cycle  = client?.activeCycle || 1;
+    navigate(`${formPath(formType)}?client=${encodeURIComponent(realId)}&cycle=${cycle}`);
   };
 
   const filledCount = byType ? Object.keys(byType).length : 0;
@@ -109,10 +146,50 @@ export default function DownloadForms() {
           </div>
         )}
 
+        {matches && (
+            <aside className="branch-drawer branch-drawer-persistent" aria-label="Company branches">
+              <div className="branch-drawer-head">
+                <div><div className="branch-drawer-kicker">Client directory</div><h3>Choose a branch and Client ID</h3></div>
+                <button type="button" className="branch-drawer-close" onClick={() => { setMatches(null); sessionStorage.removeItem('qms_client_directory'); }} title="Close"><FiX size={18} /></button>
+              </div>
+              <div className="branch-drawer-body">
+                {matches.map(company => <details key={company.company} className="branch-company" open>
+                  <summary className="branch-company-name"><FiBriefcase size={15}/><span>{company.company}</span><span className="branch-company-count">{company.branches.length}</span><FiChevronDown className="branch-chevron" size={13}/></summary>
+                  <div className="branch-company-tree">{company.branches.map(branch => <details key={branch.branchLabel} className="branch-group" open>
+                    <summary className="branch-group-head"><FiMapPin className="nav-icon" size={15} /><div className="branch-label">{branch.branchLabel}</div><span>{branch.clients.length}</span><FiChevronDown className="branch-chevron" size={13} /></summary>
+                    {branch.address && <div className="branch-address">{branch.address}</div>}
+                    <div className="branch-client-list">{branch.clients.map(item => <button key={item.clientId} type="button" className="branch-client" onClick={() => pick(item.clientId)}>
+                      <span className="branch-tree-dot"/><div><strong>{item.clientId}</strong><div className="branch-standards"><span className="branch-meta-label">Standard:</span>{(item.standards.length ? item.standards : ['Not set']).map(standard => <span key={standard}>{standard}</span>)}</div></div>
+                      <span className="branch-cycle-count" title={`${item.cycleCount} certification cycle${item.cycleCount === 1 ? '' : 's'}`}>C{item.cycleCount}</span>
+                    </button>)}</div>
+                  </details>)}
+                  </div>
+                </details>)}
+              </div>
+            </aside>
+        )}
+
         {byType && (
           <>
-            <div style={{ marginBottom: 14, fontSize: 13, color: 'var(--gray-600)' }}>
-              <strong>{client?.company || cidInput}</strong>{client?.clientId ? ` · ${client.clientId}` : ''} — {filledCount} form{filledCount === 1 ? '' : 's'} filled
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, fontSize: 13, color: 'var(--gray-600)' }}>
+              <span>
+                <strong>{client?.company || cidInput}</strong>{client?.clientId ? ` · ${client.clientId}` : ''} — {filledCount} form{filledCount === 1 ? '' : 's'} filled
+              </span>
+              {/* Only shown once this Client ID has more than one certification
+                  cycle — a single-cycle client keeps today's plain summary line. */}
+              {client?.cycleCount > 1 && (
+                <select
+                  value={client.activeCycle || 1}
+                  onChange={(e) => loadClient(client.clientId, Number(e.target.value))}
+                  className="btn btn-sm"
+                  style={{ padding: '4px 8px' }}
+                  title="Switch certification cycle"
+                >
+                  {(client.cycles || [1]).map(c => (
+                    <option key={c} value={c}>Cycle {c}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div style={{ background: 'white', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
               {ALL_FORMS.map((f, i) => {

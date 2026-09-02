@@ -5,7 +5,7 @@ const { protect, authorize } = require('../middleware/auth');
 
 router.get('/', protect, async (req, res) => {
   try {
-    res.json(await Role.find().sort({ name: 1 }));
+    res.json(await Role.find().sort({ name: 1 }).lean());
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 

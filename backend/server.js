@@ -80,6 +80,7 @@ app.use('/api/application-reviews',  require('./routes/applicationReviews'));
 app.use('/api/qms-forms',            require('./routes/qmsForms'));
 app.use('/api/auditor-signatures',   require('./routes/auditorSignatures'));
 app.use('/api/files',        require('./routes/files'));
+app.use('/api/oldclients',   require('./routes/oldClients'));
 
 // ── Health check ─────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({

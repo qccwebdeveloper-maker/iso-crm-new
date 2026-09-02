@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema({
   isActive:             { type: Boolean, default: true },
   pendingApproval:      { type: Boolean, default: false },
   clientId:             { type: String, index: true },
+  // Set for client accounts auto-created from a legacy OldClient record (see
+  // routes/oldClients.js POST /:id/create-login) — lets the frontend point them
+  // at their legacy document viewer instead of the QMS/application dashboard.
+  isLegacyClient:       { type: Boolean, default: false },
   branchLabel:          { type: String, trim: true },
   address:              { type: String },
   isoStandard:          { type: String },

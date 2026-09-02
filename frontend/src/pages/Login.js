@@ -256,7 +256,7 @@ export default function Login() {
     try {
       const { data } = await axios.post('/api/auth/client-login', { clientId: email.trim(), password });
       loginWithToken(data, data.token);
-      navigate('/client');
+      navigate(data.isLegacyClient ? '/client/legacy-documents' : '/client');
     } catch (ex) {
       setErr(getErrMsg(ex, 'Invalid Client ID or password.'));
     } finally { setLoading(false); }
@@ -347,11 +347,11 @@ export default function Login() {
                           <input
                             type="email" placeholder="Enter admin email" value={adminEmail}
                             onChange={e => setAdminEmail(e.target.value)}
-                            style={{ ...inp(false), flex: 1 }}
+                            style={{ ...inp(false), flex: 1, height: 42, boxSizing: 'border-box' }}
                             onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
                           />
                           <button onClick={handleSendOtp} disabled={loading}
-                            style={{ ...S.btnMain, width: 'auto', padding: '0 18px', flexShrink: 0, boxShadow: 'none', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            style={{ ...S.btnMain, width: 'auto', height: 42, boxSizing: 'border-box', padding: '0 18px', flexShrink: 0, boxShadow: 'none', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                             {loading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={13} />}
                             {loading ? 'Sending…' : 'Send OTP'}
                           </button>

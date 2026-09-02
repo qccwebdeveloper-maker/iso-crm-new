@@ -21,6 +21,7 @@ const AdminFeedback         = lazy(() => import('./pages/admin/Feedback'));
 const AdminLeads            = lazy(() => import('./pages/admin/Leads'));
 const AdminPayments         = lazy(() => import('./pages/admin/Payments'));
 const AdminStandards        = lazy(() => import('./pages/admin/Standards'));
+const AdminOldClients       = lazy(() => import('./pages/admin/OldClients'));
 const AdminRoles            = lazy(() => import('./pages/admin/Roles'));
 const ApprovalPending       = lazy(() => import('./pages/admin/ApprovalPending'));
 const DMS                   = lazy(() => import('./pages/admin/DMS'));
@@ -65,6 +66,7 @@ const ClientApplicationDetail = lazy(() => import('./pages/client/ApplicationDet
 const ClientApplicationForm  = lazy(() => import('./pages/client/ApplicationForm'));
 const ClientNewApplication   = lazy(() => import('./pages/client/NewApplicationForm'));
 const ClientDocuments       = lazy(() => import('./pages/client/Documents'));
+const ClientLegacyDocuments = lazy(() => import('./pages/client/LegacyDocuments'));
 const ClientCertificates    = lazy(() => import('./pages/client/Certificates'));
 const ClientInvoices        = lazy(() => import('./pages/client/Invoices'));
 const ClientFeedback        = lazy(() => import('./pages/client/Feedback'));
@@ -127,6 +129,7 @@ function AppRoutes() {
       <Route path="/admin/admin-reports"     element={<ProtectedRoute roles={['admin']}><AdminReports /></ProtectedRoute>} />
       <Route path="/admin/feedback"          element={<ProtectedRoute roles={['admin']}><AdminFeedback /></ProtectedRoute>} />
       <Route path="/admin/standards"         element={<ProtectedRoute roles={['admin']}><AdminStandards /></ProtectedRoute>} />
+      <Route path="/admin/old-clients"       element={<ProtectedRoute roles={['admin']}><AdminOldClients /></ProtectedRoute>} />
       <Route path="/admin/roles"             element={<ProtectedRoute roles={['admin']}><AdminRoles /></ProtectedRoute>} />
       <Route path="/admin/approval-pending"  element={<ProtectedRoute roles={['admin']}><ApprovalPending /></ProtectedRoute>} />
       <Route path="/admin/dms"               element={<ProtectedRoute roles={['admin']}><DMS /></ProtectedRoute>} />
@@ -176,6 +179,8 @@ function AppRoutes() {
       <Route path="/client/applications/:id/edit" element={<ProtectedRoute roles={['client']}><ClientNewApplication /></ProtectedRoute>} />
       <Route path="/client/applications/:id" element={<ProtectedRoute roles={['client']}><ClientApplicationDetail /></ProtectedRoute>} />
       <Route path="/client/documents"        element={<ProtectedRoute roles={['client']}><ClientDocuments /></ProtectedRoute>} />
+      <Route path="/client/legacy-documents" element={<ProtectedRoute roles={['client']}><ClientLegacyDocuments /></ProtectedRoute>} />
+      <Route path="/client/legacy-documents/:docId" element={<ProtectedRoute roles={['client']}><ClientLegacyDocuments /></ProtectedRoute>} />
       <Route path="/client/certificates"     element={<ProtectedRoute roles={['client']}><ClientCertificates /></ProtectedRoute>} />
       <Route path="/client/invoices"         element={<ProtectedRoute roles={['client']}><ClientInvoices /></ProtectedRoute>} />
       <Route path="/client/feedback"           element={<ProtectedRoute roles={['client']}><ClientFeedback /></ProtectedRoute>} />

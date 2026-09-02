@@ -5,6 +5,25 @@
 //  2. Gmail SMTP      — set GMAIL_USER + GMAIL_PASS   (fallback)
 //  3. Ethereal        — preview URL fallback           (dev only, no real delivery)
 // ─────────────────────────────────────────────────────────────
+// nodemailer resolves both A and AAAA records for the SMTP host and then picks
+// a RANDOM address from the combined list (see formatDNSValue in its shared
+// resolver) — it doesn't prefer IPv4, and Node's dns.setDefaultResultOrder has
+// no effect since nodemailer bypasses dns.lookup for this path. On hosts like
+// Render, whose IPv6 route to Gmail is unreachable, that random pick fails
+// ~half the time with ENETUNREACH. Resolving the A record ourselves and
+// connecting to that literal IP sidesteps nodemailer's picker entirely; passing
+// `servername` keeps TLS SNI/cert validation targeting the real hostname.
+const dns = require('dns');
+async function resolveIPv4Host(hostname) {
+  try {
+    const addresses = await dns.promises.resolve4(hostname);
+    if (addresses.length) return addresses[Math.floor(Math.random() * addresses.length)];
+  } catch (e) {
+    console.warn(`[Email] Could not resolve ${hostname} to an IPv4 address, using hostname directly:`, e.message);
+  }
+  return null;
+}
+
 const withTimeout = async (promise, timeoutMs, label) => {
   let timer;
   try {
@@ -40,8 +59,9 @@ async function warmGmailTransport() {
   if (!gmailUser || gmailPass.length < 16) return;
 
   const nodemailer = require('nodemailer');
+  const ip = await resolveIPv4Host('smtp.gmail.com');
   const t = nodemailer.createTransport({
-    host: 'smtp.gmail.com', port: 587, secure: false,
+    host: ip || 'smtp.gmail.com', servername: 'smtp.gmail.com', port: 587, secure: false,
     auth: { user: gmailUser, pass: gmailPass },
     connectionTimeout: 10000, greetingTimeout: 8000, socketTimeout: 10000,
   });
@@ -107,8 +127,9 @@ async function attemptSendMail({ to, subject, html }) {
     // single Gmail connect+STARTTLS+AUTH round trip can genuinely take 12-18s — that's
     // not a transient glitch a retry fixes, so one attempt with a realistic timeout
     // beats two attempts that both starve at an unrealistically short one.
+    const gmailIp = await resolveIPv4Host('smtp.gmail.com');
     const t = nodemailer.createTransport({
-      host: 'smtp.gmail.com', port: 587, secure: false,
+      host: gmailIp || 'smtp.gmail.com', servername: 'smtp.gmail.com', port: 587, secure: false,
       auth: { user: gmailUser, pass: gmailPass },
       connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 15000,
     });

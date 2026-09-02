@@ -207,6 +207,11 @@ router.delete('/:id', protect, authorize('admin'), async (req, res) => {
         try { await deleteFromS3(doc.publicId); } catch (e) { console.warn('S3 delete failed:', e.message); }
       }
     }
+    // Also remove the client login (User account) tied to this record, if one
+    // was created — otherwise the Client ID keeps working after "deletion".
+    if (client.linkedUser) {
+      try { await User.findByIdAndDelete(client.linkedUser); } catch (e) { console.warn('Linked user delete failed:', e.message); }
+    }
     await client.deleteOne();
     res.json({ message: 'Old client deleted' });
   } catch (err) { res.status(500).json({ message: err.message }); }

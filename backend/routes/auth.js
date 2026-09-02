@@ -145,15 +145,10 @@ router.post('/client-verify-otp', async (req, res) => {
 
 // GET /api/auth/email-status  — diagnostic
 router.get('/email-status', async (req, res) => {
-  const resendKey = (process.env.RESEND_API_KEY || '').trim();
-  const resendFrom = (process.env.RESEND_FROM || '').trim();
   const brevoUser = (process.env.BREVO_USER || '').trim();
   const brevoPass = (process.env.BREVO_PASS || '').trim();
   const gmailUser = (process.env.GMAIL_USER || '').trim();
 
-  if (resendKey) {
-    return res.json({ ok: true, mode: 'resend', note: `Resend HTTP delivery is set${resendFrom ? '' : ' with its default sender'}.` });
-  }
   if (brevoUser && brevoPass) {
     return res.json({ ok: true, mode: 'brevo', note: 'Brevo SMTP is set. Emails deliver to any address.' });
   }

@@ -1,4 +1,4 @@
-import React,{useState,useEffect}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,Search,ArrowLeft,Upload,FileText,Download,Archive,FolderOpen,Folder,ChevronRight,Link2,RefreshCw,Filter,Eye,EyeOff,KeyRound,Copy}from 'lucide-react';
+import React,{useState,useEffect}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,Search,ArrowLeft,Upload,FileText,Download,Archive,FolderOpen,Folder,ChevronRight,Link2,RefreshCw,Filter,Eye,EyeOff,KeyRound,Copy,AlertTriangle}from 'lucide-react';
 
 const EMPTY_FORM={companyName:'',contactPerson:'',phone:'',email:'',address:'',isoStandard:'',gstNumber:'',udyamNumber:'',notes:''};
 const DOC_TYPES=[{v:'agreement',l:'Agreement'},{v:'invoice',l:'Invoice'},{v:'certificate',l:'Certificate'},{v:'gstCertificate',l:'GST Certificate'},{v:'udyamCertificate',l:'Udyam Registration'},{v:'other',l:'Other'}];
@@ -73,10 +73,42 @@ export default function AdminOldClients(){
     finally{setSaving(false);}
   };
 
-  const del=async id=>{
-    if(!window.confirm('Delete this old client and all its documents?'))return;
-    try{await axios.delete(`/api/oldclients/${id}`);toast.success('Deleted');load();if(modal&&modal!=='add'&&modal._id===id)setModal(null);}
-    catch{toast.error('Failed');}
+  // ── Type-to-confirm delete (client or document) ──
+  // Replaces window.confirm: the admin must type the exact company/file name
+  // before the delete actually fires, so a stray click can't wipe legacy data.
+  const[confirmDel,setConfirmDel]=useState(null); // null | {message, expected, onConfirm}
+  const[confirmText,setConfirmText]=useState('');
+
+  const askDeleteClient=c=>{
+    setConfirmText('');
+    setConfirmDel({
+      message:`This will permanently delete "${c.companyName}", all its documents${c.clientId?`, and its client login (ID ${c.clientId})`:''}. This cannot be undone.`,
+      expected:c.companyName,
+      onConfirm:async()=>{
+        try{await axios.delete(`/api/oldclients/${c._id}`);toast.success('Deleted');load();if(modal&&modal!=='add'&&modal._id===c._id)setModal(null);}
+        catch{toast.error('Failed');}
+      },
+    });
+  };
+
+  const askDeleteDoc=d=>{
+    const fileName=docFileName(d);
+    setConfirmText('');
+    setConfirmDel({
+      message:`This will permanently remove "${fileName}". This cannot be undone.`,
+      expected:fileName,
+      onConfirm:async()=>{
+        if(!modal||modal==='add')return;
+        try{const{data}=await axios.delete(`/api/oldclients/${modal._id}/documents/${d._id}`);setModal(data);toast.success('Document removed');load();}
+        catch{toast.error('Failed');}
+      },
+    });
+  };
+
+  const runConfirmDelete=async()=>{
+    if(!confirmDel||confirmText.trim()!==confirmDel.expected)return;
+    await confirmDel.onConfirm();
+    setConfirmDel(null);setConfirmText('');
   };
 
   const handleFile=async e=>{
@@ -89,13 +121,6 @@ export default function AdminOldClients(){
       setModal(data);toast.success('Document uploaded');load();
     }catch(err){toast.error(err.response?.data?.message||'Upload failed');}
     finally{setUploading(false);}
-  };
-
-  const delDoc=async docId=>{
-    if(!modal||modal==='add')return;
-    if(!window.confirm('Remove this document?'))return;
-    try{const{data}=await axios.delete(`/api/oldclients/${modal._id}/documents/${docId}`);setModal(data);toast.success('Document removed');load();}
-    catch{toast.error('Failed');}
   };
 
   // ── Import documents straight from the legacy Google Drive tree ──
@@ -163,6 +188,35 @@ export default function AdminOldClients(){
     return c.companyName?.toLowerCase().includes(s)||c.contactPerson?.toLowerCase().includes(s)||c.email?.toLowerCase().includes(s)||c.phone?.toLowerCase().includes(s);
   });
 
+  const confirmModal=confirmDel&&(
+    <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
+      <div className="card" style={{width:'100%',maxWidth:420,padding:24}}>
+        <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
+          <AlertTriangle size={20} style={{color:'var(--danger,#dc2626)',flexShrink:0,marginTop:2}}/>
+          <div>
+            <h3 style={{margin:'0 0 6px',fontSize:15}}>Confirm delete</h3>
+            <p style={{margin:0,fontSize:13,color:'var(--gray-500)'}}>{confirmDel.message}</p>
+          </div>
+        </div>
+        <label className="form-label" style={{display:'block',marginBottom:6}}>
+          Type <strong>{confirmDel.expected}</strong> to confirm
+        </label>
+        <input
+          className="form-control"
+          autoFocus
+          value={confirmText}
+          onChange={e=>setConfirmText(e.target.value)}
+          onKeyDown={e=>{if(e.key==='Enter')runConfirmDelete();}}
+          placeholder={confirmDel.expected}
+        />
+        <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:18}}>
+          <button className="btn btn-ghost" onClick={()=>{setConfirmDel(null);setConfirmText('');}}>Cancel</button>
+          <button className="btn btn-danger" disabled={confirmText.trim()!==confirmDel.expected} onClick={runConfirmDelete}><Trash2 size={14}/>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+
   // ── Full-page Add / Edit form ──
   if(modal){
     const isEdit=modal!=='add';
@@ -170,10 +224,10 @@ export default function AdminOldClients(){
       <div className="page-hdr">
         <div style={{display:'flex',alignItems:'center',gap:12}}>
           <button className="btn btn-ghost btn-sm" onClick={()=>setModal(null)}><ArrowLeft size={15}/>Back</button>
-          <div><h1 className="page-title">{isEdit?'Edit Old Client':'Add Old Client'}</h1><p className="page-subtitle">{isEdit?'Update company details and manage documents':'Save the company first, then attach its documents'}</p></div>
+          <div><h1 className="page-title">{isEdit?modal.companyName:'Add Old Client'}</h1><p className="page-subtitle">{isEdit?'Manage client login and documents':'Save the company first, then attach its documents'}</p></div>
         </div>
       </div>
-      <div className="card" style={{width:'100%',padding:24,marginBottom:isEdit?20:0}}>
+      {!isEdit&&(<div className="card" style={{width:'100%',padding:24}}>
         <div className="form-group"><label className="form-label">Company Name *</label><input className="form-control" value={form.companyName} onChange={e=>setForm(p=>({...p,companyName:e.target.value}))} placeholder="e.g. TAP Engineering"/></div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
           <div className="form-group"><label className="form-label">Contact Person</label><input className="form-control" value={form.contactPerson} onChange={e=>setForm(p=>({...p,contactPerson:e.target.value}))}/></div>
@@ -187,9 +241,9 @@ export default function AdminOldClients(){
         <div className="form-group"><label className="form-label">Notes</label><textarea className="form-control" rows={2} value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))}/></div>
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:20,borderTop:'1px solid var(--gray-100)',paddingTop:18}}>
           <button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>{saving?'Saving…':isEdit?<><Edit size={14}/>Save</>:<><Plus size={14}/>Create</>}</button>
+          <button className="btn btn-primary" onClick={save} disabled={saving}><Plus size={14}/>Create</button>
         </div>
-      </div>
+      </div>)}
 
       {isEdit&&(<div className="card" style={{width:'100%',padding:24,marginBottom:20}}>
         <h3 style={{margin:'0 0 14px',fontSize:15,display:'flex',alignItems:'center',gap:8}}><KeyRound size={16} style={{color:'var(--primary)'}}/>Client Login</h3>
@@ -290,7 +344,7 @@ export default function AdminOldClients(){
                       {fileId
                         ?<button type="button" className="btn btn-ghost btn-sm" onClick={()=>setPreviewDocId(isOpen?null:d._id)}>{isOpen?<><EyeOff size={13}/>Hide</>:<><Eye size={13}/>Preview</>}</button>
                         :<a className="btn btn-ghost btn-sm" href={d.path} target="_blank" rel="noreferrer"><Download size={13}/>View</a>}
-                      <button className="btn btn-danger btn-sm" onClick={()=>delDoc(d._id)}><Trash2 size={13}/>Remove</button>
+                      <button className="btn btn-danger btn-sm" onClick={()=>askDeleteDoc(d)}><Trash2 size={13}/>Remove</button>
                     </div></td>
                   </tr>
                   {isOpen&&fileId&&<tr><td colSpan={4} style={{padding:'0 0 14px'}}>
@@ -301,6 +355,7 @@ export default function AdminOldClients(){
               </div>));
             })()}
       </div>)}
+      {confirmModal}
     </Layout>);
   }
 
@@ -329,11 +384,12 @@ export default function AdminOldClients(){
           <td><span className="badge bdg-info">{(c.documents||[]).length}</span></td>
           <td><div className="tbl-actions">
             <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(c)}><Edit size={13}/>Open</button>
-            <button className="btn btn-danger btn-sm" onClick={()=>del(c._id)}><Trash2 size={13}/>Delete</button>
+            <button className="btn btn-danger btn-sm" onClick={()=>askDeleteClient(c)}><Trash2 size={13}/>Delete</button>
           </div></td>
         </tr>))}
         {filtered.length===0&&<tr><td colSpan={7} style={{textAlign:'center',padding:32,color:'var(--gray-400)'}}>{q?'No matches':'No old clients added yet'}</td></tr>}
       </tbody></table></div>
     )}</div>
+    {confirmModal}
   </Layout>);
 }

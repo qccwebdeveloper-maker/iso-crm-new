@@ -42,6 +42,10 @@ async function warmGmailTransport() {
   const nodemailer = require('nodemailer');
   const t = nodemailer.createTransport({
     host: 'smtp.gmail.com', port: 587, secure: false,
+    // Some hosts (Render included) advertise an IPv6 route to Gmail that
+    // isn't actually reachable, failing with ENETUNREACH before IPv4 is ever
+    // tried — force IPv4 so this doesn't depend on the host's IPv6 egress.
+    family: 4,
     auth: { user: gmailUser, pass: gmailPass },
     connectionTimeout: 10000, greetingTimeout: 8000, socketTimeout: 10000,
   });
@@ -109,6 +113,7 @@ async function attemptSendMail({ to, subject, html }) {
     // beats two attempts that both starve at an unrealistically short one.
     const t = nodemailer.createTransport({
       host: 'smtp.gmail.com', port: 587, secure: false,
+      family: 4, // see warmGmailTransport above — avoids ENETUNREACH on hosts with broken IPv6 egress
       auth: { user: gmailUser, pass: gmailPass },
       connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 15000,
     });

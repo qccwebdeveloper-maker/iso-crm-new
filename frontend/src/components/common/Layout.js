@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useActiveClient } from '../../context/ActiveClientContext';
 import { useUnsavedChangesGuard } from '../../context/UnsavedChangesContext';
+import { groupLegacyDocs, legacyDocFileName } from '../../utils/legacyDocs';
 import axios from 'axios';
 import { MdDashboard, MdShield } from 'react-icons/md';
 import {
@@ -83,6 +84,19 @@ const NAV = {
       { to: '/admin/qms/form-22', icon: FiFileText, label: 'ADMN-F-01 Continuation Letter' },
     ]},
     { sec: 'Recertification', items: [
+    ]},
+  ],
+  // Legacy clients (migrated from the pre-CRM Old Clients records — see
+  // routes/oldClients.js create-login) have no QMS/application data, so they
+  // get a minimal nav pointing straight at their own documents instead of the
+  // full application/QMS-forms nav below.
+  legacyClient: [
+    { sec: 'Overview', items: [
+      { to: '/client',                 icon: MdDashboard, label: 'Dashboard' },
+      { to: '/client/legacy-documents', icon: FiArchive,  label: 'My Documents' },
+    ]},
+    { sec: 'Support', items: [
+      { to: '/client/feedback', icon: FiMessageSquare, label: 'Feedback' },
     ]},
   ],
   client: [
@@ -391,6 +405,16 @@ export default function Layout({ children, title }) {
   const [notifications,   setNotifications]   = useState([]);
   const [profileImg,      setProfileImg]      = useState(null);
   const [collapsed,       setCollapsed]       = useState({ master: true, qmsForms: true });
+  const isLegacyClient = user?.role === 'client' && user?.isLegacyClient;
+  const [legacyDocs, setLegacyDocs] = useState([]);
+
+  // Legacy clients' own document list, fetched once so it can be listed
+  // directly in the sidebar (grouped the same way as the admin Old Clients
+  // page) — clicking one opens that single document in the main content area.
+  useEffect(() => {
+    if (!isLegacyClient) { setLegacyDocs([]); return; }
+    axios.get('/api/oldclients/me').then(({ data }) => setLegacyDocs(data.documents || [])).catch(() => setLegacyDocs([]));
+  }, [isLegacyClient]);
 
   // Cycle-grouped nav (every "primary" Client ID — the common case, including a
   // brand-new one still on cycle 1) takes priority over the legacy clientRank
@@ -399,10 +423,21 @@ export default function Layout({ children, title }) {
   // time. A fresh single-cycle client still gets grouped as "Cycle 1" so its
   // Recertification phase (and the auto-next-cycle feature) is reachable from the
   // very first cycle, not only once a second cycle already exists.
+  const baseNav = isLegacyClient
+    ? (() => {
+        const overviewSec = NAV.legacyClient.find(s => s.sec === 'Overview');
+        const supportSec  = NAV.legacyClient.find(s => s.sec === 'Support');
+        const docSections = groupLegacyDocs(legacyDocs).map(([name, docs]) => ({
+          sec: name, collapsible: true, key: `legacydoc-${name}`,
+          items: docs.map(d => ({ to: `/client/legacy-documents/${d._id}`, icon: FiFileText, label: legacyDocFileName(d), keepOpen: true })),
+        }));
+        return [overviewSec, ...docSections, supportSec];
+      })()
+    : (NAV[user?.role] || []);
   const secs = withClientDeepLinks(
     (activeClient && activeClient.isPrimaryClientId !== false)
-      ? buildCycleGroupedNav(NAV[user?.role] || [], activeClient)
-      : applyActiveClientNav(NAV[user?.role] || [], activeClient),
+      ? buildCycleGroupedNav(baseNav, activeClient)
+      : applyActiveClientNav(baseNav, activeClient),
     activeClient
   );
 
@@ -527,18 +562,22 @@ export default function Layout({ children, title }) {
   // If the currently-open QMS form has unsaved changes (see
   // UnsavedChangesContext), the navigation is held and a prompt is shown instead —
   // preventDefault() on the Link's click stops React Router from navigating.
-  const finishNavClick = () => {
-    setOpen(false);
+  // keepOpen: true skips the auto-close/collapse — used for the legacy-client
+  // document links so browsing several files in a row doesn't require
+  // reopening the sidebar (mobile drawer) or re-expanding it (desktop mini
+  // mode) after every single click.
+  const finishNavClick = (keepOpen) => {
+    if (!keepOpen) setOpen(false);
     window.scrollTo(0, 0);
-    if (window.innerWidth > 768) setMini(true);
+    if (!keepOpen && window.innerWidth > 768) setMini(true);
   };
-  const handleNavClick = (e, to) => {
+  const handleNavClick = (e, to, keepOpen) => {
     if (unsavedGuard?.current?.isDirty && to && to !== loc.pathname) {
       e.preventDefault();
       setPendingNav(to);
       return;
     }
-    finishNavClick();
+    finishNavClick(keepOpen);
   };
   const proceedPendingNav = () => {
     const to = pendingNav;
@@ -643,7 +682,7 @@ export default function Layout({ children, title }) {
                               to={item.to}
                               className={`nav-sub-item ${isOn(item.to) ? 'active' : ''}`}
                               title={item.label}
-                              onClick={(e) => handleNavClick(e, item.to)}
+                              onClick={(e) => handleNavClick(e, item.to, item.keepOpen)}
                             >
                               <span className="nav-sub-dot" />
                               <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
@@ -656,7 +695,7 @@ export default function Layout({ children, title }) {
                           to={item.to}
                           className={`nav-sub-item ${isOn(item.to) ? 'active' : ''}`}
                           title={item.label}
-                          onClick={(e) => handleNavClick(e, item.to)}
+                          onClick={(e) => handleNavClick(e, item.to, item.keepOpen)}
                         >
                           <span className="nav-sub-dot" />
                           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>

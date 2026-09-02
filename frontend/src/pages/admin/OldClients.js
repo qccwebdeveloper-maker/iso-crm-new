@@ -1,4 +1,4 @@
-import React,{useState,useEffect}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,Search,ArrowLeft,Upload,FileText,Download,Archive,FolderOpen,Folder,ChevronRight,Link2,RefreshCw,Filter}from 'lucide-react';
+import React,{useState,useEffect}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,Search,ArrowLeft,Upload,FileText,Download,Archive,FolderOpen,Folder,ChevronRight,Link2,RefreshCw,Filter,Eye,EyeOff,KeyRound,Copy}from 'lucide-react';
 
 const EMPTY_FORM={companyName:'',contactPerson:'',phone:'',email:'',address:'',isoStandard:'',gstNumber:'',udyamNumber:'',notes:''};
 const DOC_TYPES=[{v:'agreement',l:'Agreement'},{v:'invoice',l:'Invoice'},{v:'certificate',l:'Certificate'},{v:'gstCertificate',l:'GST Certificate'},{v:'udyamCertificate',l:'Udyam Registration'},{v:'other',l:'Other'}];
@@ -18,6 +18,8 @@ export default function AdminOldClients(){
   const[attachingId,setAttachingId]=useState(null);
   const[syncing,setSyncing]=useState(false);
   const[filterType,setFilterType]=useState('all');
+  const[creatingLogin,setCreatingLogin]=useState(false);
+  const[bulkCreating,setBulkCreating]=useState(false);
 
   // Synced-from-Drive documents keep their source sub-folder in `name`, e.g.
   // "admin/5341.jpeg" or "Client/GST certificate.pdf" — mirror that grouping
@@ -37,12 +39,21 @@ export default function AdminOldClients(){
     const name=d.name||'';
     return name.includes('/')?name.split('/').slice(1).join('/'):(d.originalName||name);
   };
+  // Drive-sourced documents (synced or attached from the Drive browser) carry
+  // "drive:<fileId>" as publicId — only those can be previewed inline via
+  // Google's embeddable /preview viewer; plain uploads just open their link.
+  const driveFileId=d=>{
+    if(d.publicId&&d.publicId.startsWith('drive:'))return d.publicId.slice(6);
+    const m=(d.path||'').match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    return m?m[1]:null;
+  };
+  const[previewDocId,setPreviewDocId]=useState(null);
 
   const load=()=>{setLoading(true);axios.get('/api/oldclients').then(r=>setList(r.data||[])).catch(()=>toast.error('Failed to load old clients')).finally(()=>setLoading(false));};
   useEffect(load,[]);
 
-  const openAdd=()=>{setForm(EMPTY_FORM);setShowDrive(false);setModal('add');};
-  const openEdit=entry=>{setForm({companyName:entry.companyName||'',contactPerson:entry.contactPerson||'',phone:entry.phone||'',email:entry.email||'',address:entry.address||'',isoStandard:entry.isoStandard||'',gstNumber:entry.gstNumber||'',udyamNumber:entry.udyamNumber||'',notes:entry.notes||''});setShowDrive(false);setModal(entry);};
+  const openAdd=()=>{setForm(EMPTY_FORM);setShowDrive(false);setPreviewDocId(null);setModal('add');};
+  const openEdit=entry=>{setForm({companyName:entry.companyName||'',contactPerson:entry.contactPerson||'',phone:entry.phone||'',email:entry.email||'',address:entry.address||'',isoStandard:entry.isoStandard||'',gstNumber:entry.gstNumber||'',udyamNumber:entry.udyamNumber||'',notes:entry.notes||''});setShowDrive(false);setPreviewDocId(null);setModal(entry);};
 
   const save=async()=>{
     if(!form.companyName.trim())return toast.error('Company name is required');
@@ -121,6 +132,31 @@ export default function AdminOldClients(){
     finally{setSyncing(false);}
   };
 
+  // ── Client logins — lets each legacy client sign in (Client ID + `${clientId}@1234`) and view their own documents ──
+  const copyText=text=>{navigator.clipboard?.writeText(text).then(()=>toast.success('Copied')).catch(()=>{});};
+
+  const createLogin=async()=>{
+    if(!modal||modal==='add')return;
+    setCreatingLogin(true);
+    try{
+      const{data}=await axios.post(`/api/oldclients/${modal._id}/create-login`);
+      setModal(m=>({...m,clientId:data.user.clientId}));
+      toast.success(data.created?`Login created — Client ID ${data.user.clientId}`:`Login already exists — Client ID ${data.user.clientId}`);
+      load();
+    }catch(err){toast.error(err.response?.data?.message||'Could not create login');}
+    finally{setCreatingLogin(false);}
+  };
+
+  const bulkCreateLogins=async()=>{
+    setBulkCreating(true);
+    try{
+      const{data}=await axios.post('/api/oldclients/create-logins-bulk');
+      toast.success(`Created ${data.created} login${data.created===1?'':'s'} (${data.scanned} scanned)`);
+      load();
+    }catch(err){toast.error(err.response?.data?.message||'Could not create logins');}
+    finally{setBulkCreating(false);}
+  };
+
   const filtered=list.filter(c=>{
     const s=q.trim().toLowerCase();
     if(!s)return true;
@@ -154,6 +190,28 @@ export default function AdminOldClients(){
           <button className="btn btn-primary" onClick={save} disabled={saving}>{saving?'Saving…':isEdit?<><Edit size={14}/>Save</>:<><Plus size={14}/>Create</>}</button>
         </div>
       </div>
+
+      {isEdit&&(<div className="card" style={{width:'100%',padding:24,marginBottom:20}}>
+        <h3 style={{margin:'0 0 14px',fontSize:15,display:'flex',alignItems:'center',gap:8}}><KeyRound size={16} style={{color:'var(--primary)'}}/>Client Login</h3>
+        {modal.clientId?(
+          <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:20}}>
+            <div><div style={{fontSize:11,color:'var(--gray-400)',marginBottom:2}}>Client ID</div>
+              <div style={{display:'flex',alignItems:'center',gap:6}}><span className="mono" style={{fontSize:15,fontWeight:700}}>{modal.clientId}</span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={()=>copyText(modal.clientId)}><Copy size={12}/></button></div>
+            </div>
+            <div><div style={{fontSize:11,color:'var(--gray-400)',marginBottom:2}}>Password</div>
+              <div style={{display:'flex',alignItems:'center',gap:6}}><span className="mono" style={{fontSize:15,fontWeight:700}}>{modal.clientId}@1234</span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={()=>copyText(`${modal.clientId}@1234`)}><Copy size={12}/></button></div>
+            </div>
+            <span style={{fontSize:12,color:'var(--gray-400)'}}>The client can sign in from the Client Login tab with these credentials.</span>
+          </div>
+        ):(
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <p style={{fontSize:12,color:'var(--gray-400)',margin:0,flex:1}}>No login created yet — the client can't view these documents until one exists.</p>
+            <button className="btn btn-primary btn-sm" onClick={createLogin} disabled={creatingLogin}>{creatingLogin?'Creating…':<><KeyRound size={13}/>Create Login</>}</button>
+          </div>
+        )}
+      </div>)}
 
       {isEdit&&(<div className="card" style={{width:'100%',padding:24}}>
         <h3 style={{margin:'0 0 14px',fontSize:15,display:'flex',alignItems:'center',gap:8}}><Archive size={16} style={{color:'var(--primary)'}}/>Documents</h3>
@@ -224,15 +282,21 @@ export default function AdminOldClients(){
               return groupNames.map(g=>(<div key={g} style={{marginBottom:20}}>
                 <h4 style={{margin:'0 0 8px',fontSize:13,display:'flex',alignItems:'center',gap:6,color:'var(--gray-600)'}}><Folder size={13} style={{color:'var(--primary)'}}/>{g} <span style={{color:'var(--gray-400)',fontWeight:400}}>({groups[g].length})</span></h4>
                 <div className="tbl-wrap"><table className="tbl"><thead><tr><th>File</th><th>Type</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>
-                  {groups[g].map(d=>(<tr key={d._id}>
+                  {groups[g].map(d=>{const fileId=driveFileId(d);const isOpen=previewDocId===d._id;return(<React.Fragment key={d._id}><tr>
                     <td><div style={{display:'flex',alignItems:'center',gap:8}}><FileText size={13} style={{color:'var(--primary)'}}/>{docFileName(d)}</div></td>
                     <td><span className="badge bdg-info">{DOC_TYPES.find(t=>t.v===d.docType)?.l||d.docType}</span></td>
                     <td style={{fontSize:12,color:'var(--gray-400)'}}>{d.uploadedAt?new Date(d.uploadedAt).toLocaleDateString():'—'}</td>
                     <td><div className="tbl-actions">
-                      <a className="btn btn-ghost btn-sm" href={d.path} target="_blank" rel="noreferrer"><Download size={13}/>View</a>
+                      {fileId
+                        ?<button type="button" className="btn btn-ghost btn-sm" onClick={()=>setPreviewDocId(isOpen?null:d._id)}>{isOpen?<><EyeOff size={13}/>Hide</>:<><Eye size={13}/>Preview</>}</button>
+                        :<a className="btn btn-ghost btn-sm" href={d.path} target="_blank" rel="noreferrer"><Download size={13}/>View</a>}
                       <button className="btn btn-danger btn-sm" onClick={()=>delDoc(d._id)}><Trash2 size={13}/>Remove</button>
                     </div></td>
-                  </tr>))}
+                  </tr>
+                  {isOpen&&fileId&&<tr><td colSpan={4} style={{padding:'0 0 14px'}}>
+                    <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} title={docFileName(d)} width="100%" height="480" style={{border:'1px solid var(--gray-200)',borderRadius:8}} allow="autoplay"/>
+                  </td></tr>}
+                  </React.Fragment>);})}
                 </tbody></table></div>
               </div>));
             })()}
@@ -245,6 +309,7 @@ export default function AdminOldClients(){
     <div className="page-hdr">
       <div><h1 className="page-title">Old Clients</h1><p className="page-subtitle">{list.length} legacy client{list.length===1?'':'s'} — onboarded before this CRM, kept for records</p></div>
       <div style={{display:'flex',gap:10}}>
+        <button className="btn btn-ghost" onClick={bulkCreateLogins} disabled={bulkCreating}><KeyRound size={14}/>{bulkCreating?'Creating…':'Create Logins for All'}</button>
         <button className="btn btn-ghost" onClick={syncDrive} disabled={syncing}><RefreshCw size={14}/>{syncing?'Syncing…':'Sync from Google Drive'}</button>
         <button className="btn btn-primary" onClick={openAdd}><Plus size={14}/>Add Old Client</button>
       </div>
@@ -254,19 +319,20 @@ export default function AdminOldClients(){
       <input className="form-control" style={{border:'none',padding:'4px 0'}} value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by company, contact, email or phone…"/>
     </div>
     <div className="card">{loading?<div className="loading-box"><div className="spinner"/></div>:(
-      <div className="tbl-wrap"><table className="tbl"><thead><tr><th>#</th><th>Company</th><th>Contact</th><th>Standard</th><th>Documents</th><th>Actions</th></tr></thead><tbody>
+      <div className="tbl-wrap"><table className="tbl"><thead><tr><th>#</th><th>Company</th><th>Contact</th><th>Standard</th><th>Login</th><th>Documents</th><th>Actions</th></tr></thead><tbody>
         {filtered.map((c,i)=>(<tr key={c._id}>
           <td style={{color:'var(--gray-400)',fontSize:12}}>{i+1}</td>
           <td><strong>{c.companyName}</strong></td>
           <td>{c.contactPerson||<span style={{color:'var(--gray-300)'}}>—</span>}<div style={{fontSize:11,color:'var(--gray-400)'}}>{c.phone||c.email||''}</div></td>
           <td>{c.isoStandard||<span style={{color:'var(--gray-300)'}}>—</span>}</td>
+          <td>{c.clientId?<span className="mono badge bdg-approved">{c.clientId}</span>:<span style={{color:'var(--gray-300)',fontSize:11}}>Not created</span>}</td>
           <td><span className="badge bdg-info">{(c.documents||[]).length}</span></td>
           <td><div className="tbl-actions">
             <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(c)}><Edit size={13}/>Open</button>
             <button className="btn btn-danger btn-sm" onClick={()=>del(c._id)}><Trash2 size={13}/>Delete</button>
           </div></td>
         </tr>))}
-        {filtered.length===0&&<tr><td colSpan={6} style={{textAlign:'center',padding:32,color:'var(--gray-400)'}}>{q?'No matches':'No old clients added yet'}</td></tr>}
+        {filtered.length===0&&<tr><td colSpan={7} style={{textAlign:'center',padding:32,color:'var(--gray-400)'}}>{q?'No matches':'No old clients added yet'}</td></tr>}
       </tbody></table></div>
     )}</div>
   </Layout>);

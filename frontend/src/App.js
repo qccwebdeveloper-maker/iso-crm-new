@@ -66,6 +66,7 @@ const ClientApplicationDetail = lazy(() => import('./pages/client/ApplicationDet
 const ClientApplicationForm  = lazy(() => import('./pages/client/ApplicationForm'));
 const ClientNewApplication   = lazy(() => import('./pages/client/NewApplicationForm'));
 const ClientDocuments       = lazy(() => import('./pages/client/Documents'));
+const ClientLegacyDocuments = lazy(() => import('./pages/client/LegacyDocuments'));
 const ClientCertificates    = lazy(() => import('./pages/client/Certificates'));
 const ClientInvoices        = lazy(() => import('./pages/client/Invoices'));
 const ClientFeedback        = lazy(() => import('./pages/client/Feedback'));
@@ -178,6 +179,8 @@ function AppRoutes() {
       <Route path="/client/applications/:id/edit" element={<ProtectedRoute roles={['client']}><ClientNewApplication /></ProtectedRoute>} />
       <Route path="/client/applications/:id" element={<ProtectedRoute roles={['client']}><ClientApplicationDetail /></ProtectedRoute>} />
       <Route path="/client/documents"        element={<ProtectedRoute roles={['client']}><ClientDocuments /></ProtectedRoute>} />
+      <Route path="/client/legacy-documents" element={<ProtectedRoute roles={['client']}><ClientLegacyDocuments /></ProtectedRoute>} />
+      <Route path="/client/legacy-documents/:docId" element={<ProtectedRoute roles={['client']}><ClientLegacyDocuments /></ProtectedRoute>} />
       <Route path="/client/certificates"     element={<ProtectedRoute roles={['client']}><ClientCertificates /></ProtectedRoute>} />
       <Route path="/client/invoices"         element={<ProtectedRoute roles={['client']}><ClientInvoices /></ProtectedRoute>} />
       <Route path="/client/feedback"           element={<ProtectedRoute roles={['client']}><ClientFeedback /></ProtectedRoute>} />

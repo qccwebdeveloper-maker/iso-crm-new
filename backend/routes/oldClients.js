@@ -2,20 +2,111 @@ const express    = require('express');
 const router     = express.Router();
 const path       = require('path');
 const fs         = require('fs');
+const bcrypt     = require('bcryptjs');
 const OldClient  = require('../models/OldClient');
+const User       = require('../models/User');
 const upload     = require('../middleware/upload');
 const { protect, authorize } = require('../middleware/auth');
 const { uploadToS3, deleteFromS3 } = require('../utils/s3');
 const { extractFolderId, listDriveFolder, listDriveFilesRecursive, guessDocType } = require('../utils/googleDrive');
+const { generateClientId } = require('../utils/clientId');
 
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+// Old-client Drive folders are named after the legacy Client ID (e.g. "9026"),
+// picked up as-is into companyName by the sync until an admin renames it — reuse
+// that number as the login Client ID so it matches what the client already knows.
+// Falls back to minting a fresh 4-digit Client ID for records without one.
+async function assignLoginClientId(oldClient) {
+  if (oldClient.clientId) return oldClient.clientId;
+  const guess = String(oldClient.companyName || '').trim();
+  if (/^\d{3,6}$/.test(guess) && !(await User.findOne({ clientId: guess }).select('_id').lean())) {
+    return guess;
+  }
+  return generateClientId();
+}
+
+// Creates (or returns the existing) client User account for one legacy record.
+async function createLoginForOldClient(oldClient, adminId) {
+  if (oldClient.linkedUser) {
+    const existing = await User.findById(oldClient.linkedUser);
+    if (existing) return { user: existing, created: false };
+  }
+
+  const clientId = await assignLoginClientId(oldClient);
+  const password  = `${clientId}@1234`;
+  const hashed    = await bcrypt.hash(password, 10);
+
+  const user = await User.create({
+    name: oldClient.companyName,
+    email: oldClient.email || `legacy${clientId}@iso-crm.local`,
+    password: hashed,
+    role: 'client',
+    company: oldClient.companyName,
+    phone: oldClient.phone,
+    address: oldClient.address,
+    isoStandard: oldClient.isoStandard,
+    clientId,
+    isLegacyClient: true,
+    isActive: true,
+    pendingApproval: false,
+  });
+
+  oldClient.clientId = clientId;
+  oldClient.linkedUser = user._id;
+  oldClient.createdBy = oldClient.createdBy || adminId;
+  await oldClient.save();
+
+  const safe = user.toObject();
+  delete safe.password;
+  return { user: { ...safe, _plainPassword: password }, created: true };
+}
+
+// GET /api/oldclients/me — the logged-in legacy client's own record (documents
+// included). Any client account can call this; it just won't find anything
+// unless it was created via create-login below.
+router.get('/me', protect, authorize('client'), async (req, res) => {
+  try {
+    if (!req.user.clientId) return res.status(404).json({ message: 'No legacy records linked to this account' });
+    const client = await OldClient.findOne({ clientId: req.user.clientId }).lean();
+    if (!client) return res.status(404).json({ message: 'No legacy records linked to this account' });
+    res.json(client);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
 
 // GET /api/oldclients
 router.get('/', protect, authorize('admin'), async (req, res) => {
   try {
     const clients = await OldClient.find().sort({ createdAt: -1 }).lean();
     res.json(clients);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// POST /api/oldclients/:id/create-login — mint (or fetch) a client login for one
+// legacy record, so its owner can sign in with Client ID + `${clientId}@1234`.
+router.post('/:id/create-login', protect, authorize('admin'), async (req, res) => {
+  try {
+    const client = await OldClient.findById(req.params.id);
+    if (!client) return res.status(404).json({ message: 'Old client not found' });
+    const { user, created } = await createLoginForOldClient(client, req.user._id);
+    res.json({ user, created });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// POST /api/oldclients/create-logins-bulk — create logins for every legacy
+// record that doesn't have one yet. Safe to re-run.
+router.post('/create-logins-bulk', protect, authorize('admin'), async (req, res) => {
+  try {
+    const clients = await OldClient.find({ linkedUser: { $exists: false } });
+    let created = 0;
+    const results = [];
+    for (const client of clients) {
+      const { user, created: wasCreated } = await createLoginForOldClient(client, req.user._id);
+      if (wasCreated) created++;
+      results.push({ oldClientId: client._id, companyName: client.companyName, clientId: user.clientId });
+    }
+    res.json({ scanned: clients.length, created, results });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 

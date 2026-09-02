@@ -28,6 +28,12 @@ const oldClientSchema = new mongoose.Schema({
   // routes/oldClients.js POST /drive/sync) — lets the sync skip folders it
   // has already imported instead of duplicating them on every run.
   driveFolderId:  { type: String, index: true, unique: true, sparse: true },
+  // Set once an admin creates a client login for this legacy record (see
+  // POST /:id/create-login) — the same value as the linked User's clientId,
+  // so the client can log in with Client ID + `${clientId}@1234` and pull up
+  // their own documents via GET /me.
+  clientId:       { type: String, index: true, unique: true, sparse: true },
+  linkedUser:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('OldClient', oldClientSchema);

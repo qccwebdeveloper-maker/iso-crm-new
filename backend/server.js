@@ -1,3 +1,4 @@
+const dns         = require('dns');
 const express     = require('express');
 const compression = require('compression');
 const cors        = require('cors');
@@ -5,6 +6,13 @@ const dotenv      = require('dotenv');
 const path        = require('path');
 const fs          = require('fs');
 const connectDB   = require('./config/db');
+
+// Render advertises an IPv6 route to Gmail's SMTP servers that isn't actually
+// reachable (ENETUNREACH), even though Node's dns.lookup() prefers the AAAA
+// record it returns. nodemailer doesn't forward a `family` option down to its
+// underlying net/tls connect, so the only reliable fix is making IPv4 the
+// default resolution order for the whole process.
+dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
 

@@ -45,6 +45,7 @@ app.use(cors({
     if (!origin) return cb(null, true);
     if (allowLocalhost && isLocalhost(origin)) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
+    console.warn(`[CORS] Rejected origin "${origin}" — allowed: ${allowedOrigins.join(', ') || '(none configured)'}`);
     return cb(new Error('CORS: origin not allowed'));
   },
   credentials: true,

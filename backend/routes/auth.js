@@ -145,17 +145,13 @@ router.post('/client-verify-otp', async (req, res) => {
 
 // GET /api/auth/email-status  — diagnostic
 router.get('/email-status', async (req, res) => {
-  const brevoUser = (process.env.BREVO_USER || '').trim();
-  const brevoPass = (process.env.BREVO_PASS || '').trim();
   const gmailUser = (process.env.GMAIL_USER || '').trim();
+  const gmailPass = (process.env.GMAIL_PASS || '').replace(/\s/g, '');
 
-  if (brevoUser && brevoPass) {
-    return res.json({ ok: true, mode: 'brevo', note: 'Brevo SMTP is set. Emails deliver to any address.' });
-  }
-  if (gmailUser) {
+  if (gmailUser && gmailPass.length >= 16) {
     return res.json({ ok: true, mode: 'gmail-smtp', note: 'Gmail SMTP is set. Emails deliver to any address.' });
   }
-  res.json({ ok: false, mode: 'ethereal-fallback', error: 'No email provider configured. Add BREVO_USER + BREVO_PASS (preferred) or GMAIL_USER + GMAIL_PASS.' });
+  res.json({ ok: false, mode: 'not-configured', error: 'GMAIL_USER + GMAIL_PASS are not configured (GMAIL_PASS must be a 16-character App Password).' });
 });
 
 // GET /api/auth/me

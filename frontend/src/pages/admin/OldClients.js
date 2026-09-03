@@ -56,6 +56,7 @@ export default function AdminOldClients(){
   const openEdit=entry=>{setForm({companyName:entry.companyName||'',contactPerson:entry.contactPerson||'',phone:entry.phone||'',email:entry.email||'',address:entry.address||'',isoStandard:entry.isoStandard||'',gstNumber:entry.gstNumber||'',udyamNumber:entry.udyamNumber||'',notes:entry.notes||''});setShowDrive(false);setPreviewDocId(null);setModal(entry);};
 
   const save=async()=>{
+    if(saving)return;
     if(!form.companyName.trim())return toast.error('Company name is required');
     setSaving(true);
     try{
@@ -78,6 +79,7 @@ export default function AdminOldClients(){
   // before the delete actually fires, so a stray click can't wipe legacy data.
   const[confirmDel,setConfirmDel]=useState(null); // null | {message, expected, onConfirm}
   const[confirmText,setConfirmText]=useState('');
+  const[confirmBusy,setConfirmBusy]=useState(false);
 
   const askDeleteClient=c=>{
     setConfirmText('');
@@ -106,12 +108,17 @@ export default function AdminOldClients(){
   };
 
   const runConfirmDelete=async()=>{
+    if(confirmBusy)return;
     if(!confirmDel||confirmText.trim()!==confirmDel.expected)return;
-    await confirmDel.onConfirm();
-    setConfirmDel(null);setConfirmText('');
+    setConfirmBusy(true);
+    try{
+      await confirmDel.onConfirm();
+      setConfirmDel(null);setConfirmText('');
+    }finally{setConfirmBusy(false);}
   };
 
   const handleFile=async e=>{
+    if(uploading)return;
     const file=e.target.files&&e.target.files[0];e.target.value='';
     if(!file||!modal||modal==='add')return;
     setUploading(true);
@@ -138,6 +145,7 @@ export default function AdminOldClients(){
   const enterDriveFolder=entry=>{setDriveStack(p=>[...p,{id:entry.id,name:entry.name}]);loadDrive(entry.id);};
   const goToDriveCrumb=idx=>{const target=driveStack[idx];setDriveStack(driveStack.slice(0,idx+1));loadDrive(target.id);};
   const attachDriveFile=async entry=>{
+    if(attachingId)return;
     if(!modal||modal==='add')return;
     setAttachingId(entry.id);
     try{
@@ -148,6 +156,7 @@ export default function AdminOldClients(){
   };
 
   const syncDrive=async()=>{
+    if(syncing)return;
     setSyncing(true);
     try{
       const{data}=await axios.post('/api/oldclients/drive/sync');
@@ -161,6 +170,7 @@ export default function AdminOldClients(){
   const copyText=text=>{navigator.clipboard?.writeText(text).then(()=>toast.success('Copied')).catch(()=>{});};
 
   const createLogin=async()=>{
+    if(creatingLogin)return;
     if(!modal||modal==='add')return;
     setCreatingLogin(true);
     try{
@@ -173,6 +183,7 @@ export default function AdminOldClients(){
   };
 
   const bulkCreateLogins=async()=>{
+    if(bulkCreating)return;
     setBulkCreating(true);
     try{
       const{data}=await axios.post('/api/oldclients/create-logins-bulk');
@@ -211,7 +222,7 @@ export default function AdminOldClients(){
         />
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:18}}>
           <button className="btn btn-ghost" onClick={()=>{setConfirmDel(null);setConfirmText('');}}>Cancel</button>
-          <button className="btn btn-danger" disabled={confirmText.trim()!==confirmDel.expected} onClick={runConfirmDelete}><Trash2 size={14}/>Delete</button>
+          <button className="btn btn-danger" disabled={confirmText.trim()!==confirmDel.expected||confirmBusy} onClick={runConfirmDelete}><Trash2 size={14}/>{confirmBusy?'Deleting…':'Delete'}</button>
         </div>
       </div>
     </div>

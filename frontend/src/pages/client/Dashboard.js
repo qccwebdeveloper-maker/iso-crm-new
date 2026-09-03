@@ -73,6 +73,7 @@ export default function ClientDashboard() {
   const stageInfo  = latestApp ? STAGE_INFO[latestApp.status] : null;
 
   const submitFeedback = async () => {
+    if (submitting) return;
     if (!fbForm.appId || !fbForm.message.trim()) return toast.error('Select application and enter feedback');
     setSubmitting(true);
     try {
@@ -88,6 +89,7 @@ export default function ClientDashboard() {
   };
 
   const doEdit = async () => {
+    if (editSaving) return;
     if (!editForm.organizationName) return toast.error('Name required');
     setEditSaving(true);
     try {

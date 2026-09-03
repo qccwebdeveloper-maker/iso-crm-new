@@ -113,6 +113,7 @@ function ProformaTab({ onDone }) {
   };
 
   const send = async () => {
+    if (saving) return;
     if (!client) return toast.error('Fetch a client first');
     if (!amount) return toast.error('Enter the invoice amount');
     setSaving(true);
@@ -180,6 +181,7 @@ function VerifyTab({ onDone }) {
   const setF = (id, patch) => setForms(p => ({ ...p, [id]: { ...(p[id] || {}), ...patch } }));
 
   const record = async (inv) => {
+    if (saving) return;
     const f = forms[inv._id] || {};
     if (!f.paymentType) return toast.error('Select payment type');
     if (!f.receivedAmount) return toast.error('Enter received amount');
@@ -196,6 +198,7 @@ function VerifyTab({ onDone }) {
   };
 
   const verify = async (inv) => {
+    if (saving) return;
     const f = forms[inv._id] || {};
     setSaving(inv._id);
     try {
@@ -283,6 +286,7 @@ function FinalTab({ onDone }) {
   const [saving, setSaving] = useState('');
 
   const sendFinal = async (inv) => {
+    if (saving) return;
     setSaving(inv._id);
     try {
       await axios.put(`/api/invoices/${inv._id}/final`);
@@ -336,10 +340,14 @@ function FinalTab({ onDone }) {
 /* ───────────────── All invoices table ───────────────── */
 function AllInvoices({ invoices, loading, onDelete }) {
   const [view, setView] = useState(null);
+  const [deleting, setDeleting] = useState('');
   const del = async (id) => {
+    if (deleting) return;
     if (!window.confirm('Delete this invoice?')) return;
+    setDeleting(id);
     try { await axios.delete(`/api/invoices/${id}`); toast.success('Deleted'); onDelete(); }
     catch { toast.error('Delete failed'); }
+    finally { setDeleting(''); }
   };
   return (
     <>
@@ -372,7 +380,7 @@ function AllInvoices({ invoices, loading, onDelete }) {
                     <td>
                       <div className="tbl-actions">
                         <button className="btn btn-secondary btn-sm" onClick={() => setView(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Eye size={13} /> View</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => del(inv._id)}><Trash2 size={13} /></button>
+                        <button className="btn btn-danger btn-sm" onClick={() => del(inv._id)} disabled={deleting === inv._id}><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>

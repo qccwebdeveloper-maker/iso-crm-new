@@ -1,13 +1,16 @@
-// One-off migration: swap QMSForm's unique index from {clientId, formType} to
-// {clientId, formType, cycleNumber} so the same Client ID can have more than one
-// certification cycle's worth of forms (Initial Audit → Surveillance 1 → 2, then a
-// new cycle per recertification-before-expiry) without violating uniqueness.
+// One-off migration: swap QMSForm's unique index to match the current schema's
+// {clientId, formType, cycleNumber, phase} so the same Client ID can have more than
+// one certification cycle's worth of forms (Initial Audit → Surveillance 1 → 2, then
+// a new cycle per recertification-before-expiry), across phases, without violating
+// uniqueness. Handles being run against a DB still on either older shape — the
+// original {clientId, formType} index, or the intermediate {clientId, formType,
+// cycleNumber} one from before the `phase` field existed.
 //
 // Safe to run more than once. Existing documents are untouched except for a
-// cycleNumber:1 backfill on anything that doesn't have it yet (Mongoose's schema
-// default already makes them read back as cycleNumber:1 today — this just makes it
-// explicit in the stored document too, so the raw index build has real values to
-// work with).
+// cycleNumber:1 / phase:'initial' backfill on anything that doesn't have them yet
+// (Mongoose's schema defaults already make them read back that way today — this
+// just makes it explicit in the stored document too, so the raw index build has
+// real values to work with).
 //
 // Usage: node backend/scripts/migrate-qms-cycle-index.js
 require('dotenv').config();
@@ -28,39 +31,49 @@ async function run() {
     .hasNext();
   if (!collectionExists) {
     console.log('qmsforms collection does not exist yet (no forms saved) — nothing to migrate. ' +
-      'Mongoose will create the correct {clientId,formType,cycleNumber} index automatically on first use.');
+      'Mongoose will create the correct {clientId,formType,cycleNumber,phase} index automatically on first use.');
     return;
   }
 
-  const backfill = await QMSForm.updateMany(
+  const backfillCycle = await QMSForm.updateMany(
     { cycleNumber: { $exists: false } },
     { $set: { cycleNumber: 1 } }
   );
-  console.log(`Backfilled cycleNumber:1 on ${backfill.modifiedCount} existing QMSForm document(s).`);
+  console.log(`Backfilled cycleNumber:1 on ${backfillCycle.modifiedCount} existing QMSForm document(s).`);
 
-  const existingIndexes = await collection.indexes();
-  const oldIndex = existingIndexes.find(
-    (idx) => JSON.stringify(idx.key) === JSON.stringify({ clientId: 1, formType: 1 })
+  const backfillPhase = await QMSForm.updateMany(
+    { phase: { $exists: false } },
+    { $set: { phase: 'initial' } }
   );
-  if (oldIndex) {
-    console.log(`Dropping old unique index "${oldIndex.name}" ({clientId:1, formType:1})...`);
-    await collection.dropIndex(oldIndex.name);
-  } else {
-    console.log('Old {clientId:1, formType:1} index not found (already migrated?) — skipping drop.');
+  console.log(`Backfilled phase:'initial' on ${backfillPhase.modifiedCount} existing QMSForm document(s).`);
+
+  const STALE_INDEX_KEYS = [
+    { clientId: 1, formType: 1 },
+    { clientId: 1, formType: 1, cycleNumber: 1 },
+  ];
+  const existingIndexes = await collection.indexes();
+  for (const staleKey of STALE_INDEX_KEYS) {
+    const idx = existingIndexes.find((i) => JSON.stringify(i.key) === JSON.stringify(staleKey));
+    if (idx) {
+      console.log(`Dropping stale unique index "${idx.name}" (${JSON.stringify(staleKey)})...`);
+      await collection.dropIndex(idx.name);
+    } else {
+      console.log(`Stale index ${JSON.stringify(staleKey)} not found — skipping drop.`);
+    }
   }
 
   const newIndexes = await collection.indexes();
-  const hasNewIndex = newIndexes.some(
-    (idx) => JSON.stringify(idx.key) === JSON.stringify({ clientId: 1, formType: 1, cycleNumber: 1 })
+  const hasCurrentIndex = newIndexes.some(
+    (idx) => JSON.stringify(idx.key) === JSON.stringify({ clientId: 1, formType: 1, cycleNumber: 1, phase: 1 })
   );
-  if (!hasNewIndex) {
-    console.log('Creating new unique index {clientId:1, formType:1, cycleNumber:1}...');
+  if (!hasCurrentIndex) {
+    console.log('Creating current unique index {clientId:1, formType:1, cycleNumber:1, phase:1}...');
     await collection.createIndex(
-      { clientId: 1, formType: 1, cycleNumber: 1 },
+      { clientId: 1, formType: 1, cycleNumber: 1, phase: 1 },
       { unique: true }
     );
   } else {
-    console.log('New {clientId:1, formType:1, cycleNumber:1} index already exists — skipping create.');
+    console.log('Current {clientId:1, formType:1, cycleNumber:1, phase:1} index already exists — skipping create.');
   }
 
   console.log('Migration complete.');

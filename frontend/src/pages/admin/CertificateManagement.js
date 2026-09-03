@@ -439,6 +439,7 @@ export default function CertificateManagement() {
   };
 
   const issueManual = async () => {
+    if (saving) return;
     if (!manualForm.orgName.trim())   return toast.error('Organization name required');
     if (!manualForm.standard)         return toast.error('Standard required');
     if (!manualForm.certNumber.trim()) return toast.error('Certificate number required');
@@ -454,6 +455,7 @@ export default function CertificateManagement() {
   };
 
   const updateCert = async () => {
+    if (saving) return;
     if (!editModal) return;
     setSaving(true);
     try {
@@ -512,6 +514,7 @@ export default function CertificateManagement() {
   };
 
   const runConfirmedAction = async () => {
+    if (saving) return;
     if (!confirmAction) return;
     const cfg = CONFIRM_ACTIONS[confirmAction.type];
     if (confirmTyped.trim().toUpperCase() !== cfg.word) return;
@@ -526,6 +529,7 @@ export default function CertificateManagement() {
   };
 
   const saveSetting = async () => {
+    if (saving) return;
     setSaving(true);
     try {
       await axios.put('/api/certificates/settings', setting);

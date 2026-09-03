@@ -45,6 +45,7 @@ export default function AuditorAuditReportDetail() {
   }, [id, navigate]);
 
   const handleSave = async () => {
+    if (saving) return;
     setSaving(true);
     try {
       await axios.put(`/api/audit-reports/${id}`, data);

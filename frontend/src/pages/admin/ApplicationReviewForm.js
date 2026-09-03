@@ -209,6 +209,7 @@ export default function ApplicationReviewForm() {
   });
 
   const handleSave = async (asDraft = true) => {
+    if (saving) return;
     setSaving(true);
     try {
       const payload = {

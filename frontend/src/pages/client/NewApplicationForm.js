@@ -69,6 +69,7 @@ export default function ApplicationFormPage() {
   const grandTotal = () => (data.empTable || []).flat().reduce((a, b) => a + (Number(b) || 0), 0);
 
   const submit = async (asDraft) => {
+    if (saving) return;
     if (!data.organizationName?.trim()) { toast.error('Organization name is required'); return; }
     if (!data.scopeOfCertification?.trim()) { toast.error('Scope of certification is required'); return; }
     if (!asDraft && (data.standards || []).length === 0) { toast.error('Select at least one standard to submit'); return; }

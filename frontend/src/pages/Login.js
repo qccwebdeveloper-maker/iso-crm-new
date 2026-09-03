@@ -204,7 +204,9 @@ export default function Login() {
   };
 
   const handleLogin = async (e) => {
-    e.preventDefault(); clear(); setLoading(true);
+    e.preventDefault();
+    if (loading) return;
+    clear(); setLoading(true);
     if (!serverReady) setMsg('Server is waking up, please wait…');
     try {
       const user = await login(email, password);
@@ -215,6 +217,7 @@ export default function Login() {
   };
 
   const handleSendOtp = async () => {
+    if (loading) return;
     if (!adminEmail || !/\S+@\S+\.\S+/.test(adminEmail)) { setErr('Enter a valid admin email address.'); return; }
     clear(); setPreviewUrl(''); setOtpVia(''); setLoading(true);
     if (!serverReady) setMsg('Server is waking up, please wait…');
@@ -236,6 +239,7 @@ export default function Login() {
   };
 
   const handleVerifyOtp = async () => {
+    if (loading) return;
     const otpVal = otp.replace(/\s/g, '');
     if (otpVal.length < 6) { setErr('Enter the complete 6-digit OTP.'); return; }
     clear(); setLoading(true);
@@ -250,6 +254,7 @@ export default function Login() {
 
   const handleClientLogin = async (e) => {
     e.preventDefault();
+    if (loading) return;
     if (!email || !password) { setErr('Enter your Client ID and password.'); return; }
     clear(); setLoading(true);
     if (!serverReady) setMsg('Server is waking up, please wait…');
@@ -263,7 +268,9 @@ export default function Login() {
   };
 
   const handleRegister = async (e) => {
-    e.preventDefault(); clear();
+    e.preventDefault();
+    if (loading) return;
+    clear();
     const { companyName, email: re, password: rp, mobile, address, standard, scope } = reg;
     if (!companyName || !re || !rp || !mobile || !address || !standard || !scope) { setErr('All fields are required.'); return; }
     if (rp.length < 6) { setErr('Password must be at least 6 characters.'); return; }

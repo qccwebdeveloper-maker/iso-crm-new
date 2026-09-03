@@ -13,6 +13,7 @@ export default function AdminAuditorSignatures(){
   const[form,setForm]=useState(EMPTY_FORM);
   const[saving,setSaving]=useState(false);const[uploading,setUploading]=useState(false);
   const[q,setQ]=useState('');
+  const[deleting,setDeleting]=useState(false);
   const fileRef=useRef(null);
 
   const load=()=>{setLoading(true);axios.get('/api/auditor-signatures').then(r=>setList(r.data||[])).catch(()=>toast.error('Failed to load roster')).finally(()=>setLoading(false));};
@@ -22,6 +23,7 @@ export default function AdminAuditorSignatures(){
   const openEdit=entry=>{setForm({name:entry.name,location:entry.location||'',signatureUrl:entry.signatureUrl||''});setModal(entry);};
 
   const handleFile=async e=>{
+    if(uploading){e.target.value='';return;}
     const file=e.target.files&&e.target.files[0];e.target.value='';
     if(!file)return;
     setUploading(true);
@@ -34,6 +36,7 @@ export default function AdminAuditorSignatures(){
   };
 
   const save=async()=>{
+    if(saving)return;
     if(!form.name.trim())return toast.error('Name is required');
     setSaving(true);
     try{
@@ -51,9 +54,12 @@ export default function AdminAuditorSignatures(){
   };
 
   const del=async id=>{
+    if(deleting)return;
     if(!window.confirm('Delete this auditor\'s signature from the roster?'))return;
+    setDeleting(true);
     try{await axios.delete(`/api/auditor-signatures/${id}`);toast.success('Deleted');load();}
     catch{toast.error('Failed');}
+    finally{setDeleting(false);}
   };
 
   const filtered=list.filter(a=>{
@@ -119,7 +125,7 @@ export default function AdminAuditorSignatures(){
           <td>{a.location||<span style={{color:'var(--gray-300)'}}>—</span>}</td>
           <td><div className="tbl-actions">
             <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(a)}><Edit size={13}/>Edit</button>
-            <button className="btn btn-danger btn-sm" onClick={()=>del(a._id)}><Trash2 size={13}/>Delete</button>
+            <button className="btn btn-danger btn-sm" onClick={()=>del(a._id)} disabled={deleting}><Trash2 size={13}/>Delete</button>
           </div></td>
         </tr>))}
         {filtered.length===0&&<tr><td colSpan={5} style={{textAlign:'center',padding:32,color:'var(--gray-400)'}}>{q?'No matches':'No signatures in the roster yet'}</td></tr>}

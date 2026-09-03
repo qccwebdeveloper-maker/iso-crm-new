@@ -25,6 +25,7 @@ export default function AdminUserDetail() {
   }, [id]);
 
   const approve = async () => {
+    if (acting) return;
     setActing(true);
     try {
       await axios.put(`/api/users/${user._id}`, { isActive: true, pendingApproval: false });
@@ -35,6 +36,7 @@ export default function AdminUserDetail() {
   };
 
   const reject = async () => {
+    if (acting) return;
     if (!window.confirm(`Reject and delete ${user.name}'s registration?`)) return;
     setActing(true);
     try {

@@ -34,8 +34,8 @@ router.get('/', protect, authorize('admin', 'auditor', 'reviewer'), async (req, 
     if (req.query.phase)    filter.phase   = req.query.phase;
 
     const forms = await QMSForm.find(filter)
-      .populate('clientRef', 'name company clientId email phone')
-      .populate({ path: 'application', select: 'assignedAuditor assignedReviewer status', populate: { path: 'assignedAuditor assignedReviewer', select: 'name email' } })
+      .populate('clientRef', 'name company clientId email phone isoStandard')
+      .populate({ path: 'application', select: 'assignedAuditor assignedReviewer status isoStandard', populate: { path: 'assignedAuditor assignedReviewer', select: 'name email' } })
       .sort({ updatedAt: -1 });
     res.json(forms);
   } catch (err) { res.status(500).json({ message: err.message }); }

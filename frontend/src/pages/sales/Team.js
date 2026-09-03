@@ -12,6 +12,7 @@ export default function SalesTeam() {
   const [modal,   setModal]   = useState(null);
   const [saving,  setSaving]  = useState(false);
   const [form,    setForm]    = useState({ name: '', email: '', password: '', phone: '', company: '', role: 'sales' });
+  const [deletingId, setDeletingId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -32,6 +33,7 @@ export default function SalesTeam() {
   });
 
   const save = async () => {
+    if (saving) return;
     if (!form.name || !form.email) return toast.error('Name and email required');
     if (modal === 'add' && !form.password) return toast.error('Password required');
     setSaving(true);
@@ -55,12 +57,15 @@ export default function SalesTeam() {
   };
 
   const del = async (id) => {
+    if (deletingId) return;
     if (!window.confirm('Remove this team member?')) return;
+    setDeletingId(id);
     try {
       await axios.delete(`/api/users/${id}`);
       toast.success('Removed');
       load();
     } catch { toast.error('Failed'); }
+    finally { setDeletingId(null); }
   };
 
   const getMemberStats = (memberId) => {
@@ -181,7 +186,7 @@ export default function SalesTeam() {
                       <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => { setForm({ name: m.name, email: m.email, password: '', phone: m.phone || '', company: m.company || '', role: 'sales' }); setModal(m); }}>
                         <Edit size={12} /> Edit
                       </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => del(m._id)}>
+                      <button className="btn btn-danger btn-sm" disabled={deletingId === m._id} onClick={() => del(m._id)}>
                         <Trash2 size={12} />
                       </button>
                     </div>

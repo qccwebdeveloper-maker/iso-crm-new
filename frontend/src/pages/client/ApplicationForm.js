@@ -45,6 +45,7 @@ export default function ClientApplicationForm() {
   const set = (k, v) => setData(p => ({ ...p, [k]: v }));
 
   const handleSave = async (saveStatus) => {
+    if (saving) return;
     if (!data.organizationName?.trim()) { toast.error('Organization name is required'); return; }
     if (saveStatus !== 'draft' && !data.scopeOfCertification?.trim()) {
       toast.error('Scope of certification is required to submit');

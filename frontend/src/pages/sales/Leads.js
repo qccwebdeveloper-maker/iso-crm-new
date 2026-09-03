@@ -39,6 +39,7 @@ export default function SalesLeads() {
   const [saving,       setSaving]       = useState(false);
   const [formErrors,   setFormErrors]   = useState({});
   const [page,         setPage]         = useState(1);
+  const [deletingId,   setDeletingId]   = useState(null);
   const PER_PAGE = 10;
 
   const load = useCallback(() => {
@@ -80,6 +81,7 @@ export default function SalesLeads() {
   };
 
   const handleAdd = async () => {
+    if (saving) return;
     const errs = validateLead();
     if (Object.keys(errs).length) { setFormErrors(errs); return; }
     setFormErrors({});
@@ -100,6 +102,7 @@ export default function SalesLeads() {
   };
 
   const handleAssign = async () => {
+    if (saving) return;
     if (!assignTo) return toast.error('Select a team member');
     setSaving(true);
     try {
@@ -113,6 +116,7 @@ export default function SalesLeads() {
   };
 
   const convertLead = async () => {
+    if (saving) return;
     if (!convertForm.scope.trim()) return toast.error('Scope is required');
     setSaving(true);
     try {
@@ -123,9 +127,12 @@ export default function SalesLeads() {
   };
 
   const del = async (id) => {
+    if (deletingId) return;
     if (!window.confirm('Delete this lead?')) return;
+    setDeletingId(id);
     try { await axios.delete(`/api/leads/${id}`); toast.success('Deleted'); load(); }
     catch { toast.error('Failed'); }
+    finally { setDeletingId(null); }
   };
 
   return (
@@ -226,7 +233,7 @@ export default function SalesLeads() {
                               <CheckCircle size={11}/> Converted
                             </span>
                           )}
-                          <button className="btn btn-danger btn-sm" onClick={() => del(l._id)}>
+                          <button className="btn btn-danger btn-sm" disabled={deletingId === l._id} onClick={() => del(l._id)}>
                             <Trash2 size={12} />
                           </button>
                         </div>

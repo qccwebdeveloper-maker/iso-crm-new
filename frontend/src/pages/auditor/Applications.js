@@ -93,6 +93,7 @@ export function AuditorApplications() {
   });
 
   const advance = async (app) => {
+    if (saving) return;
     const next = {under_review:'audit_stage1',audit_stage1:'audit_stage2',audit_stage2:'approved'}[app.status];
     if (!next) return;
     setSaving(app._id);
@@ -214,6 +215,7 @@ export function AuditorApplicationDetail() {
   const [fb,        setFb]        = useState({ message:'', rating:5 });
   const [saving,    setSaving]    = useState(false);
   const [uploading, setUploading] = useState('');
+  const [notifying, setNotifying] = useState(false);
   const auditRepRef  = useRef(null);
   const extraDocRef  = useRef(null);
 
@@ -228,6 +230,7 @@ export function AuditorApplicationDetail() {
   const { user } = useAuth();
 
   const setStatus = async (s) => {
+    if (saving) return;
     setSaving(true);
     try {
       await axios.put(`/api/applications/${id}/status`, { status:s, notes });
@@ -238,6 +241,7 @@ export function AuditorApplicationDetail() {
   };
 
   const saveNotes = async () => {
+    if (saving) return;
     setSaving(true);
     try {
       await axios.put(`/api/applications/${id}/status`, { status: app.status, notes });
@@ -248,6 +252,7 @@ export function AuditorApplicationDetail() {
   };
 
   const upload = async (e, docType) => {
+    if (uploading) return;
     const f = e.target.files[0];
     if (!f) return;
     const fd = new FormData();
@@ -263,6 +268,7 @@ export function AuditorApplicationDetail() {
   };
 
   const uploadExtra = async (e) => {
+    if (uploading) return;
     const f = e.target.files[0];
     if (!f) return;
     const fd = new FormData();
@@ -279,6 +285,7 @@ export function AuditorApplicationDetail() {
   };
 
   const submitFb = async () => {
+    if (saving) return;
     if (!fb.message.trim()) return toast.error('Enter feedback');
     setSaving(true);
     try {
@@ -291,10 +298,13 @@ export function AuditorApplicationDetail() {
   };
 
   const notify = async () => {
+    if (notifying) return;
+    setNotifying(true);
     try {
       await axios.post(`/api/applications/${id}/send-document`, { message: notes||'Audit progress update.' });
       toast.success('Client notified!');
     } catch { toast.error('Failed'); }
+    finally { setNotifying(false); }
   };
 
   if (loading) return <Layout title="Audit Detail"><div className="loading-box"><div className="spinner"/></div></Layout>;
@@ -326,7 +336,7 @@ export function AuditorApplicationDetail() {
           {app.status==='audit_stage1'   && <button className="btn btn-primary btn-sm"  onClick={()=>setStatus('audit_stage2')} disabled={saving}><CheckCircle size={13}/>Complete Stage 2</button>}
           {app.status==='audit_stage2'   && <button className="btn btn-success btn-sm"  onClick={()=>setStatus('approved')}     disabled={saving}><CheckCircle size={13}/>Approve</button>}
           {canAudit                      && <button className="btn btn-danger btn-sm"   onClick={()=>setStatus('rejected')}     disabled={saving}><XCircle size={13}/>Reject</button>}
-          <button className="btn btn-ghost btn-sm" onClick={notify}><Send size={13}/> Notify Client</button>
+          <button className="btn btn-ghost btn-sm" onClick={notify} disabled={notifying}><Send size={13}/> {notifying?'Notifying…':'Notify Client'}</button>
         </div>
       </div>
 
@@ -436,12 +446,14 @@ export function AuditorApplicationDetail() {
                       <span className="badge bdg-success">Assignment accepted</span>
                     ) : (
                       <>
-                        <button className="btn btn-success btn-sm" onClick={async()=>{
+                        <button className="btn btn-success btn-sm" disabled={saving} onClick={async()=>{
+                          if(saving) return;
                           try{ setSaving(true); await axios.post(`/api/applications/${id}/accept-audit`,{ status: 'accepted' }); toast.success('Assignment accepted'); load(); }
                           catch{ toast.error('Failed to accept'); }
                           finally{ setSaving(false); }
                         }}>Accept</button>
-                        <button className="btn btn-ghost btn-sm" onClick={async()=>{
+                        <button className="btn btn-ghost btn-sm" disabled={saving} onClick={async()=>{
+                          if(saving) return;
                           try{ setSaving(true); await axios.post(`/api/applications/${id}/accept-audit`,{ status: 'rejected' }); toast.success('Assignment rejected'); load(); }
                           catch{ toast.error('Failed to reject'); }
                           finally{ setSaving(false); }
@@ -633,7 +645,7 @@ export function AuditorApplicationDetail() {
               </div>
               <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
                 <button className="btn btn-secondary" onClick={saveNotes} disabled={saving}><FileText size={14}/>{saving?'Saving…':'Save Notes'}</button>
-                <button className="btn btn-ghost" onClick={notify}><Send size={14}/>Send to Client</button>
+                <button className="btn btn-ghost" onClick={notify} disabled={notifying}><Send size={14}/>{notifying?'Sending…':'Send to Client'}</button>
               </div>
             </div>
           </div>

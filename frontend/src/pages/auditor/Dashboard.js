@@ -58,6 +58,7 @@ export default function AuditorDashboard() {
   });
 
   const moveStatus = async () => {
+    if (saving) return;
     if (!nextStatus) return toast.error('Select a status');
     setSaving(true);
     try {
@@ -68,6 +69,7 @@ export default function AuditorDashboard() {
   };
 
   const handleAcceptAudit = async (status) => {
+    if (saving) return;
     setSaving(true);
     try {
       await axios.post(`/api/applications/${acceptAuditModal._id}/accept-audit`, { status });

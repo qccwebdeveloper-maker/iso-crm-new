@@ -71,6 +71,7 @@ export default function AdminApplications() {
   };
 
   const doAssign = async () => {
+    if (saving) return;
     if (!assign.auditorId && !assign.reviewerId) return toast.error('Select at least one');
     setSaving(true);
     try { await axios.post(`/api/applications/${assignModal._id}/assign`, assign); toast.success('Assigned!'); setAssignModal(null); load(); }
@@ -84,6 +85,7 @@ export default function AdminApplications() {
   // Clients without an application yet have nothing to attach an auditor to —
   // create a draft Application for them first, then open the same assign modal.
   const startAssign = async (row) => {
+    if (creatingFor) return;
     if (!row.__noApp) {
       setAssignModal(row);
       setAssign({ auditorId: row.assignedAuditor?._id||'', reviewerId: row.assignedReviewer?._id||'' });

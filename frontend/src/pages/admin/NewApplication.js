@@ -188,6 +188,7 @@ export default function AdminNewApplication() {
   const scrollTo  = (id)  => { const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); };
 
   const submit = async(asDraft=false)=>{
+    if(saving) return;
     if(!form.organizationName.trim()){ toast.error('Organization name required'); scrollTo('basic-info'); return; }
     if(!form.scopeOfCertification.trim()){ toast.error('Scope required'); scrollTo('basic-info'); return; }
     if(!asDraft && form.standards.length===0){ toast.error('Select at least one standard'); scrollTo('standards-sec'); return; }

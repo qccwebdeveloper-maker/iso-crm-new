@@ -14,8 +14,6 @@ import {
   FiEye, FiPrinter, FiMoreVertical, FiUpload, FiUserCheck, FiMapPin, FiChevronDown, FiBriefcase,
 } from 'react-icons/fi';
 
-const PHASE_LABELS = { initial: 'Initial', surv1: 'Surv-1', surv2: 'Surv-2', recert: 'Recert' };
-
 const STATUS_META = {
   draft:     { bg: '#fef3c7', color: '#92400e', Icon: FiClock,       label: 'Draft'     },
   saved:     { bg: '#d1fae5', color: '#065f46', Icon: FiCheckCircle, label: 'Saved'     },
@@ -555,12 +553,15 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   const [saving,        setSaving]        = useState(false);
   const [listLoading,   setListLoading]   = useState(true);
   const [deleteId,      setDeleteId]      = useState(null);
+  const [deleting,      setDeleting]      = useState(false);
   const [previewRow,    setPreviewRow]    = useState(null);
   const [auditors,      setAuditors]      = useState([]);
   const [reviewers,     setReviewers]     = useState([]);
   const [assignRow,     setAssignRow]     = useState(null);
   const [assignSel,     setAssignSel]     = useState({ auditorId: '', reviewerId: '' });
   const [assigning,     setAssigning]     = useState(false);
+  const [standardF,     setStandardF]     = useState('');
+  const { names: standardCatalogue } = useStandards();
 
   // Unsaved-changes guard: snapshot of formData as it was when the form was opened
   // (fresh or existing), compared against the live formData to decide whether
@@ -614,6 +615,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   };
 
   const doAssign = async () => {
+    if (assigning) return;
     if (!assignSel.auditorId && !assignSel.reviewerId) return toast.error('Select at least one');
     setAssigning(true);
     try {
@@ -741,6 +743,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
 
   const handleClientSearch = async (e) => {
     e.preventDefault();
+    if (searching) return;
     const id = clientIdInput.trim();
     if (!id) return;
     setSearching(true);
@@ -764,6 +767,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   };
 
   const pickClient = async (cid) => {
+    if (searching) return;
     setSearching(true);
     try {
       await resolveClient(cid);
@@ -806,6 +810,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   };
 
   const handleSave = async (saveStatus) => {
+    if (saving) return false;
     if (!clientInfo) return false;
     setSaving(true);
     try {
@@ -831,12 +836,15 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
   };
 
   const handleDelete = async (id) => {
+    if (deleting) return;
+    setDeleting(true);
     try {
       await axios.delete(`/api/qms-forms/${id}`);
       toast.success('Form deleted');
       setDeleteId(null);
       fetchList();
     } catch { toast.error('Delete failed'); }
+    finally { setDeleting(false); }
   };
 
   const openExisting = async (row) => {
@@ -900,6 +908,13 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
 
   const statusMeta = STATUS_META[status] || STATUS_META.draft;
 
+  const rowStandards = (row) => (row.application?.isoStandard || row.clientRef?.isoStandard || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const standardOptions = standardCatalogue.length
+    ? standardCatalogue
+    : [...new Set(listData.flatMap(rowStandards))].sort();
+  const visibleList = standardF ? listData.filter(row => rowStandards(row).includes(standardF)) : listData;
+
   return (
     <Layout title={formTitle}>
       <div className="qms-wrap">
@@ -948,8 +963,17 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
             <div className="qms-list-hdr">
               <div>
                 <div className="qms-list-title">All Records — {formCode}</div>
-                <div className="qms-list-subtitle">{listData.length} form{listData.length !== 1 ? 's' : ''} found</div>
+                <div className="qms-list-subtitle">{visibleList.length} form{visibleList.length !== 1 ? 's' : ''} found</div>
               </div>
+              <select
+                value={standardF}
+                onChange={e => setStandardF(e.target.value)}
+                className="form-control"
+                style={{ width: 'auto', minWidth: 180 }}
+              >
+                <option value="">All Standards</option>
+                {standardOptions.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
 
             {listLoading ? (
@@ -962,41 +986,42 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                 <h3>No forms yet</h3>
                 <p>Use the search above (Client ID or Company name) to open the first {formCode} entry</p>
               </div>
+            ) : visibleList.length === 0 ? (
+              <div className="qms-list-empty">
+                <div className="qms-list-empty-icon">
+                  <FiFileText size={26} color="var(--primary)" />
+                </div>
+                <h3>No forms for this standard</h3>
+                <p>Try a different standard, or clear the filter</p>
+              </div>
             ) : (
               <div className="qms-tbl-wrap">
                 <table className="qms-tbl">
                   <thead>
                     <tr>
-                      {['Client ID', 'Client Name', 'Company', 'Status', 'Auditor', 'Actions'].map(h => (
+                      {['Client ID', 'Client Name', 'Company', 'Standard', 'Status', 'Auditor', 'Actions'].map(h => (
                         <th key={h}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {listData.map(row => {
+                    {visibleList.map(row => {
                       const sm = STATUS_META[row.status] || STATUS_META.draft;
                       const SIcon = sm.Icon;
                       return (
                         <tr key={row._id}>
                           <td>
                             <span className="mono">{row.clientId}</span>
-                            {row.cycleNumber > 1 && (
-                              <span title="Certification cycle" style={{
-                                marginLeft: 6, fontSize: 10, fontWeight: 700, color: 'var(--primary-dark)',
-                                background: 'var(--primary-100)', padding: '1px 6px', borderRadius: 5,
-                              }}>
-                                C{row.cycleNumber}
-                              </span>
-                            )}
-                            <span title="Audit phase" style={{
-                              marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#6b7280',
-                              background: '#f1f5f9', padding: '1px 6px', borderRadius: 5,
+                            <span title="Certification cycle" style={{
+                              marginLeft: 6, fontSize: 10, fontWeight: 700, color: 'var(--primary-dark)',
+                              background: 'var(--primary-100)', padding: '1px 6px', borderRadius: 5,
                             }}>
-                              {PHASE_LABELS[row.phase] || 'Initial'}
+                              C{row.cycleNumber || 1}
                             </span>
                           </td>
                           <td style={{ fontWeight: 600 }}>{row.clientRef?.name || '—'}</td>
                           <td style={{ color: 'var(--gray-500)' }}>{row.clientRef?.company || '—'}</td>
+                          <td style={{ fontSize: 12, color: 'var(--gray-500)' }}>{row.application?.isoStandard || row.clientRef?.isoStandard || '—'}</td>
                           <td>
                             <span className="qms-status-pill" style={{ background: sm.bg, color: sm.color }}>
                               <SIcon size={11} /> {sm.label}
@@ -1278,7 +1303,7 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
                       {branch.address && <div className="branch-address">{branch.address}</div>}
                       <div className="branch-client-list">
                         {branch.clients.map(client => (
-                          <button key={client.clientId} type="button" className="branch-client" onClick={() => pickClient(client.clientId)}>
+                          <button key={client.clientId} type="button" className="branch-client" disabled={searching} onClick={() => pickClient(client.clientId)}>
                             <span className="branch-tree-dot" />
                             <div>
                               <strong>{client.clientId}</strong>
@@ -1350,16 +1375,17 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
               </div>
             </div>
             <div className="qms-delete-footer">
-              <button type="button" onClick={() => setDeleteId(null)} className="btn btn-ghost">
+              <button type="button" onClick={() => setDeleteId(null)} disabled={deleting} className="btn btn-ghost">
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleDelete(deleteId)}
+                disabled={deleting}
                 className="btn"
                 style={{ background: 'var(--red)', color: 'white', border: 'none' }}
               >
-                Delete
+                {deleting ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>

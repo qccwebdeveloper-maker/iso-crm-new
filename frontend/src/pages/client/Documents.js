@@ -23,6 +23,7 @@ export function ClientDocuments(){
   const handleUpload=async(appId,docType,file)=>{
     if(!file)return;
     const key=`${appId}:${docType}`;
+    if(uploading===key)return;
     setUploading(key);
     try{
       const fd=new FormData();

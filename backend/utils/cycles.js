@@ -4,8 +4,12 @@ const QMSForm = require('../models/QMSForm');
 // Client ID, ascending. A brand-new/legacy client with no cycleNumber data yet is
 // treated as a single cycle 1 (matches the schema default).
 async function getClientCycles(clientId) {
-  const cycles = await QMSForm.distinct('cycleNumber', { clientId });
-  return cycles.length ? cycles.sort((a, b) => a - b) : [1];
+  const raw = await QMSForm.distinct('cycleNumber', { clientId });
+  // Documents saved before the cycleNumber field existed never got backfilled with
+  // it, so distinct() can return null alongside 1 for what's really just cycle 1 —
+  // normalize null/undefined to 1 so a legacy client never looks like it has 2 cycles.
+  const cycles = Array.from(new Set(raw.map(c => (c == null ? 1 : c)))).sort((a, b) => a - b);
+  return cycles.length ? cycles : [1];
 }
 
 async function getLatestCycle(clientId) {

@@ -322,7 +322,12 @@ function buildCycleGroupedNav(sections, activeClient) {
   const cycleSections = sections.filter(s => CYCLE_SECTION_NAMES.has(s.sec));
   if (!cycleSections.length) return sections;
 
-  const cycles     = (activeClient.cycles && activeClient.cycles.length) ? activeClient.cycles : [1];
+  const cycles = (activeClient.cycles && activeClient.cycles.length) ? activeClient.cycles : [1];
+  // Only wrap into collapsible "Cycle N" groups once a recertification has actually
+  // started a second cycle — a single-cycle client (the common case) stays flat:
+  // Initial Audit / Surveillance - 1 / Surveillance - 2 / Recertification, no
+  // "Cycle 1" label at all.
+  if (cycles.length <= 1) return sections;
   const firstCycle = Math.min(...cycles);
   const initialAuditSection = cycleSections.find(s => s.sec === 'Initial Audit');
   const cycleGroups = cycles.map(c => {
@@ -421,9 +426,9 @@ export default function Layout({ children, title }) {
   // brand-new one still on cycle 1) takes priority over the legacy clientRank
   // relabeling (built for the old scheme of a brand-new Client ID per cycle) — a
   // given active client should only ever be using one of the two mechanisms at a
-  // time. A fresh single-cycle client still gets grouped as "Cycle 1" so its
-  // Recertification phase (and the auto-next-cycle feature) is reachable from the
-  // very first cycle, not only once a second cycle already exists.
+  // time. A single-cycle client stays on the plain flat nav (no "Cycle N" wrapper);
+  // only once a real second cycle exists (recertification-before-expiry) does the
+  // sidebar switch to collapsible per-cycle groups.
   const baseNav = isLegacyClient
     ? (() => {
         const overviewSec = NAV.legacyClient.find(s => s.sec === 'Overview');

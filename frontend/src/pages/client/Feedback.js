@@ -10,6 +10,7 @@ export default function ClientFeedback(){
   useEffect(()=>{axios.get('/api/applications').then(r=>setApps(r.data||[])).finally(()=>setLoading(false));},[]);
   const submit=async(e)=>{
     e.preventDefault();
+    if(saving)return;
     if(!form.appId)return toast.error('Select an application');
     if(!form.message.trim())return toast.error('Enter your feedback message');
     setSaving(true);

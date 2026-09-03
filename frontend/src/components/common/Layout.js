@@ -403,6 +403,7 @@ export default function Layout({ children, title }) {
   useEffect(() => { localStorage.setItem('sidebar_mini', mini ? '1' : '0'); }, [mini]);
   const [notifOpen,       setNotifOpen]       = useState(false);
   const [notifications,   setNotifications]   = useState([]);
+  const [markingAllRead,  setMarkingAllRead]  = useState(false);
   const [profileImg,      setProfileImg]      = useState(null);
   const [collapsed,       setCollapsed]       = useState({ master: true, qmsForms: true });
   const isLegacyClient = user?.role === 'client' && user?.isLegacyClient;
@@ -493,10 +494,13 @@ export default function Layout({ children, title }) {
   };
 
   const markAllRead = async () => {
+    if (markingAllRead) return;
+    setMarkingAllRead(true);
     try {
       await axios.put('/api/users/me/notifications/read-all');
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch {}
+    finally { setMarkingAllRead(false); }
   };
 
   const isOn = (to) => {
@@ -790,7 +794,7 @@ export default function Layout({ children, title }) {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {unread > 0 && (
-                          <button onClick={markAllRead}
+                          <button onClick={markAllRead} disabled={markingAllRead}
                             style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--primary)', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                             Mark all read
                           </button>

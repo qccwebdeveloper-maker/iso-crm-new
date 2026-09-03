@@ -68,6 +68,8 @@ export default function AdminLeads() {
   const [convertForm, setConvertForm] = useState({ scope:'', accreditationBody:'NABCB' });
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+  const [deletingId, setDeletingId] = useState(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
   const [page,   setPage]   = useState(1);
   const PER_PAGE = 10;
 
@@ -115,6 +117,7 @@ export default function AdminLeads() {
   };
 
   const handleAdd = async () => {
+    if (saving) return;
     const errs = validateLead();
     if (Object.keys(errs).length) { setFormErrors(errs); return; }
     setFormErrors({});
@@ -128,6 +131,7 @@ export default function AdminLeads() {
   };
 
   const handleAssign = async () => {
+    if (saving) return;
     if (!assign.auditorId && !assign.reviewerId) return toast.error('Select at least one');
     setSaving(true);
     try {
@@ -139,6 +143,7 @@ export default function AdminLeads() {
   };
 
   const handleConvert = async () => {
+    if (saving) return;
     if (!convertForm.scope) return toast.error('Scope is required');
     setSaving(true);
     try {
@@ -150,20 +155,26 @@ export default function AdminLeads() {
   };
 
   const handleDelete = async (id) => {
+    if (deletingId) return;
     if (!window.confirm('Delete this lead?')) return;
+    setDeletingId(id);
     try {
       await axios.delete(`/api/leads/${id}`);
       toast.success('Lead deleted');
       load();
     } catch { toast.error('Delete failed'); }
+    finally { setDeletingId(null); }
   };
 
   const updateStatus = async (id, status) => {
+    if (statusUpdating) return;
+    setStatusUpdating(true);
     try {
       await axios.put(`/api/leads/${id}`, { status });
       toast.success('Status updated');
       load();
     } catch { toast.error('Update failed'); }
+    finally { setStatusUpdating(false); }
   };
 
   const exportCSV = () => {
@@ -267,6 +278,7 @@ export default function AdminLeads() {
               onConvert={()=>setConvertModal(lead)}
               onDelete={()=>handleDelete(lead._id)}
               onStatusChange={(s)=>updateStatus(lead._id,s)}
+              deleting={deletingId===lead._id}
             />
           ))}
         </div>
@@ -306,7 +318,7 @@ export default function AdminLeads() {
                         {lead.status !== 'converted' && (
                           <button className="btn btn-success btn-sm" onClick={()=>setConvertModal(lead)} title="Convert to Application"><ArrowRight size={13}/></button>
                         )}
-                        <button className="btn btn-danger btn-sm" onClick={()=>handleDelete(lead._id)} title="Delete"><Trash2 size={13}/></button>
+                        <button className="btn btn-danger btn-sm" onClick={()=>handleDelete(lead._id)} disabled={deletingId===lead._id} title="Delete"><Trash2 size={13}/></button>
                       </div>
                     </td>
                   </tr>
@@ -495,6 +507,7 @@ export default function AdminLeads() {
                     <button key={k}
                       className={`btn btn-sm ${detailModal.status===k?'btn-primary':'btn-ghost'}`}
                       onClick={()=>{updateStatus(detailModal._id,k);setDetailModal({...detailModal,status:k});}}
+                      disabled={statusUpdating}
                       style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
                       <v.icon size={12} /> {v.label}
                     </button>
@@ -566,7 +579,7 @@ export default function AdminLeads() {
   );
 }
 
-function LeadCard({ lead, onView, onAssign, onConvert, onDelete, onStatusChange }) {
+function LeadCard({ lead, onView, onAssign, onConvert, onDelete, onStatusChange, deleting }) {
   const pr = PRIORITY[lead.priority] || {};
   return (
     <div style={{background:'white',border:'1.5px solid var(--primary-100)',borderRadius:16,overflow:'hidden',boxShadow:'0 2px 8px rgba(249,115,22,0.06)',transition:'all .2s'}}
@@ -642,7 +655,7 @@ function LeadCard({ lead, onView, onAssign, onConvert, onDelete, onStatusChange 
           ) : (
             <button className="btn btn-ghost btn-sm" style={{flex:1,opacity:.5,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:4}} disabled><CheckCircle size={12}/> Converted</button>
           )}
-          <button className="btn btn-danger btn-sm" onClick={onDelete}><Trash2 size={12}/></button>
+          <button className="btn btn-danger btn-sm" onClick={onDelete} disabled={deleting}><Trash2 size={12}/></button>
         </div>
       </div>
     </div>

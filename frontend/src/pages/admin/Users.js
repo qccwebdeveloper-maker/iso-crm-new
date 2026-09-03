@@ -42,6 +42,7 @@ export default function AdminUsers() {
   const [errors, setErrors]       = useState({});
   const [page, setPage]           = useState(1);
   const [credsModal, setCredsModal] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const PER_PAGE = 10;
 
   const [form, setForm] = useState({
@@ -83,6 +84,7 @@ export default function AdminUsers() {
   };
 
   const save = async () => {
+    if (saving) return;
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
@@ -111,9 +113,12 @@ export default function AdminUsers() {
   };
 
   const del = async id => {
+    if (deletingId) return;
     if (!window.confirm('Delete this user?')) return;
+    setDeletingId(id);
     try { await axios.delete(`/api/users/${id}`); toast.success('Deleted'); load(); }
     catch { toast.error('Failed'); }
+    finally { setDeletingId(null); }
   };
 
   const roleColor = { admin: 'var(--primary)', client: '#3b82f6', auditor: '#8b5cf6', reviewer: '#8b5cf6', sales: '#16a34a' };
@@ -190,7 +195,7 @@ export default function AdminUsers() {
                           <button className="btn btn-ghost btn-sm" onClick={() => { setForm({ name: u.name, email: u.email, password: '', role: u.role, phone: u.phone || '', company: u.company || '', branchLabel: u.branchLabel || '', address: u.address || '', isoStandard: u.isoStandard || '' }); setShowPw(false); setModal(u); }}>
                             <Edit size={13} /> Edit
                           </button>
-                          <button className="btn btn-danger btn-sm" onClick={() => del(u._id)}><Trash2 size={13} /> Delete</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => del(u._id)} disabled={deletingId === u._id}><Trash2 size={13} /> {deletingId === u._id ? 'Deleting…' : 'Delete'}</button>
                         </>
                       )}
                     </div>

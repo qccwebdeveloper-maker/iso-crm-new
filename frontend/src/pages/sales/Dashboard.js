@@ -45,6 +45,7 @@ export default function SalesDashboard() {
   const [convertModal, setConvertModal] = useState(null);
   const [convertForm,  setConvertForm]  = useState({ scope: '', accreditationBody: 'NABCB' });
   const [saving,       setSaving]       = useState(false);
+  const [deletingId,   setDeletingId]   = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -79,6 +80,7 @@ export default function SalesDashboard() {
   const openEdit  = (l) => { setForm({companyName:l.companyName||'',contactPerson:l.contactPerson||'',email:l.email||'',mobile:l.mobile||'',isoStandard:l.isoStandard||'ISO 9001:2015',source:l.source||'Website',status:l.status||'new',priority:l.priority||'medium',notes:l.notes||'',city:l.city||'',country:l.country||'India'}); setEditLead(l); setModal(true); };
 
   const saveLead = async () => {
+    if (saving) return;
     if (!form.companyName) return toast.error('Company name required');
     setSaving(true);
     try {
@@ -89,11 +91,15 @@ export default function SalesDashboard() {
   };
 
   const deleteLead = async (id) => {
+    if (deletingId) return;
     if (!window.confirm('Delete this lead?')) return;
+    setDeletingId(id);
     try { await axios.delete(`/api/leads/${id}`); toast.success('Deleted'); load(); } catch { toast.error('Failed'); }
+    finally { setDeletingId(null); }
   };
 
   const assignLead = async () => {
+    if (saving) return;
     if (!assignTo) return toast.error('Select a team member');
     setSaving(true);
     try {
@@ -104,6 +110,7 @@ export default function SalesDashboard() {
   };
 
   const convertLead = async () => {
+    if (saving) return;
     if (!convertForm.scope.trim()) return toast.error('Scope is required');
     setSaving(true);
     try {
@@ -351,7 +358,7 @@ export default function SalesDashboard() {
                               <ArrowRight size={11}/>Convert
                             </button>
                           )}
-                          <button className="btn btn-danger btn-sm" onClick={()=>deleteLead(l._id)}><Trash2 size={11}/></button>
+                          <button className="btn btn-danger btn-sm" disabled={deletingId===l._id} onClick={()=>deleteLead(l._id)}><Trash2 size={11}/></button>
                         </div>
                       </td>
                     </tr>

@@ -25,6 +25,7 @@ export default function AuditReportList() {
   }, []);
 
   const handleDelete = async (id, orgName) => {
+    if (deleting) return;
     if (!window.confirm(`Delete audit report for "${orgName || 'this report'}"? This cannot be undone.`)) return;
     setDeleting(id);
     try {

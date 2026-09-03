@@ -43,6 +43,7 @@ export default function SalesAssign() {
   const assigned   = leads.filter(l => l.assignedTo);
 
   const handleAssign = async (lead) => {
+    if (saving) return;
     const memberId = selected[lead._id];
     if (!memberId) return toast.error('Select a team member first');
     setSaving(true);
@@ -56,6 +57,7 @@ export default function SalesAssign() {
   };
 
   const handleBulkAssign = async () => {
+    if (saving) return;
     const toAssign = Object.entries(selected).filter(([, v]) => v);
     if (toAssign.length === 0) return toast.error('Select leads and members first');
     setSaving(true);

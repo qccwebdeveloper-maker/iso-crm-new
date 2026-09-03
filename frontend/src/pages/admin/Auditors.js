@@ -29,6 +29,7 @@ export default function AdminAuditors(){
   };
 
   const save=async()=>{
+    if(saving)return;
     const errs=validate();
     if(Object.keys(errs).length){setErrors(errs);return;}
     setErrors({});setSaving(true);

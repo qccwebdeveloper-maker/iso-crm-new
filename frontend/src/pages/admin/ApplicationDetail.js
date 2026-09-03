@@ -63,6 +63,7 @@ export default function AdminApplicationDetail(){
   const[note,setNote]           = useState('');
   const[uploading,setUploading] = useState(false);
   const[saving,setSaving]       = useState(false);
+  const[updatingStatus,setUpdatingStatus] = useState(false);
   const[ef,setEf]               = useState({});   /* edit form state */
 
   const initEf = (d) => setEf({
@@ -172,12 +173,16 @@ export default function AdminApplicationDetail(){
 
   /* status update */
   const updateStatus = async()=>{
+    if(updatingStatus)return;
+    setUpdatingStatus(true);
     try{ await axios.put(`/api/applications/${id}/status`,{status:ns,notes:note}); toast.success('Status updated'); setNote(''); load(); }
     catch{ toast.error('Failed'); }
+    finally{ setUpdatingStatus(false); }
   };
 
   /* save edit */
   const saveEdit = async()=>{
+    if(saving)return;
     if(!ef.organizationName?.trim()){toast.error('Organization name required');return;}
     if(!ef.address?.trim()){toast.error('Address required');return;}
     if(!ef.mobileNumber?.trim()){toast.error('Mobile number required');return;}
@@ -195,6 +200,7 @@ export default function AdminApplicationDetail(){
 
   /* document upload */
   const upload = async(e,dt)=>{
+    if(uploading)return;
     const f=e.target.files[0]; if(!f)return;
     const fd=new FormData(); fd.append('document',f); fd.append('docType',dt);
     setUploading(true);
@@ -616,6 +622,7 @@ export default function AdminApplicationDetail(){
               <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
                 <button className="btn btn-ghost" onClick={()=>{setSelectedAuditor('');setSelectedReviewer('');}}>Reset</button>
                 <button className="btn btn-primary" disabled={assigning} onClick={async()=>{
+                  if(assigning)return;
                   if(!selectedAuditor&&!selectedReviewer){toast.error('Select auditor or reviewer');return;}
                   setAssigning(true);
                   try{ await axios.post(`/api/applications/${id}/assign`,{auditorId:selectedAuditor||undefined,reviewerId:selectedReviewer||undefined}); toast.success('Assigned'); setSelectedAuditor('');setSelectedReviewer('');load(); }
@@ -654,7 +661,7 @@ export default function AdminApplicationDetail(){
         <div className="card"><div className="card-hdr"><div className="card-title"><CheckCircle size={14} style={{color:'var(--primary)'}}/>Update Status</div></div><div className="card-body">
           <div className="form-group"><label className="form-label">New Status</label><select className="form-control" value={ns} onChange={e=>setNs(e.target.value)}>{FL.concat(['rejected']).map(s=><option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}</select></div>
           <div className="form-group"><label className="form-label">Notes for Client</label><textarea className="form-control" rows={4} value={note} onChange={e=>setNote(e.target.value)} placeholder="Add a message for the client…"/></div>
-          <button className="btn btn-primary" onClick={updateStatus}><Send size={14}/>Update & Notify Client</button>
+          <button className="btn btn-primary" onClick={updateStatus} disabled={updatingStatus}><Send size={14}/>{updatingStatus?'Updating…':'Update & Notify Client'}</button>
           {app.adminNotes&&<div className="alert alert-info" style={{marginTop:16}}><strong>Previous note:</strong> {app.adminNotes}</div>}
         </div></div>
       )}

@@ -54,6 +54,7 @@ export default function ClientApplicationDetail(){
   const[uploading,setUploading]=useState(false);const[saving,setSaving]=useState(false);
   const[fb,setFb]=useState({message:'',rating:5});const[submitting,setSubmitting]=useState(false);
   const[signModal,setSignModal]=useState(false);const cvs=useRef(null);const[drawing,setDrawing]=useState(false);
+  const[signing,setSigning]=useState(false);const[appSubmitting,setAppSubmitting]=useState(false);
   const[ef,setEf]=useState({});
 
   const initEf=(d)=>setEf({
@@ -142,6 +143,7 @@ export default function ClientApplicationDetail(){
   const grandTotal=()=>(ef.empTable||emptyEmpTable()).flat().reduce((a,b)=>a+b,0);
 
   const saveEdit=async()=>{
+    if(saving)return;
     if(!ef.organizationName?.trim()){toast.error('Organization name required');return;}
     if(!ef.address?.trim()){toast.error('Address required');return;}
     if(!ef.mobileNumber?.trim()){toast.error('Mobile number required');return;}
@@ -157,13 +159,13 @@ export default function ClientApplicationDetail(){
     finally{setSaving(false);}
   };
 
-  const submit=async()=>{if(!window.confirm('Submit for review?'))return;try{await axios.post(`/api/applications/${id}/submit`);toast.success('Submitted!');load();}catch{toast.error('Failed');}};
-  const upload=async(e,dt)=>{const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append('document',f);fd.append('docType',dt);setUploading(true);try{await axios.post(`/api/applications/${id}/upload`,fd,{headers:{'Content-Type':'multipart/form-data'}});toast.success('Uploaded!');load();}catch{toast.error('Failed');}finally{setUploading(false);}};
-  const submitFb=async()=>{if(!fb.message.trim())return toast.error('Enter feedback');setSubmitting(true);try{await axios.post(`/api/applications/${id}/feedback`,fb);toast.success('Thank you!');setFb({message:'',rating:5});load();}catch{toast.error('Failed');}finally{setSubmitting(false);}};
+  const submit=async()=>{if(appSubmitting)return;if(!window.confirm('Submit for review?'))return;setAppSubmitting(true);try{await axios.post(`/api/applications/${id}/submit`);toast.success('Submitted!');load();}catch{toast.error('Failed');}finally{setAppSubmitting(false);}};
+  const upload=async(e,dt)=>{if(uploading)return;const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append('document',f);fd.append('docType',dt);setUploading(true);try{await axios.post(`/api/applications/${id}/upload`,fd,{headers:{'Content-Type':'multipart/form-data'}});toast.success('Uploaded!');load();}catch{toast.error('Failed');}finally{setUploading(false);}};
+  const submitFb=async()=>{if(submitting)return;if(!fb.message.trim())return toast.error('Enter feedback');setSubmitting(true);try{await axios.post(`/api/applications/${id}/feedback`,fb);toast.success('Thank you!');setFb({message:'',rating:5});load();}catch{toast.error('Failed');}finally{setSubmitting(false);}};
 
   const sd=e=>{setDrawing(true);const c=cvs.current,r=c.getBoundingClientRect(),ctx=c.getContext('2d');ctx.beginPath();ctx.moveTo(e.clientX-r.left,e.clientY-r.top);};
   const dr=e=>{if(!drawing)return;const c=cvs.current,r=c.getBoundingClientRect(),ctx=c.getContext('2d');ctx.lineWidth=2;ctx.lineCap='round';ctx.strokeStyle='#16a34a';ctx.lineTo(e.clientX-r.left,e.clientY-r.top);ctx.stroke();};
-  const saveSign=async()=>{const c=cvs.current;const blob=await new Promise(r=>c.toBlob(r));const fd=new FormData();fd.append('document',blob,`sig-${Date.now()}.png`);fd.append('docType','signedForm');try{await axios.post(`/api/applications/${id}/upload`,fd,{headers:{'Content-Type':'multipart/form-data'}});toast.success('Signature saved!');setSignModal(false);load();}catch{toast.error('Failed');}};
+  const saveSign=async()=>{if(signing)return;setSigning(true);const c=cvs.current;const blob=await new Promise(r=>c.toBlob(r));const fd=new FormData();fd.append('document',blob,`sig-${Date.now()}.png`);fd.append('docType','signedForm');try{await axios.post(`/api/applications/${id}/upload`,fd,{headers:{'Content-Type':'multipart/form-data'}});toast.success('Signature saved!');setSignModal(false);load();}catch{toast.error('Failed');}finally{setSigning(false);}};
 
   if(loading)return<Layout title="Application"><div className="loading-box"><div className="spinner"/></div></Layout>;
   if(!app)return<Layout title="Not Found"><p style={{padding:20}}>Not found</p></Layout>;
@@ -196,7 +198,7 @@ export default function ClientApplicationDetail(){
           </div>
         </div>
         <div style={{display:'flex',gap:8}}>
-          {app.status==='draft'&&<button className="btn btn-primary btn-sm" onClick={submit}><Send size={14}/>Submit Application</button>}
+          {app.status==='draft'&&<button className="btn btn-primary btn-sm" onClick={submit} disabled={appSubmitting}>{appSubmitting?'Submitting…':<><Send size={14}/>Submit Application</>}</button>}
           {tab!=='edit'&&<button className="btn btn-outline btn-sm" onClick={()=>setTab('edit')}><Edit2 size={13}/>Edit Application</button>}
         </div>
       </div>
@@ -634,7 +636,7 @@ export default function ClientApplicationDetail(){
           <div className="modal-foot">
             <button className="btn btn-ghost" onClick={()=>{const c=cvs.current;if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);}}>Clear</button>
             <button className="btn btn-ghost" onClick={()=>setSignModal(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={saveSign}><CheckCircle size={14}/>Save Signature</button>
+            <button className="btn btn-primary" onClick={saveSign} disabled={signing}>{signing?'Saving…':<><CheckCircle size={14}/>Save Signature</>}</button>
           </div>
         </div>
       </div>}

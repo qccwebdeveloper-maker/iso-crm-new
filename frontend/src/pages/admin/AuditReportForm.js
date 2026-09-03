@@ -58,6 +58,7 @@ export default function AuditReportForm() {
   }, [id]);
 
   const handleSave = async (asDraft = false) => {
+    if (saving) return;
     setSaving(true);
     try {
       const payload = { ...data, clientId, status: asDraft ? 'draft' : 'in_progress' };
@@ -85,6 +86,7 @@ export default function AuditReportForm() {
   };
 
   const handleAssign = async () => {
+    if (assigning) return;
     if (!reportId) { toast.error('Save report first before assigning auditor'); return; }
     if (!selectedAuditorId) { toast.error('Please select an auditor'); return; }
     setAssigning(true);
@@ -100,6 +102,7 @@ export default function AuditReportForm() {
   };
 
   const handleAssignReviewer = async () => {
+    if (assigningReviewer) return;
     if (!reportId) { toast.error('Save report first before assigning reviewer'); return; }
     if (!selectedReviewerId) { toast.error('Please select a reviewer'); return; }
     setAssigningReviewer(true);
@@ -115,6 +118,7 @@ export default function AuditReportForm() {
   };
 
   const handleUnassignReviewer = async () => {
+    if (assigningReviewer) return;
     if (!reportId) return;
     setAssigningReviewer(true);
     try {
@@ -130,6 +134,7 @@ export default function AuditReportForm() {
   };
 
   const handleUnassign = async () => {
+    if (assigning) return;
     if (!reportId) return;
     setAssigning(true);
     try {

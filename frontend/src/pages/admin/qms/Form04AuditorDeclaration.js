@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import QMSFormPage, { FormRow, FormField, FInput, SectionTitle, DynamicTable, StandardChips } from './QMSFormPage';
 import useAuditorSignatures from './useAuditorSignatures';
@@ -20,6 +20,9 @@ const DEFAULT = {
 
 function Form04Inner({ data, set, clientInfo }) {
   const { lookup: lookupSignature, loading: sigLoading } = useAuditorSignatures();
+  // AUD-F-03 (Form02ApplicationReview)'s Review Date — used to fill each
+  // signatory's Date below, since the declaration is signed as of that review.
+  const [reviewDate, setReviewDate] = useState('');
 
   const setSig = (ri, key, val) => {
     const s = [...(data.signatories || [])];
@@ -48,6 +51,8 @@ function Form04Inner({ data, set, clientInfo }) {
     axios.get(`/api/qms-forms/by-client/${cid}/2`)
       .then(({ data: f2 }) => {
         if (cancelled) return;
+        const rd = f2?.formData?.reviewDate || '';
+        if (rd) setReviewDate(rd);
         const team = (f2?.formData?.auditTeam || [])
           .filter(m => (m.name && m.name.trim()) || (m.role && m.role.trim()));
         // F02's "Final Certification Decision by HOD" name lives in its own field
@@ -67,7 +72,7 @@ function Form04Inner({ data, set, clientInfo }) {
 
         set('signatories', [
           ...existing,
-          ...missing.map(m => ({ name: m.name || '', role: m.role || '', date: '', signature: lookupSignature(m.name) })),
+          ...missing.map(m => ({ name: m.name || '', role: m.role || '', date: rd, signature: lookupSignature(m.name) })),
         ]);
       })
       .catch(() => { /* no F02 yet — keep the default signatories */ });
@@ -92,6 +97,20 @@ function Form04Inner({ data, set, clientInfo }) {
     });
     if (changed) set('signatories', next);
   }, [sigLoading, data.signatories]); // eslint-disable-line
+
+  // Same backfill, but for Date from AUD-F-03's Review Date — covers rows that
+  // existed before F02 was reviewed, or default rows nobody has touched yet.
+  useEffect(() => {
+    if (!reviewDate) return;
+    const rows = data.signatories || [];
+    let changed = false;
+    const next = rows.map(r => {
+      if (r.date) return r;
+      changed = true;
+      return { ...r, date: reviewDate };
+    });
+    if (changed) set('signatories', next);
+  }, [reviewDate, data.signatories]); // eslint-disable-line
 
   return (
     <div>

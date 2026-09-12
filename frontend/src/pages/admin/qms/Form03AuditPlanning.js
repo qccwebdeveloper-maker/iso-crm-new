@@ -298,12 +298,17 @@ function StandardCard({ stdKey, meta, st, setStd, isPreview }) {
                       {COLUMNS.map(c => {
                         const id = c.id;
                         if (c.type === 'check') {
+                          // Initial Audit and Recertification apply to every clause by
+                          // default (only Surveillance-I/II get picked per clause) —
+                          // so default those two to checked until someone explicitly
+                          // unticks a row, rather than starting every row blank.
+                          const checked = vals[id] !== undefined ? vals[id] : (id === 'initial' || id === 'recert');
                           return (
                             <td key={id} className="col-check">
                               <input
                                 type="checkbox"
                                 className="aud3-cbx"
-                                checked={!!vals[id]}
+                                checked={checked}
                                 onChange={e => setCheck(r.key, id, e.target.checked)}
                                 aria-label={`${r.num} — ${c.label}`}
                               />

@@ -197,6 +197,23 @@ export function Stage1Body({ data, set, clientInfo }) {
     return () => { cancelled = true; };
   }, [clientInfo?.clientId]); // eslint-disable-line
 
+  // Auto-fill each team member's Competency / Standard with the client's selected
+  // ISO standard(s) — the same value shown at "1.6 Audit Standard(s)" — for any
+  // row that doesn't have one entered yet (covers rows pulled from F02 above,
+  // manually added rows, and previously-saved rows left blank).
+  useEffect(() => {
+    if (loading || !stdNames.length) return;
+    const value = stdNames.join(', ');
+    const rows = data.auditTeam || [];
+    let changed = false;
+    const next = rows.map(r => {
+      if (r.competency && r.competency.trim()) return r;
+      changed = true;
+      return { ...r, competency: value };
+    });
+    if (changed) set('auditTeam', next);
+  }, [loading, stdNames.join('|'), data.auditTeam]); // eslint-disable-line
+
   // Seed each selected standard's schedule with its own clauses (from the Standard
   // schema) the first time the form is opened with no rows yet for that standard.
   useEffect(() => {
@@ -207,7 +224,14 @@ export function Stage1Body({ data, set, clientInfo }) {
       if ((next[name] || []).length) return;
       const cls = clausesForStandards(byName, name);
       if (cls.length) {
-        next[name] = cls.map(c => ({ dayTime: '', clauses: `${c.no} ${c.text}`.trim(), activity: '', auditorName: '' }));
+        // Every audit day is bookended by an Opening and Closing Meeting —
+        // seed those as the first/last rows by default, same as admins were
+        // already adding by hand for every client.
+        next[name] = [
+          { dayTime: '', clauses: 'Opening Meeting', activity: 'Audit Plan, Audit Scope, Organization Structure, Key Personnel List, Previous Audit Status (if applicable)', auditorName: '' },
+          ...cls.map(c => ({ dayTime: '', clauses: `${c.no} ${c.text}`.trim(), activity: '', auditorName: '' })),
+          { dayTime: '', clauses: 'Closing Meeting', activity: 'Audit Findings Summary, NC / Observation Records, Audit Conclusion, Corrective Action Requirements, Attendance / Closing Meeting Record', auditorName: '' },
+        ];
         changed = true;
       }
     });

@@ -16,11 +16,32 @@ const decodeEntities = (s) => s
   .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
   .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 
-// Returns [{ id, name, type: 'folder'|'file', kind, viewUrl, downloadUrl, lastModified }]
-const listDriveFolder = async (folderId) => {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// A full sync walks thousands of client folders, each with its own admin/
+// client sub-folders (see listDriveFilesRecursive) — that's tens of
+// thousands of hits on this unauthenticated, undocumented embed endpoint in
+// one run. Google doesn't error on that; it silently starts returning a
+// valid-looking but empty listing partway through, which previously looked
+// like the sync "just stopping" with no error anywhere. Spacing every fetch
+// out (across ALL callers, including nested recursion) keeps us under
+// whatever unwritten threshold triggers that.
+const MIN_INTERVAL_MS = 120;
+let lastFetchAt = 0;
+const throttle = async () => {
+  const wait = lastFetchAt + MIN_INTERVAL_MS - Date.now();
+  if (wait > 0) await sleep(wait);
+  lastFetchAt = Date.now();
+};
+
+const fetchFolderHtml = async (folderId) => {
+  await throttle();
   const resp = await fetch(EMBED_URL(folderId));
   if (!resp.ok) throw new Error(`Drive folder fetch failed: HTTP ${resp.status}`);
-  const html = await resp.text();
+  return resp.text();
+};
+
+const parseEntries = (html) => {
   const chunks = html.split('<div class="flip-entry" id="entry-').slice(1);
 
   return chunks.map((chunk) => {
@@ -43,6 +64,20 @@ const listDriveFolder = async (folderId) => {
       lastModified: lastModified.trim(),
     };
   }).filter((e) => e.id && e.viewUrl);
+};
+
+// Returns [{ id, name, type: 'folder'|'file', kind, viewUrl, downloadUrl, lastModified }]
+const listDriveFolder = async (folderId) => {
+  let entries = parseEntries(await fetchFolderHtml(folderId));
+  // A folder genuinely can be empty, but a 0-entry result is also exactly
+  // what Google's silent throttling looks like (200 OK, valid page, just no
+  // items) — retry with backoff before trusting it, instead of a real client
+  // folder quietly losing all its documents for the rest of the sync.
+  for (let attempt = 0; entries.length === 0 && attempt < 2; attempt++) {
+    await sleep(1500 * (attempt + 1));
+    entries = parseEntries(await fetchFolderHtml(folderId));
+  }
+  return entries;
 };
 
 // Old-client folders aren't flat — each numbered folder (e.g. 5341/) has its

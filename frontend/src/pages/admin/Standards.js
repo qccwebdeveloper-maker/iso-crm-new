@@ -28,15 +28,15 @@ export default function AdminStandards(){
           {(form.clauses||[]).map((c,i)=>(<div key={i}
             onDragOver={e=>{e.preventDefault();if(dragIdx!==null&&dragIdx!==i){moveClause(dragIdx,i);setDragIdx(i);}}}
             onDrop={e=>{e.preventDefault();setDragIdx(null);}}
-            style={{display:'flex',gap:8,marginBottom:8,alignItems:'center',borderRadius:6,
+            style={{display:'flex',gap:8,marginBottom:8,alignItems:'flex-start',borderRadius:6,
               transition:'opacity .18s ease, transform .18s ease, box-shadow .18s ease',
               ...(dragIdx===i?{opacity:.55,transform:'scale(1.015)',boxShadow:'0 4px 14px rgba(21,101,192,.18)',background:'var(--primary-50)'}:null)}}>
             <span draggable
               onDragStart={e=>{setDragIdx(i);e.dataTransfer.effectAllowed='move';}}
               onDragEnd={()=>setDragIdx(null)}
               title="Drag to reorder"
-              style={{cursor:'grab',display:'flex',alignItems:'center',color:'var(--gray-400)',padding:'0 2px',touchAction:'none'}}><GripVertical size={16}/></span>
-            <input className="form-control" style={{flex:'0 0 100px'}} value={c.no} onChange={e=>updClause(i,'no',e.target.value)} placeholder="No."/><input className="form-control" style={{flex:1}} value={c.text} onChange={e=>updClause(i,'text',e.target.value)} placeholder="Clause text"/><button type="button" className="btn btn-danger btn-sm" onClick={()=>delClause(i)}><Trash2 size={13}/></button></div>))}
+              style={{cursor:'grab',display:'flex',alignItems:'center',color:'var(--gray-400)',padding:'8px 2px 0',touchAction:'none'}}><GripVertical size={16}/></span>
+            <input className="form-control" style={{flex:'0 0 100px'}} value={c.no} onChange={e=>updClause(i,'no',e.target.value)} placeholder="No."/><textarea className="form-control" rows={1} style={{flex:1,resize:'vertical',fontFamily:'inherit',minHeight:38}} value={c.text} onChange={e=>updClause(i,'text',e.target.value)} placeholder="Clause text"/><button type="button" className="btn btn-danger btn-sm" style={{marginTop:2}} onClick={()=>delClause(i)}><Trash2 size={13}/></button></div>))}
         </div>
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:20,borderTop:'1px solid var(--gray-100)',paddingTop:18}}>
           <button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button>

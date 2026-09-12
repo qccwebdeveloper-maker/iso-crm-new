@@ -17,7 +17,11 @@ export default function AdminOldClients(){
   const[driveEntries,setDriveEntries]=useState([]);const[driveStack,setDriveStack]=useState([]);
   const[attachingId,setAttachingId]=useState(null);
   const[syncing,setSyncing]=useState(false);
+  const[syncProgress,setSyncProgress]=useState(null); // {foldersScanned,foldersTotal,clientsCreated,filesAdded,failures}
   const[filterType,setFilterType]=useState('all');
+  const[sortKey,setSortKey]=useState('companyName');
+  const[sortDir,setSortDir]=useState('asc');
+  const[standardFilter,setStandardFilter]=useState('all');
   const[creatingLogin,setCreatingLogin]=useState(false);
   const[bulkCreating,setBulkCreating]=useState(false);
 
@@ -53,7 +57,13 @@ export default function AdminOldClients(){
   useEffect(load,[]);
 
   const openAdd=()=>{setForm(EMPTY_FORM);setShowDrive(false);setPreviewDocId(null);setModal('add');};
-  const openEdit=entry=>{setForm({companyName:entry.companyName||'',contactPerson:entry.contactPerson||'',phone:entry.phone||'',email:entry.email||'',address:entry.address||'',isoStandard:entry.isoStandard||'',gstNumber:entry.gstNumber||'',udyamNumber:entry.udyamNumber||'',notes:entry.notes||''});setShowDrive(false);setPreviewDocId(null);setModal(entry);};
+  const openEdit=async entry=>{
+    try{
+      const{data}=await axios.get(`/api/oldclients/${entry._id}`);
+      setForm({companyName:data.companyName||'',contactPerson:data.contactPerson||'',phone:data.phone||'',email:data.email||'',address:data.address||'',isoStandard:data.isoStandard||'',gstNumber:data.gstNumber||'',udyamNumber:data.udyamNumber||'',notes:data.notes||''});
+      setShowDrive(false);setPreviewDocId(null);setModal(data);
+    }catch{toast.error('Failed to load old client details');}
+  };
 
   const save=async()=>{
     if(saving)return;
@@ -155,16 +165,64 @@ export default function AdminOldClients(){
     finally{setAttachingId(null);}
   };
 
+  // The Drive tree here has ~5,500 client folders — a full sync is a long
+  // background walk on the server (see backend/routes/oldClients.js), way
+  // too long to sit inside one request/response. So this just starts it and
+  // polls the status endpoint every few seconds instead of awaiting a single
+  // response; that's also what lets a page refresh mid-sync just resume
+  // watching (see the useEffect below) instead of losing track of it.
+  const pollSyncStatus=()=>{
+    setSyncing(true);
+    let refreshTick=0;
+    const interval=setInterval(async()=>{
+      try{
+        const{data}=await axios.get('/api/oldclients/drive/sync/status');
+        setSyncProgress(data);
+        // Refresh the table while the background walk is running so newly
+        // created clients/documents become visible without waiting for all
+        // thousands of folders to finish.
+        if(++refreshTick%5===0)load();
+        if(!data.running){
+          clearInterval(interval);
+          setSyncing(false);
+          if(data.error){
+            toast.error(`Drive sync failed: ${data.error}`);
+          }else{
+            const base=`Synced: ${data.clientsCreated} new client${data.clientsCreated===1?'':'s'}, ${data.filesAdded} file${data.filesAdded===1?'':'s'} added`;
+            if(data.failures?.length>0){
+              toast.error(`${base} — ${data.failures.length} folder${data.failures.length===1?'':'s'} failed and were skipped (click Sync again to retry them)`);
+            }else{
+              toast.success(base);
+            }
+          }
+          load();
+        }
+      }catch{
+        // A temporary network/API failure must not make the UI stop watching
+        // a sync that is still running on the server. The next poll retries.
+      }
+    },3000);
+  };
+
   const syncDrive=async()=>{
     if(syncing)return;
-    setSyncing(true);
     try{
-      const{data}=await axios.post('/api/oldclients/drive/sync');
-      toast.success(`Synced: ${data.clientsCreated} new client${data.clientsCreated===1?'':'s'}, ${data.filesAdded} file${data.filesAdded===1?'':'s'} added`);
-      load();
-    }catch(err){toast.error(err.response?.data?.message||'Drive sync failed');}
-    finally{setSyncing(false);}
+      await axios.post('/api/oldclients/drive/sync');
+      toast.success('Sync started — this can take a while for ~5,500 folders, progress shown on the button');
+      pollSyncStatus();
+    }catch(err){
+      if(err.response?.status===409){pollSyncStatus();return;} // already running elsewhere — just watch it
+      toast.error(err.response?.data?.message||'Drive sync failed');
+    }
   };
+
+  // If a sync is already running (e.g. someone else started it, or this page
+  // was refreshed mid-sync), pick up watching it instead of showing nothing.
+  useEffect(()=>{
+    axios.get('/api/oldclients/drive/sync/status').then(({data})=>{
+      if(data.running){setSyncProgress(data);pollSyncStatus();}
+    }).catch(()=>{});
+  },[]);
 
   // ── Client logins — lets each legacy client sign in (Client ID + `${clientId}@1234`) and view their own documents ──
   const copyText=text=>{navigator.clipboard?.writeText(text).then(()=>toast.success('Copied')).catch(()=>{});};
@@ -195,9 +253,18 @@ export default function AdminOldClients(){
 
   const filtered=list.filter(c=>{
     const s=q.trim().toLowerCase();
-    if(!s)return true;
-    return c.companyName?.toLowerCase().includes(s)||c.contactPerson?.toLowerCase().includes(s)||c.email?.toLowerCase().includes(s)||c.phone?.toLowerCase().includes(s);
+    const matchesSearch=!s||(c.companyName?.toLowerCase().includes(s)||c.contactPerson?.toLowerCase().includes(s)||c.email?.toLowerCase().includes(s)||c.phone?.toLowerCase().includes(s)||c.clientId?.toLowerCase().includes(s));
+    const matchesStandard=standardFilter==='all'||(standardFilter==='missing'&&!c.isoStandard)||(c.isoStandard===standardFilter);
+    return matchesSearch&&matchesStandard;
+  }).sort((a,b)=>{
+    const av=String(a[sortKey]??'').toLowerCase(),bv=String(b[sortKey]??'').toLowerCase();
+    return (av.localeCompare(bv,{numeric:true})||0)*(sortDir==='asc'?1:-1);
   });
+  const toggleSort=key=>{if(sortKey===key)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(key);setSortDir('asc');}};
+  const startAudit=(client,type)=>{
+    const id=client.clientId||client.companyName||'';
+    window.location.assign(`/admin/applications?clientId=${encodeURIComponent(id)}&auditType=${encodeURIComponent(type)}`);
+  };
 
   const confirmModal=confirmDel&&(
     <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
@@ -376,29 +443,40 @@ export default function AdminOldClients(){
       <div><h1 className="page-title">Old Clients</h1><p className="page-subtitle">{list.length} legacy client{list.length===1?'':'s'} — onboarded before this CRM, kept for records</p></div>
       <div style={{display:'flex',gap:10}}>
         <button className="btn btn-ghost" onClick={bulkCreateLogins} disabled={bulkCreating}><KeyRound size={14}/>{bulkCreating?'Creating…':'Create Logins for All'}</button>
-        <button className="btn btn-ghost" onClick={syncDrive} disabled={syncing}><RefreshCw size={14}/>{syncing?'Syncing…':'Sync from Google Drive'}</button>
+        <button className="btn btn-ghost" onClick={syncDrive} disabled={syncing}><RefreshCw size={14}/>{syncing?(syncProgress?.foldersTotal?`Syncing… ${syncProgress.foldersScanned}/${syncProgress.foldersTotal}`:'Syncing…'):'Sync from Google Drive'}</button>
         <button className="btn btn-primary" onClick={openAdd}><Plus size={14}/>Add Old Client</button>
       </div>
     </div>
     <div className="card" style={{marginBottom:14,padding:'10px 14px',display:'flex',alignItems:'center',gap:8}}>
       <Search size={14} style={{color:'var(--gray-400)'}}/>
       <input className="form-control" style={{border:'none',padding:'4px 0'}} value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by company, contact, email or phone…"/>
+      <select className="form-control" style={{maxWidth:150}} value={sortKey} onChange={e=>{setSortKey(e.target.value);setSortDir('asc');}} aria-label="Sort old clients">
+        <option value="companyName">Sort: Company</option><option value="clientId">Sort: Client ID</option><option value="isoStandard">Sort: Standard</option><option value="documentCount">Sort: Documents</option>
+      </select>
+      <select className="form-control" style={{maxWidth:170}} value={standardFilter} onChange={e=>setStandardFilter(e.target.value)} aria-label="Filter by standard">
+        <option value="all">All standards</option><option value="missing">Standard missing</option>
+        {[...new Set(list.map(c=>c.isoStandard).filter(Boolean))].sort().map(s=><option key={s} value={s}>{s}</option>)}
+      </select>
+      <button className="btn btn-ghost btn-sm" onClick={()=>setSortDir(d=>d==='asc'?'desc':'asc')} title={`Sort ${sortDir==='asc'?'descending':'ascending'}`}>{sortDir==='asc'?'↑ Asc':'↓ Desc'}</button>
     </div>
     <div className="card">{loading?<div className="loading-box"><div className="spinner"/></div>:(
-      <div className="tbl-wrap"><table className="tbl"><thead><tr><th>#</th><th>Company</th><th>Contact</th><th>Standard</th><th>Login</th><th>Documents</th><th>Actions</th></tr></thead><tbody>
+      <div className="tbl-wrap"><table className="tbl"><thead><tr><th>#</th><th onClick={()=>toggleSort('clientId')} style={{cursor:'pointer'}}>Client ID ↕</th><th onClick={()=>toggleSort('companyName')} style={{cursor:'pointer'}}>Company ↕</th><th>Contact</th><th>Standard</th><th>Documents</th><th>Actions</th></tr></thead><tbody>
         {filtered.map((c,i)=>(<tr key={c._id}>
           <td style={{color:'var(--gray-400)',fontSize:12}}>{i+1}</td>
-          <td><strong>{c.companyName}</strong></td>
-          <td>{c.contactPerson||<span style={{color:'var(--gray-300)'}}>—</span>}<div style={{fontSize:11,color:'var(--gray-400)'}}>{c.phone||c.email||''}</div></td>
-          <td>{c.isoStandard||<span style={{color:'var(--gray-300)'}}>—</span>}</td>
-          <td>{c.clientId?<span className="mono badge bdg-approved">{c.clientId}</span>:<span style={{color:'var(--gray-300)',fontSize:11}}>Not created</span>}</td>
-          <td><span className="badge bdg-info">{(c.documents||[]).length}</span></td>
-          <td><div className="tbl-actions">
+          <td><span className="mono badge bdg-approved">{c.clientId||(/^\s*\d[\d ,\-/]*\s*$/.test(c.companyName||'')?c.companyName:'—')}</span></td>
+          <td><strong>{/^\s*\d[\d ,\-/]*\s*$/.test(c.companyName||'')?<span style={{color:'var(--gray-300)'}}>Not provided</span>:c.companyName}</strong></td>
+          <td>{c.contactPerson||<span style={{color:'var(--gray-300)'}}>Not provided</span>}<div style={{fontSize:11,color:'var(--gray-400)'}}>{c.phone||c.email||''}</div></td>
+          <td>{c.isoStandard||<span style={{color:'var(--gray-300)'}}>Not provided</span>}</td>
+          <td><span className="badge bdg-info">{c.documentCount??(c.documents||[]).length}</span></td>
+          <td><div className="tbl-actions" style={{flexWrap:'wrap',minWidth:260}}>
             <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(c)}><Edit size={13}/>Open</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>startAudit(c,'Surveillance-1')}>SA-1</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>startAudit(c,'Surveillance-2')}>SA-2</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>startAudit(c,'Recertification')}>Recert</button>
             <button className="btn btn-danger btn-sm" onClick={()=>askDeleteClient(c)}><Trash2 size={13}/>Delete</button>
           </div></td>
         </tr>))}
-        {filtered.length===0&&<tr><td colSpan={7} style={{textAlign:'center',padding:32,color:'var(--gray-400)'}}>{q?'No matches':'No old clients added yet'}</td></tr>}
+        {filtered.length===0&&<tr><td colSpan={8} style={{textAlign:'center',padding:32,color:'var(--gray-400)'}}>{q?'No matches':'No old clients added yet'}</td></tr>}
       </tbody></table></div>
     )}</div>
     {confirmModal}

@@ -78,7 +78,17 @@ router.get('/me', protect, authorize('client'), async (req, res) => {
 // GET /api/oldclients
 router.get('/', protect, authorize('admin'), async (req, res) => {
   try {
-    const clients = await OldClient.find().sort({ createdAt: -1 }).lean();
+    // The documents array can contain hundreds of thousands of embedded
+    // entries across all legacy clients. Do not send the full payload for the
+    // table view; fetch a client detail via /:id when it is opened.
+    const clients = await OldClient.aggregate([
+      { $project: {
+        companyName: 1, contactPerson: 1, phone: 1, email: 1,
+        isoStandard: 1, clientId: 1, createdAt: 1, updatedAt: 1,
+        documentCount: { $size: { $ifNull: ['$documents', []] } },
+      } },
+      { $sort: { createdAt: -1 } },
+    ]);
     res.json(clients);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -124,49 +134,173 @@ router.get('/drive/browse', protect, authorize('admin'), async (req, res) => {
   } catch (err) { res.status(500).json({ message: 'Could not read Google Drive folder: ' + err.message }); }
 });
 
-// POST /api/oldclients/drive/sync
-// Turns each top-level sub-folder of the configured Drive root (one per old
-// client, e.g. 9026/9027/...) into an OldClient record, and attaches every
-// file inside it as a document. Safe to re-run: existing clients are matched
-// by driveFolderId and only newly-added Drive files get pushed in.
-router.post('/drive/sync', protect, authorize('admin'), async (req, res) => {
-  try {
-    const rootId = process.env.GOOGLE_DRIVE_OLD_CLIENTS_FOLDER_ID;
-    if (!rootId) return res.status(400).json({ message: 'GOOGLE_DRIVE_OLD_CLIENTS_FOLDER_ID is not configured' });
+// The Drive root here has ~5,500 client sub-folders, each with its own
+// admin/client sub-folders — a full pass is tens of thousands of throttled
+// fetches against Google's unauthenticated embed endpoint (see
+// utils/googleDrive.js) and can take well over an hour. That can never fit
+// inside one HTTP request/response — a browser tab or reverse proxy will
+// give up long before it finishes, which is what made earlier attempts look
+// like they "just stopped" partway through. So /drive/sync now only starts
+// the walk and returns immediately; progress lives here in memory and is
+// polled via GET /drive/sync/status.
+let syncState = {
+  running: false,
+  foldersScanned: 0, foldersTotal: 0,
+  clientsCreated: 0, clientsUpdated: 0, filesAdded: 0,
+  failures: [],
+  startedAt: null, finishedAt: null, error: null,
+};
 
+async function runDriveSync(rootId, adminId) {
+  try {
     const topLevel = await listDriveFolder(rootId);
     const folders = topLevel.filter((e) => e.type === 'folder');
+    syncState.foldersTotal = folders.length;
 
-    let clientsCreated = 0, clientsUpdated = 0, filesAdded = 0;
-    for (const folder of folders) {
-      let client = await OldClient.findOne({ driveFolderId: folder.id });
-      if (!client) {
-        client = await OldClient.create({ companyName: folder.name, driveFolderId: folder.id, createdBy: req.user._id });
-        clientsCreated++;
+    for (let i = 0; i < folders.length; i++) {
+      const folder = folders[i];
+      try {
+        let client = await OldClient.findOne({ driveFolderId: folder.id });
+        if (!client) {
+          client = await OldClient.create({ companyName: folder.name, driveFolderId: folder.id, createdBy: adminId });
+          syncState.clientsCreated++;
+        }
+
+        const existingIds = new Set(client.documents.map((d) => d.publicId));
+        const files = await listDriveFilesRecursive(folder.id);
+        let addedHere = 0;
+        for (const file of files) {
+          const publicId = `drive:${file.id}`;
+          if (existingIds.has(publicId)) continue;
+          const displayName = file.folderPath ? `${file.folderPath}/${file.name}` : file.name;
+          client.documents.push({
+            name: displayName, originalName: file.name,
+            path: file.viewUrl, publicId,
+            docType: guessDocType(file.name), uploadedAt: new Date(),
+          });
+          addedHere++;
+        }
+        if (addedHere > 0) {
+          await client.save();
+          syncState.filesAdded += addedHere;
+          syncState.clientsUpdated++;
+        }
+      } catch (folderErr) {
+        // One bad/rate-limited folder must not abort the other thousands —
+        // log it, record it, and keep going.
+        console.error(`[drive/sync] folder "${folder.name}" (${folder.id}) failed:`, folderErr.message);
+        syncState.failures.push({ folderId: folder.id, folderName: folder.name, error: folderErr.message });
       }
 
-      const existingIds = new Set(client.documents.map((d) => d.publicId));
-      const files = await listDriveFilesRecursive(folder.id);
-      let addedHere = 0;
-      for (const file of files) {
-        const publicId = `drive:${file.id}`;
-        if (existingIds.has(publicId)) continue;
-        const displayName = file.folderPath ? `${file.folderPath}/${file.name}` : file.name;
-        client.documents.push({
-          name: displayName, originalName: file.name,
-          path: file.viewUrl, publicId,
-          docType: guessDocType(file.name), uploadedAt: new Date(),
-        });
-        addedHere++;
-      }
-      if (addedHere > 0) {
-        await client.save();
-        filesAdded += addedHere;
-        clientsUpdated++;
+      syncState.foldersScanned = i + 1;
+      if (i % 50 === 0 || i === folders.length - 1) {
+        console.log(`[drive/sync] progress: ${i + 1}/${folders.length} folders scanned, ${syncState.clientsCreated} created, ${syncState.filesAdded} files added, ${syncState.failures.length} failed`);
       }
     }
-    res.json({ foldersScanned: folders.length, clientsCreated, clientsUpdated, filesAdded });
-  } catch (err) { res.status(500).json({ message: 'Drive sync failed: ' + err.message }); }
+  } catch (err) {
+    console.error('[drive/sync] fatal:', err.message);
+    syncState.error = err.message;
+  } finally {
+    syncState.running = false;
+    syncState.finishedAt = new Date();
+    console.log(`[drive/sync] finished: ${syncState.foldersScanned}/${syncState.foldersTotal} scanned, ${syncState.clientsCreated} created, ${syncState.filesAdded} files added, ${syncState.failures.length} failed`);
+  }
+}
+
+// POST /api/oldclients/drive/sync
+// Kicks off a background walk of the configured Drive root (one sub-folder
+// per old client, e.g. 9026/9027/...), turning each into an OldClient record
+// and attaching every file inside it as a document. Returns immediately —
+// poll GET /drive/sync/status for progress. Safe to re-run/re-poll: existing
+// clients are matched by driveFolderId and only newly-added Drive files get
+// pushed in, so a re-run picks up where the last one left off.
+router.post('/drive/sync', protect, authorize('admin'), async (req, res) => {
+  if (syncState.running) return res.status(409).json({ message: 'A sync is already running', ...syncState });
+
+  const rootId = process.env.GOOGLE_DRIVE_OLD_CLIENTS_FOLDER_ID;
+  if (!rootId) return res.status(400).json({ message: 'GOOGLE_DRIVE_OLD_CLIENTS_FOLDER_ID is not configured' });
+
+  syncState = {
+    running: true,
+    foldersScanned: 0, foldersTotal: 0,
+    clientsCreated: 0, clientsUpdated: 0, filesAdded: 0,
+    failures: [],
+    startedAt: new Date(), finishedAt: null, error: null,
+  };
+  runDriveSync(rootId, req.user._id);
+  res.json({ started: true, ...syncState });
+});
+
+// GET /api/oldclients/drive/sync/status — poll this while a sync runs.
+router.get('/drive/sync/status', protect, authorize('admin'), (req, res) => {
+  res.json(syncState);
+});
+
+// POST /api/oldclients/import-manifest
+// /drive/sync (above) scrapes Google's unauthenticated embeddedfolderview page,
+// which silently caps out around ~5,500 items for a folder this large — it can
+// never see the full ~8,500+ real client folders here, no matter how it's
+// retried. This endpoint takes a complete listing instead, produced by the
+// Apps Script drive walker (backend/scripts/apps-script-drive-import.gs), which
+// runs under the admin's own Google account and uses the real Drive API (no
+// item cap, proper pagination). Same schema and dedup rules as /drive/sync:
+// match existing clients by driveFolderId, dedupe documents by publicId — so
+// running this after /drive/sync (or re-running it) never creates duplicates,
+// it only fills in what the scraper couldn't see.
+//
+// Not admin-JWT protected — this is called by a script, not a logged-in
+// browser — so it's gated by a shared secret instead (DRIVE_IMPORT_SECRET).
+router.post('/import-manifest', async (req, res) => {
+  if (!process.env.DRIVE_IMPORT_SECRET || req.headers['x-import-secret'] !== process.env.DRIVE_IMPORT_SECRET) {
+    return res.status(401).json({ message: 'Not authorized' });
+  }
+  try {
+    const { folders } = req.body;
+    if (!Array.isArray(folders)) return res.status(400).json({ message: 'Body must be { folders: [...] }' });
+
+    let clientsCreated = 0, clientsUpdated = 0, filesAdded = 0;
+    const results = [];
+    for (const f of folders) {
+      if (!f || !f.driveFolderId || !f.companyName) {
+        results.push({ driveFolderId: f?.driveFolderId, error: 'Missing driveFolderId or companyName' });
+        continue;
+      }
+      try {
+        let client = await OldClient.findOne({ driveFolderId: f.driveFolderId });
+        if (!client) {
+          client = await OldClient.create({ companyName: f.companyName, driveFolderId: f.driveFolderId });
+          clientsCreated++;
+        }
+
+        const existingIds = new Set(client.documents.map((d) => d.publicId));
+        let addedHere = 0;
+        for (const file of (f.documents || [])) {
+          if (!file?.fileId || !file?.viewUrl) continue;
+          const publicId = `drive:${file.fileId}`;
+          if (existingIds.has(publicId)) continue;
+          const displayName = file.folderPath ? `${file.folderPath}/${file.name}` : file.name;
+          client.documents.push({
+            name: displayName, originalName: file.name,
+            path: file.viewUrl, publicId,
+            docType: guessDocType(file.name || ''), uploadedAt: new Date(),
+          });
+          addedHere++;
+        }
+        if (addedHere > 0) {
+          await client.save();
+          filesAdded += addedHere;
+          clientsUpdated++;
+        }
+        results.push({ driveFolderId: f.driveFolderId, companyName: f.companyName, filesAdded: addedHere });
+      } catch (err) {
+        console.error(`[import-manifest] folder "${f.companyName}" (${f.driveFolderId}) failed:`, err.message);
+        results.push({ driveFolderId: f.driveFolderId, companyName: f.companyName, error: err.message });
+      }
+    }
+    res.json({ received: folders.length, clientsCreated, clientsUpdated, filesAdded, results });
+  } catch (err) {
+    res.status(500).json({ message: 'Import failed: ' + err.message });
+  }
 });
 
 // GET /api/oldclients/:id

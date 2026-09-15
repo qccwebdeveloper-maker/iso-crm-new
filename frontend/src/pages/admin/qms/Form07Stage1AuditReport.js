@@ -11,7 +11,7 @@ const fmtDateRange = (from, to) => {
   if (from) return `${part(from)} ${year(from)}`;
   return '';
 };
-import useStandards, { clausesForStandards, deriveClientStandards, groupClausesByTopLevel } from './useStandards';
+import useStandards, { clausesForStandards, deriveClientStandards } from './useStandards';
 import { FiChevronRight } from 'react-icons/fi';
 
 /* Short code (e.g. "27001") pulled from a standard name for the accordion mark. */
@@ -247,11 +247,11 @@ export function Stage1ReportBody({ data, set, clientInfo }) {
       if ((next[name] || []).length) return;
       const cls = clausesForStandards(byName, name);
       if (cls.length) {
-        // One checklist row per major clause (4.1/4.2/4.3/4.4 -> one "4" row)
-        // rather than one row per sub-clause, so a single finding covers the
-        // whole major clause instead of being split across sub-rows.
-        const grouped = groupClausesByTopLevel(cls);
-        next[name] = grouped.map(c => ({ clause: c.no, description: c.text, conformity: 'N/A', finding: '' }));
+        // One checklist row per catalogue entry, in the exact order/grouping
+        // configured in Admin > Standards (e.g. ISO 14001's own "5" already
+        // bundles 5/5.1, while "5.2" and "5.3" are its own separate entries —
+        // regrouping by leading digit here would wrongly re-merge those).
+        next[name] = cls.map(c => ({ clause: c.no, description: c.text, conformity: 'N/A', finding: '' }));
         changed = true;
       }
     });

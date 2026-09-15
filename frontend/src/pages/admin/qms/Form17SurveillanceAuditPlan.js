@@ -211,8 +211,8 @@ function Body({ data, set, clientInfo }) {
             const open = isOpen(name);
             const meta = byName[name];
             const cols = [
-              { key: 'dayTime', label: 'Day & Time (From–To)', minWidth: 160 },
-              { key: 'clauses', label: 'Clauses', type: 'textarea', minWidth: 200 },
+              { key: 'dayTime', label: 'Day & Time (From–To)', minWidth: 140, maxWidth: 150 },
+              { key: 'clauses', label: 'Clauses', type: 'textarea', minWidth: 380 },
               { key: 'auditorName', label: 'Auditor Name', minWidth: 120 },
             ];
             return (

@@ -45,6 +45,9 @@ backend/secrets/
 backend/scripts/old-client-logins.csv
 backend/scripts/deleted-old-clients-above-*.json
 
+# Full-DB backups (real client PII + password hashes — never commit)
+backend/backups/
+
 # Excel lock files (created while a workbook is open)
 ~$*.xlsx
 

@@ -20,6 +20,11 @@ const stdCode = (name) => {
   return m ? m[1] : String(name || '').slice(0, 6);
 };
 
+/* Standards whose Initial Audit / Recertification columns default to ticked
+   on a brand-new form (every other column, and every other standard, starts
+   blank). Text fields (Audit Notes / Seasonality) are never defaulted. */
+const DEFAULT_TICK_CODES = ['27001', '9001', '45001', '14001', '22000'];
+
 /* All the standards the client selected in their Application Form (F01).
    The backend (/api/qms-forms/client/:id) returns `standards` as an array and also
    joins them into `isoStandard`; prefer the array, fall back to the joined string.
@@ -300,9 +305,10 @@ function StandardCard({ stdKey, meta, st, setStd, isPreview }) {
                         if (c.type === 'check') {
                           // Initial Audit and Recertification apply to every clause by
                           // default (only Surveillance-I/II get picked per clause) —
-                          // so default those two to checked until someone explicitly
-                          // unticks a row, rather than starting every row blank.
-                          const checked = vals[id] !== undefined ? vals[id] : (id === 'initial' || id === 'recert');
+                          // but only for the standards in DEFAULT_TICK_CODES, matching
+                          // the AUD-F-03A template. Other standards start fully unticked;
+                          // every box stays editable regardless.
+                          const checked = vals[id] !== undefined ? vals[id] : (DEFAULT_TICK_CODES.includes(code) && (id === 'initial' || id === 'recert'));
                           return (
                             <td key={id} className="col-check">
                               <input

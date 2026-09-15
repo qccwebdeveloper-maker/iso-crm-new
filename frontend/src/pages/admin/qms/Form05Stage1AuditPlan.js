@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import axios from 'axios';
 import QMSFormPage, { FormRow, FormField, FInput, FTextarea, FSelect, SectionTitle, DynamicTable, StandardChips } from './QMSFormPage';
-import useStandards, { clausesForStandards, deriveClientStandards, groupClausesByTopLevel } from './useStandards';
+import useStandards, { clausesForStandards, deriveClientStandards } from './useStandards';
 import { FiChevronRight } from 'react-icons/fi';
 
 /* Short code (e.g. "27001") pulled from a standard name for the accordion mark. */
@@ -96,6 +96,40 @@ const ROLE_RESPONSIBILITIES = [
     ],
   },
 ];
+
+/* Default "Activity / Key Documents / Records for Verification" text per clause,
+   keyed by standard name then by the catalogue clause "no" (Admin > Standards).
+   Seeded into each Stage-1 schedule row automatically (see the effect in
+   Stage1Body below) whenever that row's Activity column is still empty, so the
+   list always shows by default but stays fully editable — same as every other
+   schedule cell. */
+const STAGE1_KEY_DOCUMENTS = {
+  'ISO 9001:2015': {
+    '4': 'Context / Internal & External Issues Register, Climate Change Relevance Assessment, Interested Parties & Requirements Register, QMS Scope Statement, Process Map / Process Interaction, Key Procedures / SOPs, Process KPIs, and Risk & Opportunity Register.',
+    '5': 'Quality Policy, Management Commitment Evidence, Roles & Responsibilities, QMS Objectives, Management Review Records, Customer Requirements / Contracts, Customer Feedback & Complaint Records, Customer Satisfaction Results, and Actions taken to improve customer satisfaction.',
+    '5.2': 'Approved Quality Policy, Policy Review / Revision Records, Top Management Approval, Display / Distribution Records, Employee Awareness / Communication Records, Induction / Training Records, and Evidence that the policy is available to relevant interested parties.',
+    '5.3': 'Organization Chart, Job Descriptions, Roles & Responsibilities Matrix, Delegation / Authority Matrix, Appointment / Responsibility Letters, Departmental Responsibilities, and Records of Communication of Roles, Responsibilities & Authorities.',
+    '6': 'Risk & Opportunity Register, Risk Assessment / Action Plan, Process Risk Records, Mitigation Actions, Responsibility & Target Dates, and Effectiveness Review Records.',
+    '6.2': 'Quality Objectives, Department-wise Targets / KPIs, Objective Monitoring Records, Action Plans, Responsibilities, Target Dates, Required Resources, and Achievement / Effectiveness Review Records.',
+    '6.3': 'Change Management Procedure, Change Request / Approval Records, Impact & Risk Assessment, Implementation Plan, Updated Documents / Process Records, Responsibilities, and Post-change Effectiveness Review.',
+    '7': 'Resource Plan / Resource Allocation Records, Organization Chart & Manpower Records, Infrastructure & Maintenance Records, Workplace Environment Monitoring Records, Calibration / Verification Records of Monitoring & Measuring Equipment, Equipment Register, and Organizational Knowledge / Lessons Learned / Technical Knowledge Records.',
+    '7.2': 'Competency Matrix, Job Descriptions, Qualification & Experience Records, Training Plan, Training Attendance / Certificates, Skill Evaluation Records, and Training Effectiveness Records.',
+    '7.3': 'Employee Awareness / Induction Records, Quality Policy Awareness, Quality Objectives Awareness, Roles & Responsibilities Communication, Training, Toolbox Talk Records, and Records of awareness regarding contribution to QMS effectiveness and consequences of nonconformity.',
+    '7.4': 'Communication Procedure / Matrix, Internal Communication Records, External Communication Records, Meeting Minutes, Emails / Notices / Circulars, Customer & Supplier Communication Records, and Responsibility / Approval Records for Communication.',
+    '7.5': 'Document Control Procedure, Master Document List, Approved Procedures / SOPs / Forms, Document Identification & Revision Records, Review and Approval Records, Distribution / Access Control Records, External Document Register, Obsolete Document Control Records, and Record Retention / Disposal Records.',
+    '8': 'Operational Plans, Process Procedures / SOPs, Work Instructions, Process Control Records, Acceptance Criteria, Resource Requirements, Risk Controls, Inspection / Monitoring Records, and Records of Planned Changes / Outsourced Process Controls.',
+    '8.2': 'Customer Enquiries / RFQs, Quotations, Contracts / Purchase Orders, Product / Service Requirement Specifications, Contract Review Records, Legal & Regulatory Requirements, Order Confirmation Records, and Records of Changes / Amendments to Customer Requirements.',
+    '8.3': 'Design & Development Procedure / Plan, Design Inputs / Customer Requirements, Applicable Legal & Technical Requirements, Design Review Records, Verification & Validation Records, Design Drawings / Specifications / Outputs, Approval Records, Prototype / Testing Records, and Design Change / Revision Control Records.',
+    '8.4': 'Approved Supplier / Vendor List, Supplier Evaluation & Re-evaluation Records, Purchase Orders / Contracts, Supplier Specifications / Requirements, Incoming Inspection Records, Outsourced Process Control Records, Supplier Performance Monitoring Records, and Records of Communication with External Providers.',
+    '8.5': 'Production / Service Procedures and Work Instructions, Production / Service Records, Inspection & Monitoring Records, Identification & Traceability Records, Customer / Supplier Property Records, Storage / Handling / Preservation Records, Delivery & Post-delivery / Warranty Records, and Production / Service Change Approval & Control Records.',
+    '8.6': 'Final Inspection / Testing Records, Acceptance Criteria, Product / Service Release Records, Delivery / Dispatch Approval, Certificate of Conformity / Inspection Report where applicable, and Authorized Release / Approval Records.',
+    '8.7': 'Nonconforming Product / Service Register, NCR Reports, Identification & Segregation Records, Disposition / Rework / Repair Records, Concession / Approval Records, Re-inspection / Verification Records, and Corrective Action Records.',
+    '9': 'KPI / Performance Monitoring Records, Inspection & Measurement Results, Customer Satisfaction Survey / Feedback Records, Complaint Records, Trend Analysis, Process Performance Reports, Quality Objective Monitoring, Supplier Performance Data, and Analysis / Evaluation Reports.',
+    '9.2': 'Internal Audit Procedure, Annual Audit Programme / Plan, Audit Schedule, Audit Checklist, Internal Audit Reports, Auditor Competence / Independence Records, NC / Observation Records, Corrective Action Records, and Follow-up / Closure Verification Records.',
+    '9.3': 'Management Review Procedure / Plan, MRM Notice & Agenda, Management Review Minutes, Review Inputs, Quality Objectives & KPI Results, Customer Feedback, Audit Results, Process Performance, NC / Corrective Action Status, Risks & Opportunities, Resource Needs, Improvement Opportunities, Decisions, Action Items, Responsibilities, and Follow-up Records.',
+    '10': 'Improvement Plan / Opportunities Register, Nonconformity Reports, Root Cause Analysis Records, Correction & Corrective Action Records, Effectiveness Verification Records, Customer Complaint / Audit Finding Follow-up, KPI / Trend Improvement Records, Lessons Learned, and Continual Improvement Evidence.',
+  },
+};
 
 export const DEFAULT = {
   idNo: '', orgName: '', address: '', contactPerson: '', contactDetails: '', email: '',
@@ -224,23 +258,43 @@ export function Stage1Body({ data, set, clientInfo }) {
       if ((next[name] || []).length) return;
       const cls = clausesForStandards(byName, name);
       if (cls.length) {
-        // One schedule row per major clause (4.1/4.2/4.3/4.4 -> one "4" row,
-        // etc.) rather than one row per sub-clause — matches how this sheet
-        // is actually planned, a block of time per major clause rather than
-        // per sub-clause. Every audit day is bookended by an Opening and
-        // Closing Meeting — seed those as the first/last rows by default,
-        // same as admins were already adding by hand for every client.
-        const grouped = groupClausesByTopLevel(cls);
-        next[name] = [
-          { dayTime: '', clauses: 'Opening Meeting', activity: 'Audit Plan, Audit Scope, Organization Structure, Key Personnel List, Previous Audit Status (if applicable)', auditorName: '' },
-          ...grouped.map(c => ({ dayTime: '', clauses: c.text, activity: '', auditorName: '' })),
-          { dayTime: '', clauses: 'Closing Meeting', activity: 'Audit Findings Summary, NC / Observation Records, Audit Conclusion, Corrective Action Requirements, Attendance / Closing Meeting Record', auditorName: '' },
-        ];
+        // Same as AUD-F-11 (Stage 2 Plan & Schedule, Form09Stage2AuditPlan.js)
+        // — one row per catalogue sub-clause, no grouping and no added
+        // Opening/Closing Meeting rows, so Stage 1 and Stage 2 always list
+        // identical clauses for a given standard.
+        next[name] = cls.map(c => ({ dayTime: '', clauses: `${c.no} ${c.text}`.trim(), activity: '', auditorName: '' }));
         changed = true;
       }
     });
     if (changed) set('schedules', next);
   }, [loading, stdNames.join('|')]); // eslint-disable-line
+
+  // Pre-fill each schedule row's "Activity / Key Documents / Records for
+  // Verification" cell with the standard's default key-documents list for that
+  // clause, for every standard we have a list for (currently ISO 9001:2015).
+  // Only fills rows where the cell is still empty, so it shows by default on a
+  // fresh/newly-seeded schedule without ever overwriting what a user typed.
+  useEffect(() => {
+    if (loading) return;
+    const next = { ...(data.schedules || {}) };
+    let changed = false;
+    stdNames.forEach(name => {
+      const docs = STAGE1_KEY_DOCUMENTS[name];
+      if (!docs) return;
+      const rows = next[name] || [];
+      let rowsChanged = false;
+      const updated = rows.map(r => {
+        if (r.activity && r.activity.trim()) return r;
+        const no = String(r.clauses || '').match(/^\d+(?:\.\d+)?/)?.[0];
+        const doc = no && docs[no];
+        if (!doc) return r;
+        rowsChanged = true;
+        return { ...r, activity: doc };
+      });
+      if (rowsChanged) { next[name] = updated; changed = true; }
+    });
+    if (changed) set('schedules', next);
+  }, [loading, stdNames.join('|'), data.schedules]); // eslint-disable-line
 
   const isOpen   = name => openMap[name] !== false; // default open
   const toggleOpen = name => set('scheduleOpen', { ...openMap, [name]: !isOpen(name) });
@@ -373,8 +427,8 @@ export function Stage1Body({ data, set, clientInfo }) {
                   const open = isOpen(name);
                   const meta = byName[name];
                   const cols = [
-                    { key: 'dayTime',    label: 'Day & Time (From–To)', minWidth: 160 },
-                    { key: 'clauses',    label: 'Clauses',             type: 'textarea', minWidth: 200 },
+                    { key: 'dayTime',    label: 'Day & Time (From–To)', minWidth: 100 },
+                    { key: 'clauses',    label: 'Clauses',             type: 'textarea', minWidth: 320 },
                     { key: 'auditorName',label: 'Auditor Name',        minWidth: 120 },
                     { key: 'activity',   label: 'Activity / Key Documents / Records for Verification', type: 'textarea', minWidth: 240 },
                   ];

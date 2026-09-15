@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import axios from 'axios';
 import QMSFormPage, { FormRow, FormField, FInput, FTextarea, FSelect, SectionTitle, DynamicTable, StandardChips } from './QMSFormPage';
-import useStandards, { clausesForStandards, deriveClientStandards } from './useStandards';
+import useStandards, { clausesForStandards, deriveClientStandards, groupClausesByTopLevel } from './useStandards';
 import { FiChevronRight } from 'react-icons/fi';
 
 /* Short code (e.g. "27001") pulled from a standard name for the accordion mark. */
@@ -224,12 +224,16 @@ export function Stage1Body({ data, set, clientInfo }) {
       if ((next[name] || []).length) return;
       const cls = clausesForStandards(byName, name);
       if (cls.length) {
-        // Every audit day is bookended by an Opening and Closing Meeting —
-        // seed those as the first/last rows by default, same as admins were
-        // already adding by hand for every client.
+        // One schedule row per major clause (4.1/4.2/4.3/4.4 -> one "4" row,
+        // etc.) rather than one row per sub-clause — matches how this sheet
+        // is actually planned, a block of time per major clause rather than
+        // per sub-clause. Every audit day is bookended by an Opening and
+        // Closing Meeting — seed those as the first/last rows by default,
+        // same as admins were already adding by hand for every client.
+        const grouped = groupClausesByTopLevel(cls);
         next[name] = [
           { dayTime: '', clauses: 'Opening Meeting', activity: 'Audit Plan, Audit Scope, Organization Structure, Key Personnel List, Previous Audit Status (if applicable)', auditorName: '' },
-          ...cls.map(c => ({ dayTime: '', clauses: `${c.no} ${c.text}`.trim(), activity: '', auditorName: '' })),
+          ...grouped.map(c => ({ dayTime: '', clauses: c.text, activity: '', auditorName: '' })),
           { dayTime: '', clauses: 'Closing Meeting', activity: 'Audit Findings Summary, NC / Observation Records, Audit Conclusion, Corrective Action Requirements, Attendance / Closing Meeting Record', auditorName: '' },
         ];
         changed = true;

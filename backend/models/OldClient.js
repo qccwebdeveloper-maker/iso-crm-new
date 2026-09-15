@@ -34,6 +34,19 @@ const oldClientSchema = new mongoose.Schema({
   // their own documents via GET /me.
   clientId:       { type: String, index: true, unique: true, sparse: true },
   linkedUser:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  // Plaintext copy of the login password created alongside linkedUser, kept
+  // ONLY so an admin can look it up again later (the User doc only stores a
+  // bcrypt hash, which can't be reversed) — random per client, not derivable
+  // from clientId (see createLoginForOldClient), so this is the sole place
+  // it's recoverable from after creation.
+  loginPassword:  { type: String },
+  // Set by backend/scripts/enrich-old-clients-from-documents.js once it has
+  // tried to fill in companyName/isoStandard/phone from this record's
+  // documents — whether or not anything was actually found. Lets a re-run
+  // (after a restart, or a code fix mid-way through the ~8,000 records)
+  // resume from where it left off instead of re-downloading and re-OCR'ing
+  // every document all over again for records already attempted.
+  enrichmentAttemptedAt: { type: Date, index: true },
 }, { timestamps: true });
 
 module.exports = mongoose.model('OldClient', oldClientSchema);

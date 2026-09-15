@@ -64,8 +64,18 @@ const DEFAULT = {
 };
 
 /* ── Inline table for read-only reference data ── */
+/* Bullet list used inside a RefTable cell (e.g. Table D.1's effort columns,
+   which each list several bullet points rather than a single value). */
+function EffortList({ items }) {
+  return (
+    <ul style={{ margin: 0, paddingLeft: 16 }}>
+      {items.map((t, i) => <li key={i} style={{ marginBottom: i === items.length - 1 ? 0 : 4 }}>{t}</li>)}
+    </ul>
+  );
+}
+
 function RefTable({ title, headers, rows }) {
-  const tdStyle = { padding: '5px 10px', border: '1px solid #e2e8f0', fontSize: 12, color: '#374151' };
+  const tdStyle = { padding: '5px 10px', border: '1px solid #e2e8f0', fontSize: 12, color: '#374151', verticalAlign: 'top' };
   const thStyle = { padding: '6px 10px', background: '#f1f5f9', border: '1px solid #e2e8f0', fontSize: 11.5, fontWeight: 700, color: '#1e40af', textAlign: 'left' };
   return (
     <div style={{ marginBottom: 12 }}>
@@ -595,6 +605,114 @@ export default function Form02ApplicationReview() {
                     ['876–1175','13','15','18.5','See C.3.5'],['1176–1550','14','16','19.5','See C.3.5'],
                     ['1551–2025','15','17','21','See C.3.5'],['2026–2675','16','18','22','See C.3.5'],
                     ['>2675','Follow progression','','',''],
+                  ]}
+                />
+                <div style={{ marginTop: 10 }} />
+                <RefTable
+                  title="Table D.1 — Classification of Factors for Calculating Audit Time (ISO/IEC 27006-1:2024, Annex D)"
+                  headers={['Factor (see C.3.5)', 'Reduced Effort', 'Normal Effort', 'Increased Effort']}
+                  rows={[
+                    [
+                      'a) Complexity of the ISMS: information security requirements (confidentiality, integrity, availability), number of critical assets, number of processes and services',
+                      <EffortList items={[
+                        'Only little sensitive or confidential information, low availability requirements',
+                        'Few critical assets (in terms of CIA)',
+                        'Only one key business process with few interfaces and few business units involved',
+                      ]} />,
+                      <EffortList items={[
+                        'Higher availability requirements or some sensitive/confidential information',
+                        'Some critical assets',
+                        '2–3 simple business processes with few interfaces and few business units involved',
+                      ]} />,
+                      <EffortList items={[
+                        'Higher amount of sensitive or confidential information (e.g. health, personally identifiable information, insurance, banking) or high availability requirements',
+                        'Many critical assets',
+                        'More than 2 complex processes with many interfaces and business units involved',
+                      ]} />,
+                    ],
+                    [
+                      'b) The type(s) of business performed within the scope of the ISMS',
+                      <EffortList items={['Low risk business without regulatory requirements']} />,
+                      <EffortList items={['High regulatory requirements']} />,
+                      <EffortList items={['High risk business with (only) limited regulatory requirements']} />,
+                    ],
+                    [
+                      'c) Previously demonstrated performance of the ISMS',
+                      <EffortList items={[
+                        'Recently certified',
+                        'Not certified but ISMS fully implemented over several audit and improvement cycles, including documented internal audits, management reviews and effective continual improvement system',
+                      ]} />,
+                      <EffortList items={[
+                        'Recent surveillance audit',
+                        'Not certified but partially implemented ISMS: some management system tools are available and implemented; some continual improvement processes are in place but partially documented',
+                      ]} />,
+                      <EffortList items={[
+                        'No certification and no recent audits',
+                        'ISMS is new and not fully established (e.g. lack of management system specific control mechanisms, immature continual improvement processes, ad hoc process execution)',
+                      ]} />,
+                    ],
+                    [
+                      'd) Extent and diversity of technology utilized in the implementation of the various components of the ISMS (e.g. number of different IT platforms, number of segregated networks)',
+                      <EffortList items={['Highly standardized environment with low diversity (few IT platforms, servers, operating systems, databases, networks, etc.)']} />,
+                      <EffortList items={['Standardized but diverse IT platforms, servers, operating systems, databases, networks']} />,
+                      <EffortList items={['High diversity or complexity of IT (e.g. many different segments of networks, types of servers or databases, number of key applications)']} />,
+                    ],
+                    [
+                      'e) Extent of outsourcing and third-party arrangements used within the scope of the ISMS',
+                      <EffortList items={[
+                        'No outsourcing and little dependency on suppliers, or',
+                        'Well-defined, managed and monitored outsourcing arrangements',
+                        'Outsourcer has a certified ISMS',
+                        'Relevant independent assurance reports are available',
+                      ]} />,
+                      <EffortList items={['Several partly managed outsourcing arrangements']} />,
+                      <EffortList items={[
+                        'High dependency on outsourcing or suppliers with large impact on important business activities, or',
+                        'Unknown amount or extent of outsourcing, or',
+                        'Several unmanaged outsourcing arrangements',
+                      ]} />,
+                    ],
+                    [
+                      'f) Extent of information system development',
+                      <EffortList items={[
+                        'No in-house system development',
+                        'Use of standardized software platforms',
+                      ]} />,
+                      <EffortList items={[
+                        'Use of standardized software platforms with complex configuration/parameterization',
+                        '(Highly) customized software',
+                        'Some development activities (in-house or outsourced)',
+                      ]} />,
+                      <EffortList items={['Extensive internal software development activities with several ongoing projects for important business purpose']} />,
+                    ],
+                    [
+                      'g) Number of sites and number of disaster recovery (DR) sites',
+                      <EffortList items={['Low availability requirements and no or one DR site']} />,
+                      <EffortList items={['Medium or high availability requirements and no or one DR site']} />,
+                      <EffortList items={[
+                        'High availability requirements e.g. 24/7 services',
+                        'Several DR sites',
+                        'Several data centres',
+                      ]} />,
+                    ],
+                    [
+                      'h) The number and complexity of controls',
+                      <EffortList items={['Smaller than usual number of controls with some common control areas not included — e.g. no systems development controls or no physical controls']} />,
+                      <EffortList items={['Typical number and complexity of controls']} />,
+                      <EffortList items={['More than usual number of detailed and complex controls, e.g. many controls related to networking protocols or cryptography']} />,
+                    ],
+                    [
+                      'i) For surveillance or re-certification audit: the amount and extent of change relevant to the ISMS in accordance with ISO/IEC 17021-1:2015, 8.5.3',
+                      <EffortList items={['No changes since last re-certification audit']} />,
+                      <EffortList items={[
+                        'Minor changes in scope or SoA of ISMS, e.g. some policies, documents',
+                        'Minor changes in the factors above',
+                      ]} />,
+                      <EffortList items={[
+                        'Major changes in scope or SoA of ISMS, e.g. new processes, new business units, areas, risk assessment methodology, policies, documentation, risk treatment',
+                        'Major changes in the factors above',
+                      ]} />,
+                    ],
                   ]}
                 />
               </div>

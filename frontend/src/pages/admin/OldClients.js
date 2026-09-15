@@ -1,4 +1,4 @@
-import React,{useState,useEffect}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,Search,ArrowLeft,Upload,FileText,Download,Archive,FolderOpen,Folder,ChevronRight,Link2,RefreshCw,Filter,Eye,EyeOff,KeyRound,Copy,AlertTriangle}from 'lucide-react';
+import React,{useState,useEffect}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,Search,ArrowLeft,Upload,FileText,Download,Archive,FolderOpen,Folder,ChevronRight,Link2,Filter,Eye,EyeOff,KeyRound,Copy,AlertTriangle}from 'lucide-react';
 
 const EMPTY_FORM={companyName:'',contactPerson:'',phone:'',email:'',address:'',isoStandard:'',gstNumber:'',udyamNumber:'',notes:''};
 const DOC_TYPES=[{v:'agreement',l:'Agreement'},{v:'invoice',l:'Invoice'},{v:'certificate',l:'Certificate'},{v:'gstCertificate',l:'GST Certificate'},{v:'udyamCertificate',l:'Udyam Registration'},{v:'other',l:'Other'}];
@@ -16,14 +16,13 @@ export default function AdminOldClients(){
   const[showDrive,setShowDrive]=useState(false);const[driveLoading,setDriveLoading]=useState(false);
   const[driveEntries,setDriveEntries]=useState([]);const[driveStack,setDriveStack]=useState([]);
   const[attachingId,setAttachingId]=useState(null);
-  const[syncing,setSyncing]=useState(false);
-  const[syncProgress,setSyncProgress]=useState(null); // {foldersScanned,foldersTotal,clientsCreated,filesAdded,failures}
   const[filterType,setFilterType]=useState('all');
   const[sortKey,setSortKey]=useState('companyName');
   const[sortDir,setSortDir]=useState('asc');
   const[standardFilter,setStandardFilter]=useState('all');
   const[creatingLogin,setCreatingLogin]=useState(false);
-  const[bulkCreating,setBulkCreating]=useState(false);
+  const[page,setPage]=useState(1);
+  const PAGE_SIZE=50;
 
   // Synced-from-Drive documents keep their source sub-folder in `name`, e.g.
   // "admin/5341.jpeg" or "Client/GST certificate.pdf" — mirror that grouping
@@ -165,66 +164,7 @@ export default function AdminOldClients(){
     finally{setAttachingId(null);}
   };
 
-  // The Drive tree here has ~5,500 client folders — a full sync is a long
-  // background walk on the server (see backend/routes/oldClients.js), way
-  // too long to sit inside one request/response. So this just starts it and
-  // polls the status endpoint every few seconds instead of awaiting a single
-  // response; that's also what lets a page refresh mid-sync just resume
-  // watching (see the useEffect below) instead of losing track of it.
-  const pollSyncStatus=()=>{
-    setSyncing(true);
-    let refreshTick=0;
-    const interval=setInterval(async()=>{
-      try{
-        const{data}=await axios.get('/api/oldclients/drive/sync/status');
-        setSyncProgress(data);
-        // Refresh the table while the background walk is running so newly
-        // created clients/documents become visible without waiting for all
-        // thousands of folders to finish.
-        if(++refreshTick%5===0)load();
-        if(!data.running){
-          clearInterval(interval);
-          setSyncing(false);
-          if(data.error){
-            toast.error(`Drive sync failed: ${data.error}`);
-          }else{
-            const base=`Synced: ${data.clientsCreated} new client${data.clientsCreated===1?'':'s'}, ${data.filesAdded} file${data.filesAdded===1?'':'s'} added`;
-            if(data.failures?.length>0){
-              toast.error(`${base} — ${data.failures.length} folder${data.failures.length===1?'':'s'} failed and were skipped (click Sync again to retry them)`);
-            }else{
-              toast.success(base);
-            }
-          }
-          load();
-        }
-      }catch{
-        // A temporary network/API failure must not make the UI stop watching
-        // a sync that is still running on the server. The next poll retries.
-      }
-    },3000);
-  };
-
-  const syncDrive=async()=>{
-    if(syncing)return;
-    try{
-      await axios.post('/api/oldclients/drive/sync');
-      toast.success('Sync started — this can take a while for ~5,500 folders, progress shown on the button');
-      pollSyncStatus();
-    }catch(err){
-      if(err.response?.status===409){pollSyncStatus();return;} // already running elsewhere — just watch it
-      toast.error(err.response?.data?.message||'Drive sync failed');
-    }
-  };
-
-  // If a sync is already running (e.g. someone else started it, or this page
-  // was refreshed mid-sync), pick up watching it instead of showing nothing.
-  useEffect(()=>{
-    axios.get('/api/oldclients/drive/sync/status').then(({data})=>{
-      if(data.running){setSyncProgress(data);pollSyncStatus();}
-    }).catch(()=>{});
-  },[]);
-
-  // ── Client logins — lets each legacy client sign in (Client ID + `${clientId}@1234`) and view their own documents ──
+  // ── Client logins — lets each legacy client sign in (Client ID + a random password shown in the table/modal) and view their own documents ──
   const copyText=text=>{navigator.clipboard?.writeText(text).then(()=>toast.success('Copied')).catch(()=>{});};
 
   const createLogin=async()=>{
@@ -233,33 +173,26 @@ export default function AdminOldClients(){
     setCreatingLogin(true);
     try{
       const{data}=await axios.post(`/api/oldclients/${modal._id}/create-login`);
-      setModal(m=>({...m,clientId:data.user.clientId}));
+      setModal(m=>({...m,clientId:data.user.clientId,loginPassword:data.user._plainPassword||m.loginPassword}));
       toast.success(data.created?`Login created — Client ID ${data.user.clientId}`:`Login already exists — Client ID ${data.user.clientId}`);
       load();
     }catch(err){toast.error(err.response?.data?.message||'Could not create login');}
     finally{setCreatingLogin(false);}
   };
 
-  const bulkCreateLogins=async()=>{
-    if(bulkCreating)return;
-    setBulkCreating(true);
-    try{
-      const{data}=await axios.post('/api/oldclients/create-logins-bulk');
-      toast.success(`Created ${data.created} login${data.created===1?'':'s'} (${data.scanned} scanned)`);
-      load();
-    }catch(err){toast.error(err.response?.data?.message||'Could not create logins');}
-    finally{setBulkCreating(false);}
-  };
-
   const filtered=list.filter(c=>{
     const s=q.trim().toLowerCase();
     const matchesSearch=!s||(c.companyName?.toLowerCase().includes(s)||c.contactPerson?.toLowerCase().includes(s)||c.email?.toLowerCase().includes(s)||c.phone?.toLowerCase().includes(s)||c.clientId?.toLowerCase().includes(s));
-    const matchesStandard=standardFilter==='all'||(standardFilter==='missing'&&!c.isoStandard)||(c.isoStandard===standardFilter);
+    const matchesStandard=standardFilter==='all'||(standardFilter==='missing'&&!c.isoStandard)||((c.isoStandard&&(c.isoStandard.match(/\d{4,5}/)||[])[0])===standardFilter);
     return matchesSearch&&matchesStandard;
   }).sort((a,b)=>{
     const av=String(a[sortKey]??'').toLowerCase(),bv=String(b[sortKey]??'').toLowerCase();
     return (av.localeCompare(bv,{numeric:true})||0)*(sortDir==='asc'?1:-1);
   });
+  const pageCount=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  const safePage=Math.min(page,pageCount);
+  const paged=filtered.slice((safePage-1)*PAGE_SIZE,safePage*PAGE_SIZE);
+  useEffect(()=>{setPage(1);},[q,standardFilter,sortKey,sortDir]);
   const toggleSort=key=>{if(sortKey===key)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(key);setSortDir('asc');}};
   const startAudit=(client,type)=>{
     const id=client.clientId||client.companyName||'';
@@ -332,8 +265,8 @@ export default function AdminOldClients(){
                 <button type="button" className="btn btn-ghost btn-sm" onClick={()=>copyText(modal.clientId)}><Copy size={12}/></button></div>
             </div>
             <div><div style={{fontSize:11,color:'var(--gray-400)',marginBottom:2}}>Password</div>
-              <div style={{display:'flex',alignItems:'center',gap:6}}><span className="mono" style={{fontSize:15,fontWeight:700}}>{modal.clientId}@1234</span>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={()=>copyText(`${modal.clientId}@1234`)}><Copy size={12}/></button></div>
+              <div style={{display:'flex',alignItems:'center',gap:6}}><span className="mono" style={{fontSize:15,fontWeight:700}}>{modal.loginPassword||'—'}</span>
+                {modal.loginPassword&&<button type="button" className="btn btn-ghost btn-sm" onClick={()=>copyText(modal.loginPassword)}><Copy size={12}/></button>}</div>
             </div>
             <span style={{fontSize:12,color:'var(--gray-400)'}}>The client can sign in from the Client Login tab with these credentials.</span>
           </div>
@@ -442,8 +375,6 @@ export default function AdminOldClients(){
     <div className="page-hdr">
       <div><h1 className="page-title">Old Clients</h1><p className="page-subtitle">{list.length} legacy client{list.length===1?'':'s'} — onboarded before this CRM, kept for records</p></div>
       <div style={{display:'flex',gap:10}}>
-        <button className="btn btn-ghost" onClick={bulkCreateLogins} disabled={bulkCreating}><KeyRound size={14}/>{bulkCreating?'Creating…':'Create Logins for All'}</button>
-        <button className="btn btn-ghost" onClick={syncDrive} disabled={syncing}><RefreshCw size={14}/>{syncing?(syncProgress?.foldersTotal?`Syncing… ${syncProgress.foldersScanned}/${syncProgress.foldersTotal}`:'Syncing…'):'Sync from Google Drive'}</button>
         <button className="btn btn-primary" onClick={openAdd}><Plus size={14}/>Add Old Client</button>
       </div>
     </div>
@@ -451,22 +382,22 @@ export default function AdminOldClients(){
       <Search size={14} style={{color:'var(--gray-400)'}}/>
       <input className="form-control" style={{border:'none',padding:'4px 0'}} value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by company, contact, email or phone…"/>
       <select className="form-control" style={{maxWidth:150}} value={sortKey} onChange={e=>{setSortKey(e.target.value);setSortDir('asc');}} aria-label="Sort old clients">
-        <option value="companyName">Sort: Company</option><option value="clientId">Sort: Client ID</option><option value="isoStandard">Sort: Standard</option><option value="documentCount">Sort: Documents</option>
+        <option value="companyName">Sort: Company</option><option value="clientId">Sort: Client ID</option><option value="documentCount">Sort: Documents</option>
       </select>
       <select className="form-control" style={{maxWidth:170}} value={standardFilter} onChange={e=>setStandardFilter(e.target.value)} aria-label="Filter by standard">
         <option value="all">All standards</option><option value="missing">Standard missing</option>
-        {[...new Set(list.map(c=>c.isoStandard).filter(Boolean))].sort().map(s=><option key={s} value={s}>{s}</option>)}
+        {[...new Set(list.map(c=>c.isoStandard).filter(Boolean).map(s=>(s.match(/\d{4,5}/)||[s])[0]))].sort().map(code=><option key={code} value={code}>{code}</option>)}
       </select>
       <button className="btn btn-ghost btn-sm" onClick={()=>setSortDir(d=>d==='asc'?'desc':'asc')} title={`Sort ${sortDir==='asc'?'descending':'ascending'}`}>{sortDir==='asc'?'↑ Asc':'↓ Desc'}</button>
     </div>
     <div className="card">{loading?<div className="loading-box"><div className="spinner"/></div>:(
       <div className="tbl-wrap"><table className="tbl"><thead><tr><th>#</th><th onClick={()=>toggleSort('clientId')} style={{cursor:'pointer'}}>Client ID ↕</th><th onClick={()=>toggleSort('companyName')} style={{cursor:'pointer'}}>Company ↕</th><th>Contact</th><th>Standard</th><th>Documents</th><th>Actions</th></tr></thead><tbody>
-        {filtered.map((c,i)=>(<tr key={c._id}>
-          <td style={{color:'var(--gray-400)',fontSize:12}}>{i+1}</td>
+        {paged.map((c,i)=>(<tr key={c._id}>
+          <td style={{color:'var(--gray-400)',fontSize:12}}>{(safePage-1)*PAGE_SIZE+i+1}</td>
           <td><span className="mono badge bdg-approved">{c.clientId||(/^\s*\d[\d ,\-/]*\s*$/.test(c.companyName||'')?c.companyName:'—')}</span></td>
           <td><strong>{/^\s*\d[\d ,\-/]*\s*$/.test(c.companyName||'')?<span style={{color:'var(--gray-300)'}}>Not provided</span>:c.companyName}</strong></td>
-          <td>{c.contactPerson||<span style={{color:'var(--gray-300)'}}>Not provided</span>}<div style={{fontSize:11,color:'var(--gray-400)'}}>{c.phone||c.email||''}</div></td>
-          <td>{c.isoStandard||<span style={{color:'var(--gray-300)'}}>Not provided</span>}</td>
+          <td>{c.contactPerson&&<div>{c.contactPerson}</div>}{(c.phone||c.email)&&<div style={{fontWeight:700}}>{c.phone||c.email}</div>}</td>
+          <td style={{fontWeight:700}}>{c.isoStandard||<span style={{color:'var(--gray-300)',fontWeight:400}}>Not provided</span>}</td>
           <td><span className="badge bdg-info">{c.documentCount??(c.documents||[]).length}</span></td>
           <td><div className="tbl-actions" style={{flexWrap:'wrap',minWidth:260}}>
             <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(c)}><Edit size={13}/>Open</button>
@@ -478,6 +409,18 @@ export default function AdminOldClients(){
         </tr>))}
         {filtered.length===0&&<tr><td colSpan={8} style={{textAlign:'center',padding:32,color:'var(--gray-400)'}}>{q?'No matches':'No old clients added yet'}</td></tr>}
       </tbody></table></div>
+    )}
+    {!loading&&filtered.length>0&&(
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px',borderTop:'1px solid var(--gray-100)'}}>
+        <span style={{fontSize:12,color:'var(--gray-400)'}}>
+          Showing {(safePage-1)*PAGE_SIZE+1}–{Math.min(safePage*PAGE_SIZE,filtered.length)} of {filtered.length}
+        </span>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={safePage<=1}>Prev</button>
+          <span style={{fontSize:12,color:'var(--gray-500)'}}>Page {safePage} of {pageCount}</span>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setPage(p=>Math.min(pageCount,p+1))} disabled={safePage>=pageCount}>Next</button>
+        </div>
+      </div>
     )}</div>
     {confirmModal}
   </Layout>);

@@ -37,6 +37,14 @@ Thumbs.db
 # Uploads (runtime data)
 backend/uploads/
 
+# Google service account keys (never commit — Drive API access credentials)
+backend/secrets/
+*service-account*.json
+
+# Bulk-generated client login credentials (never commit)
+backend/scripts/old-client-logins.csv
+backend/scripts/deleted-old-clients-above-*.json
+
 # Excel lock files (created while a workbook is open)
 ~$*.xlsx
 

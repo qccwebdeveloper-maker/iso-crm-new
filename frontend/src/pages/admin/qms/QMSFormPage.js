@@ -428,7 +428,7 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellCha
         onCellChange(ri, c.key, next);
       };
       return (
-        <div style={full ? undefined : { minWidth: 140 }}>
+        <div style={full ? undefined : { minWidth: c.minWidth || 140, maxWidth: c.maxWidth }}>
           <textarea
             ref={autoGrow}
             value={val}
@@ -437,7 +437,7 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellCha
             readOnly={c.readOnly}
             rows={full ? 3 : 2}
             className="qms-dyn-inp"
-            style={{ resize: 'vertical', minWidth: 140, width: full ? '100%' : undefined, overflow: 'hidden', ...(c.readOnly ? { background: 'var(--gray-50)', cursor: 'default' } : null) }}
+            style={{ resize: 'vertical', minWidth: c.minWidth || 140, maxWidth: c.maxWidth, width: full ? '100%' : undefined, overflow: 'hidden', ...(c.readOnly ? { background: 'var(--gray-50)', cursor: 'default' } : null) }}
           />
           {c.maxWords > 0 && (
             <div style={{ fontSize: 10, color: wordCount >= c.maxWords ? 'var(--red)' : 'var(--gray-400)', textAlign: 'right', marginTop: 2 }}>
@@ -455,7 +455,7 @@ export function DynamicTable({ columns, rows, onAdd, onRemove, onMove, onCellCha
         disabled={disabled}
         readOnly={c.readOnly}
         className="qms-dyn-inp"
-        style={{ minWidth: c.minWidth || 100, width: full ? '100%' : undefined, ...(c.readOnly ? { background: 'var(--gray-50)', cursor: 'default' } : null) }}
+        style={{ minWidth: c.minWidth || 100, maxWidth: c.maxWidth, width: full ? '100%' : undefined, ...(c.readOnly ? { background: 'var(--gray-50)', cursor: 'default' } : null) }}
       />
     );
   };

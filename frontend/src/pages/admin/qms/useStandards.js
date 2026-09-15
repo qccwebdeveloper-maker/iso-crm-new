@@ -68,24 +68,3 @@ export function clausesForStandards(byName, value) {
   });
   return out;
 }
-
-/* Group a granular clause list (as returned by clausesForStandards) by
-   top-level clause number — e.g. 4.1/4.2/4.3/4.4 all collapse into one "4"
-   row, and 5.1/5.1.1/5.1.2/5.2/5.2.1/5.2.2/5.3 all collapse into one "5" row
-   — combining each sub-clause's own "no text" into one multi-line field.
-   Used by forms (AUD-F-09 Report, AUD-F-05 Plan & Schedule) that show one
-   row per major clause instead of one row per sub-clause; the Standards
-   catalogue itself and AUD-F-03A Audit Programme stay fully granular. */
-export function groupClausesByTopLevel(clauses) {
-  const order = [];
-  const byTop = new Map();
-  (clauses || []).forEach(c => {
-    const top = String(c.no || '').match(/^\d+/)?.[0] || c.no || '';
-    if (!byTop.has(top)) { byTop.set(top, []); order.push(top); }
-    byTop.get(top).push(c);
-  });
-  return order.map(top => ({
-    no: top,
-    text: byTop.get(top).map(c => `${c.no} ${c.text}`.trim()).join('\n'),
-  }));
-}

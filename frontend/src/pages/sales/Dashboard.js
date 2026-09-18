@@ -6,6 +6,7 @@ import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import { Target, Users, TrendingUp, ChevronRight, Plus, UserCheck, BarChart2, CheckCircle, Clock, Star, Edit, Trash2, Search, Phone, ArrowRight, FileText, LayoutDashboard, Mail, X, Check, Crosshair } from 'lucide-react';
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 const STATUS_CFG = {
   new:       { label:'New',       bdg:'bdg-submitted',    color:'#3b82f6' },
@@ -90,11 +91,12 @@ export default function SalesDashboard() {
     } catch { toast.error('Failed'); } finally { setSaving(false); }
   };
 
-  const deleteLead = async (id) => {
-    if (deletingId) return;
-    if (!window.confirm('Delete this lead?')) return;
+  const [confirmDel, setConfirmDel] = useState(null);
+  const deleteLead = async () => {
+    if (deletingId || !confirmDel) return;
+    const id = confirmDel._id;
     setDeletingId(id);
-    try { await axios.delete(`/api/leads/${id}`); toast.success('Deleted'); load(); } catch { toast.error('Failed'); }
+    try { await axios.delete(`/api/leads/${id}`); toast.success('Deleted'); load(); setConfirmDel(null); } catch { toast.error('Failed'); }
     finally { setDeletingId(null); }
   };
 
@@ -358,7 +360,7 @@ export default function SalesDashboard() {
                               <ArrowRight size={11}/>Convert
                             </button>
                           )}
-                          <button className="btn btn-danger btn-sm" disabled={deletingId===l._id} onClick={()=>deleteLead(l._id)}><Trash2 size={11}/></button>
+                          <button className="btn btn-danger btn-sm" disabled={deletingId===l._id} onClick={()=>setConfirmDel(l)}><Trash2 size={11}/></button>
                         </div>
                       </td>
                     </tr>
@@ -525,6 +527,14 @@ export default function SalesDashboard() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={!!confirmDel}
+        message={confirmDel ? <>This will permanently delete the lead for <strong>{confirmDel.companyName}</strong>. This cannot be undone.</> : ''}
+        busy={!!deletingId}
+        onConfirm={deleteLead}
+        onCancel={() => setConfirmDel(null)}
+      />
     </Layout>
   );
 }

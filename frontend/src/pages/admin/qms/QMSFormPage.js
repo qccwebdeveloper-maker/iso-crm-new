@@ -13,6 +13,7 @@ import {
   FiEdit2, FiTrash2, FiCheckCircle, FiClock, FiAlertCircle, FiX,
   FiEye, FiPrinter, FiMoreVertical, FiUpload, FiUserCheck, FiMapPin, FiChevronDown, FiBriefcase,
 } from 'react-icons/fi';
+import ConfirmDeleteModal from '../../../components/ConfirmDeleteModal';
 
 const STATUS_META = {
   draft:     { bg: '#fef3c7', color: '#92400e', Icon: FiClock,       label: 'Draft'     },
@@ -1362,35 +1363,14 @@ export default function QMSFormPage({ formType, formCode, formTitle, defaultData
       )}
 
       {/* ═══ DELETE CONFIRM ═══ */}
-      {deleteId && (
-        <div className="qms-delete-backdrop">
-          <div className="qms-delete-modal">
-            <div className="qms-delete-hdr">
-              <div className="qms-delete-icon">
-                <FiAlertCircle size={22} color="var(--red)" />
-              </div>
-              <div>
-                <div className="qms-delete-title">Delete Form</div>
-                <div className="qms-delete-sub">This action cannot be undone.</div>
-              </div>
-            </div>
-            <div className="qms-delete-footer">
-              <button type="button" onClick={() => setDeleteId(null)} disabled={deleting} className="btn btn-ghost">
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDelete(deleteId)}
-                disabled={deleting}
-                className="btn"
-                style={{ background: 'var(--red)', color: 'white', border: 'none' }}
-              >
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        open={!!deleteId}
+        title="Delete Form"
+        message="This action cannot be undone."
+        busy={deleting}
+        onConfirm={() => handleDelete(deleteId)}
+        onCancel={() => setDeleteId(null)}
+      />
     </Layout>
   );
 }

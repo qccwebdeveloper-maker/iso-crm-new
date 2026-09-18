@@ -4,6 +4,7 @@ import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import { FileText, CheckCircle, Send, Search, Trash2, CreditCard, ShieldCheck, Eye } from 'lucide-react';
 import InvoiceModal from '../../components/InvoiceModal';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 const BANKS = ['Axis', 'HDFC', 'Kotak', 'PayU', 'PayPal', 'Google Pay', 'Paytm', 'Cash', 'Other'];
 const PAY_TYPES = [
@@ -341,11 +342,12 @@ function FinalTab({ onDone }) {
 function AllInvoices({ invoices, loading, onDelete }) {
   const [view, setView] = useState(null);
   const [deleting, setDeleting] = useState('');
-  const del = async (id) => {
-    if (deleting) return;
-    if (!window.confirm('Delete this invoice?')) return;
+  const [confirmDel, setConfirmDel] = useState(null);
+  const del = async () => {
+    if (deleting || !confirmDel) return;
+    const id = confirmDel._id;
     setDeleting(id);
-    try { await axios.delete(`/api/invoices/${id}`); toast.success('Deleted'); onDelete(); }
+    try { await axios.delete(`/api/invoices/${id}`); toast.success('Deleted'); onDelete(); setConfirmDel(null); }
     catch { toast.error('Delete failed'); }
     finally { setDeleting(''); }
   };
@@ -380,7 +382,7 @@ function AllInvoices({ invoices, loading, onDelete }) {
                     <td>
                       <div className="tbl-actions">
                         <button className="btn btn-secondary btn-sm" onClick={() => setView(inv)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Eye size={13} /> View</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => del(inv._id)} disabled={deleting === inv._id}><Trash2 size={13} /></button>
+                        <button className="btn btn-danger btn-sm" onClick={() => setConfirmDel(inv)} disabled={deleting === inv._id}><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>
@@ -392,6 +394,13 @@ function AllInvoices({ invoices, loading, onDelete }) {
       )}
     </div>
     {view && <InvoiceModal inv={view} onClose={() => setView(null)} />}
+    <ConfirmDeleteModal
+      open={!!confirmDel}
+      message={confirmDel ? <>This will permanently delete invoice <strong>{confirmDel.invoiceNo}</strong> for <strong>{confirmDel.organizationName || confirmDel.clientId}</strong>.</> : ''}
+      busy={!!deleting}
+      onConfirm={del}
+      onCancel={() => setConfirmDel(null)}
+    />
     </>
   );
 }

@@ -4,6 +4,7 @@ import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import { Plus, Search, UserCheck, Trash2, Edit, Filter, Download, Phone, Mail, ArrowRight, CheckCircle } from 'lucide-react';
 import Pagination from '../../components/common/Pagination';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 const STATUS_CONFIG = {
   new:       { label: 'New',       bdg: 'bdg-new',       bg: '#eff6ff' },
@@ -126,11 +127,12 @@ export default function SalesLeads() {
     } catch { toast.error('Failed to convert'); } finally { setSaving(false); }
   };
 
-  const del = async (id) => {
-    if (deletingId) return;
-    if (!window.confirm('Delete this lead?')) return;
+  const [confirmDel, setConfirmDel] = useState(null);
+  const del = async () => {
+    if (deletingId || !confirmDel) return;
+    const id = confirmDel._id;
     setDeletingId(id);
-    try { await axios.delete(`/api/leads/${id}`); toast.success('Deleted'); load(); }
+    try { await axios.delete(`/api/leads/${id}`); toast.success('Deleted'); load(); setConfirmDel(null); }
     catch { toast.error('Failed'); }
     finally { setDeletingId(null); }
   };
@@ -233,7 +235,7 @@ export default function SalesLeads() {
                               <CheckCircle size={11}/> Converted
                             </span>
                           )}
-                          <button className="btn btn-danger btn-sm" disabled={deletingId === l._id} onClick={() => del(l._id)}>
+                          <button className="btn btn-danger btn-sm" disabled={deletingId === l._id} onClick={() => setConfirmDel(l)}>
                             <Trash2 size={12} />
                           </button>
                         </div>
@@ -409,6 +411,14 @@ export default function SalesLeads() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={!!confirmDel}
+        message={confirmDel ? <>This will permanently delete the lead for <strong>{confirmDel.companyName}</strong>. This cannot be undone.</> : ''}
+        busy={!!deletingId}
+        onConfirm={del}
+        onCancel={() => setConfirmDel(null)}
+      />
     </Layout>
   );
 }

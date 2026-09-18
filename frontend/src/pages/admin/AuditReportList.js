@@ -4,6 +4,7 @@ import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import { FileText, Plus, Trash2, Edit2, User, UserCheck } from 'lucide-react';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 const STATUS_COLORS = {
   draft:       { bg: '#f1f5f9', color: '#64748b', label: 'Draft' },
@@ -16,6 +17,7 @@ export default function AuditReportList() {
   const [reports,  setReports]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [deleting, setDeleting] = useState(null);
+  const [confirmDel, setConfirmDel] = useState(null);
 
   useEffect(() => {
     axios.get('/api/audit-reports')
@@ -24,14 +26,15 @@ export default function AuditReportList() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDelete = async (id, orgName) => {
-    if (deleting) return;
-    if (!window.confirm(`Delete audit report for "${orgName || 'this report'}"? This cannot be undone.`)) return;
+  const handleDelete = async () => {
+    if (deleting || !confirmDel) return;
+    const id = confirmDel._id;
     setDeleting(id);
     try {
       await axios.delete(`/api/audit-reports/${id}`);
       setReports(prev => prev.filter(r => r._id !== id));
       toast.success('Report deleted');
+      setConfirmDel(null);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete');
     } finally {
@@ -146,7 +149,7 @@ export default function AuditReportList() {
                               <Edit2 size={12} /> Edit
                             </button>
                             <button
-                              onClick={() => handleDelete(r._id, r.orgName)}
+                              onClick={() => setConfirmDel(r)}
                               disabled={deleting === r._id}
                               style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', cursor: deleting === r._id ? 'not-allowed' : 'pointer', fontSize: 12, opacity: deleting === r._id ? 0.6 : 1 }}
                             >
@@ -163,6 +166,14 @@ export default function AuditReportList() {
           )}
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        open={!!confirmDel}
+        message={confirmDel ? <>This will permanently delete the audit report for <strong>{confirmDel.orgName || 'this report'}</strong>. This cannot be undone.</> : ''}
+        busy={!!deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDel(null)}
+      />
     </Layout>
   );
 }

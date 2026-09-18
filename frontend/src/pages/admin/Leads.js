@@ -9,6 +9,7 @@ import {
   CheckCircle, Clock, XCircle, Filter, Download, Inbox, Trophy
 } from 'lucide-react';
 import Pagination from '../../components/common/Pagination';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 const STATUS_CONFIG = {
   pending_review: { label:'Pending Review', color:'bdg-pending_review', icon:Inbox,       bg:'#fef2f2' },
@@ -154,14 +155,16 @@ export default function AdminLeads() {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id) => {
-    if (deletingId) return;
-    if (!window.confirm('Delete this lead?')) return;
+  const [confirmDel, setConfirmDel] = useState(null);
+  const handleDelete = async () => {
+    if (deletingId || !confirmDel) return;
+    const id = confirmDel._id;
     setDeletingId(id);
     try {
       await axios.delete(`/api/leads/${id}`);
       toast.success('Lead deleted');
       load();
+      setConfirmDel(null);
     } catch { toast.error('Delete failed'); }
     finally { setDeletingId(null); }
   };
@@ -276,7 +279,7 @@ export default function AdminLeads() {
               onView={()=>setDetailModal(lead)}
               onAssign={()=>{setAssignModal(lead);setAssign({auditorId:lead.assignedAuditor?._id||'',reviewerId:lead.assignedReviewer?._id||'',});}}
               onConvert={()=>setConvertModal(lead)}
-              onDelete={()=>handleDelete(lead._id)}
+              onDelete={()=>setConfirmDel(lead)}
               onStatusChange={(s)=>updateStatus(lead._id,s)}
               deleting={deletingId===lead._id}
             />
@@ -318,7 +321,7 @@ export default function AdminLeads() {
                         {lead.status !== 'converted' && (
                           <button className="btn btn-success btn-sm" onClick={()=>setConvertModal(lead)} title="Convert to Application"><ArrowRight size={13}/></button>
                         )}
-                        <button className="btn btn-danger btn-sm" onClick={()=>handleDelete(lead._id)} disabled={deletingId===lead._id} title="Delete"><Trash2 size={13}/></button>
+                        <button className="btn btn-danger btn-sm" onClick={()=>setConfirmDel(lead)} disabled={deletingId===lead._id} title="Delete"><Trash2 size={13}/></button>
                       </div>
                     </td>
                   </tr>
@@ -575,6 +578,14 @@ export default function AdminLeads() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={!!confirmDel}
+        message={confirmDel ? <>This will permanently delete the lead for <strong>{confirmDel.companyName}</strong>. This cannot be undone.</> : ''}
+        busy={!!deletingId}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDel(null)}
+      />
     </Layout>
   );
 }

@@ -5,6 +5,7 @@ import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import { Plus, Search, Edit, Trash2, CheckCircle, Copy, RefreshCw, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Pagination from '../../components/common/Pagination';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 const ISO_STANDARDS = ['ISO 9001:2015','ISO 14001:2015','ISO 45001:2018','ISO 27001:2022','ISO 22000:2018','ISO 13485:2016','ISO 50001:2018'];
 
@@ -112,11 +113,13 @@ export default function AdminUsers() {
     } finally { setSaving(false); }
   };
 
-  const del = async id => {
-    if (deletingId) return;
-    if (!window.confirm('Delete this user?')) return;
+  const [confirmDel, setConfirmDel] = useState(null);
+  const askDel = u => setConfirmDel(u);
+  const del = async () => {
+    if (deletingId || !confirmDel) return;
+    const id = confirmDel._id;
     setDeletingId(id);
-    try { await axios.delete(`/api/users/${id}`); toast.success('Deleted'); load(); }
+    try { await axios.delete(`/api/users/${id}`); toast.success('Deleted'); load(); setConfirmDel(null); }
     catch { toast.error('Failed'); }
     finally { setDeletingId(null); }
   };
@@ -195,7 +198,7 @@ export default function AdminUsers() {
                           <button className="btn btn-ghost btn-sm" onClick={() => { setForm({ name: u.name, email: u.email, password: '', role: u.role, phone: u.phone || '', company: u.company || '', branchLabel: u.branchLabel || '', address: u.address || '', isoStandard: u.isoStandard || '' }); setShowPw(false); setModal(u); }}>
                             <Edit size={13} /> Edit
                           </button>
-                          <button className="btn btn-danger btn-sm" onClick={() => del(u._id)} disabled={deletingId === u._id}><Trash2 size={13} /> {deletingId === u._id ? 'Deleting…' : 'Delete'}</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => askDel(u)} disabled={deletingId === u._id}><Trash2 size={13} /> {deletingId === u._id ? 'Deleting…' : 'Delete'}</button>
                         </>
                       )}
                     </div>
@@ -410,6 +413,14 @@ export default function AdminUsers() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={!!confirmDel}
+        message={confirmDel ? <>This will permanently delete <strong>{confirmDel.name}</strong> ({confirmDel.email}). This cannot be undone.</> : ''}
+        busy={!!deletingId}
+        onConfirm={del}
+        onCancel={() => setConfirmDel(null)}
+      />
     </Layout>
   );
 }

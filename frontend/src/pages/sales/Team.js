@@ -3,6 +3,7 @@ import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import { Users, Plus, Edit, Trash2, Search, TrendingUp, Award, Star } from 'lucide-react';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 export default function SalesTeam() {
   const [team,    setTeam]    = useState([]);
@@ -56,14 +57,16 @@ export default function SalesTeam() {
     }
   };
 
-  const del = async (id) => {
-    if (deletingId) return;
-    if (!window.confirm('Remove this team member?')) return;
+  const [confirmDel, setConfirmDel] = useState(null);
+  const del = async () => {
+    if (deletingId || !confirmDel) return;
+    const id = confirmDel._id;
     setDeletingId(id);
     try {
       await axios.delete(`/api/users/${id}`);
       toast.success('Removed');
       load();
+      setConfirmDel(null);
     } catch { toast.error('Failed'); }
     finally { setDeletingId(null); }
   };
@@ -186,7 +189,7 @@ export default function SalesTeam() {
                       <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => { setForm({ name: m.name, email: m.email, password: '', phone: m.phone || '', company: m.company || '', role: 'sales' }); setModal(m); }}>
                         <Edit size={12} /> Edit
                       </button>
-                      <button className="btn btn-danger btn-sm" disabled={deletingId === m._id} onClick={() => del(m._id)}>
+                      <button className="btn btn-danger btn-sm" disabled={deletingId === m._id} onClick={() => setConfirmDel(m)}>
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -241,6 +244,16 @@ export default function SalesTeam() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={!!confirmDel}
+        title="Remove Team Member"
+        message={confirmDel ? <>This will remove <strong>{confirmDel.name}</strong> ({confirmDel.email}) from the sales team.</> : ''}
+        confirmLabel="Remove"
+        busy={!!deletingId}
+        onConfirm={del}
+        onCancel={() => setConfirmDel(null)}
+      />
     </Layout>
   );
 }

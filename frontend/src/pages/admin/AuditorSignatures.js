@@ -1,4 +1,4 @@
-import React,{useState,useEffect,useRef}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,PenTool,ArrowLeft,Search,Upload,X}from 'lucide-react';
+import React,{useState,useEffect,useRef}from 'react';import axios from 'axios';import Layout from '../../components/common/Layout';import toast from 'react-hot-toast';import{Plus,Edit,Trash2,PenTool,ArrowLeft,Search,Upload,X}from 'lucide-react';import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 const EMPTY_FORM={name:'',location:'',signatureUrl:''};
 
@@ -14,6 +14,7 @@ export default function AdminAuditorSignatures(){
   const[saving,setSaving]=useState(false);const[uploading,setUploading]=useState(false);
   const[q,setQ]=useState('');
   const[deleting,setDeleting]=useState(false);
+  const[confirmDel,setConfirmDel]=useState(null);
   const fileRef=useRef(null);
 
   const load=()=>{setLoading(true);axios.get('/api/auditor-signatures').then(r=>setList(r.data||[])).catch(()=>toast.error('Failed to load roster')).finally(()=>setLoading(false));};
@@ -53,11 +54,10 @@ export default function AdminAuditorSignatures(){
     finally{setSaving(false);}
   };
 
-  const del=async id=>{
-    if(deleting)return;
-    if(!window.confirm('Delete this auditor\'s signature from the roster?'))return;
+  const del=async()=>{
+    if(deleting||!confirmDel)return;
     setDeleting(true);
-    try{await axios.delete(`/api/auditor-signatures/${id}`);toast.success('Deleted');load();}
+    try{await axios.delete(`/api/auditor-signatures/${confirmDel._id}`);toast.success('Deleted');load();setConfirmDel(null);}
     catch{toast.error('Failed');}
     finally{setDeleting(false);}
   };
@@ -125,11 +125,12 @@ export default function AdminAuditorSignatures(){
           <td>{a.location||<span style={{color:'var(--gray-300)'}}>—</span>}</td>
           <td><div className="tbl-actions">
             <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(a)}><Edit size={13}/>Edit</button>
-            <button className="btn btn-danger btn-sm" onClick={()=>del(a._id)} disabled={deleting}><Trash2 size={13}/>Delete</button>
+            <button className="btn btn-danger btn-sm" onClick={()=>setConfirmDel(a)} disabled={deleting}><Trash2 size={13}/>Delete</button>
           </div></td>
         </tr>))}
         {filtered.length===0&&<tr><td colSpan={5} style={{textAlign:'center',padding:32,color:'var(--gray-400)'}}>{q?'No matches':'No signatures in the roster yet'}</td></tr>}
       </tbody></table></div>
     )}</div>
+    <ConfirmDeleteModal open={!!confirmDel} message={confirmDel?<>This will remove <strong>{confirmDel.name}</strong>'s signature from the roster.</>:''} busy={deleting} onConfirm={del} onCancel={()=>setConfirmDel(null)}/>
   </Layout>);
 }

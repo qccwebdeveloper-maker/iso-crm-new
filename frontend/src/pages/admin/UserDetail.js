@@ -4,6 +4,7 @@ import axios from 'axios';
 import Layout from '../../components/common/Layout';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle, XCircle, User, Building, Globe, Mail, Phone, MapPin, Calendar, Shield, Hash } from 'lucide-react';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 const roleColor = { admin: 'var(--primary)', client: '#3b82f6', auditor: '#8b5cf6', reviewer: '#8b5cf6', sales: '#16a34a' };
 
@@ -15,6 +16,7 @@ export default function AdminUserDetail() {
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing]   = useState(false);
+  const [confirmReject, setConfirmReject] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -37,7 +39,6 @@ export default function AdminUserDetail() {
 
   const reject = async () => {
     if (acting) return;
-    if (!window.confirm(`Reject and delete ${user.name}'s registration?`)) return;
     setActing(true);
     try {
       await axios.delete(`/api/users/${user._id}`);
@@ -95,7 +96,7 @@ export default function AdminUserDetail() {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-primary btn-sm" onClick={approve} disabled={acting} style={{ background: '#16a34a', borderColor: '#16a34a' }}><CheckCircle size={14} /> Approve</button>
-            <button className="btn btn-danger btn-sm" onClick={reject} disabled={acting}><XCircle size={14} /> Reject</button>
+            <button className="btn btn-danger btn-sm" onClick={() => setConfirmReject(true)} disabled={acting}><XCircle size={14} /> Reject</button>
           </div>
         </div>
       )}
@@ -139,6 +140,15 @@ export default function AdminUserDetail() {
         </div>
       </div>
 
+      <ConfirmDeleteModal
+        open={confirmReject}
+        title="Reject Registration"
+        message={<>This will reject and permanently delete <strong>{user.name}</strong>'s registration ({user.email}). This cannot be undone.</>}
+        confirmLabel="Reject"
+        busy={acting}
+        onConfirm={async () => { await reject(); setConfirmReject(false); }}
+        onCancel={() => setConfirmReject(false)}
+      />
     </Layout>
   );
 }

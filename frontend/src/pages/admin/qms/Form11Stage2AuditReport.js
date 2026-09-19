@@ -485,39 +485,34 @@ export function Stage2ReportBody({ data, set, clientInfo }) {
                       </button>
                       {open && (
                         <div className="aud3-body" style={{ padding: 16, overflowX: 'auto' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, tableLayout: 'fixed' }}>
                             <thead>
                               <tr style={{ background: '#f8fafc' }}>
-                                {['Clause','Description','C/NC/O/OFI'].map(h => (
-                                  <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0' }}>{h}</th>
-                                ))}
+                                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0', width: '25%' }}>Clause / Description / C-NC-O-OFI</th>
+                                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0' }}>Finding / Evidence / Notes</th>
                               </tr>
                             </thead>
                             <tbody>
                               {rows.map((row, ri) => (
-                                <React.Fragment key={ri}>
-                                  <tr style={{ background: ri%2===0?'white':'#fafafa' }}>
-                                    <td style={{ padding: '6px 10px', fontWeight: 600, color: 'var(--primary-dark)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{row.clause}</td>
-                                    <td style={{ padding: '6px 10px', fontSize: 11.5, whiteSpace: 'pre-line', maxWidth: 340, verticalAlign: 'top' }}>{row.description}</td>
-                                    <td style={{ padding: '6px 8px', verticalAlign: 'top' }}>
-                                      <select value={row.conformity||'N/A'} onChange={e=>setCL(name,ri,'conformity',e.target.value)}
-                                        style={{ padding: '4px 6px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', background: 'white' }}>
-                                        {CONFORMITY.map(c=><option key={c} value={c}>{c}</option>)}
-                                      </select>
-                                    </td>
-                                  </tr>
-                                  <tr style={{ borderBottom: '1px solid #f1f5f9', background: ri%2===0?'white':'#fafafa' }}>
-                                    <td colSpan={3} style={{ padding: '0 10px 10px' }}>
-                                      <textarea value={row.finding||''}
-                                        onChange={e=>setCL(name,ri,'finding',e.target.value)}
-                                        onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
-                                        ref={el=>{ if(el){ el.style.height='auto'; el.style.height=el.scrollHeight+'px'; } }}
-                                        rows={2}
-                                        placeholder="Finding / evidence / notes..."
-                                        style={{ padding: '8px 10px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', width: '100%', resize: 'none', overflow: 'hidden', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }} />
-                                    </td>
-                                  </tr>
-                                </React.Fragment>
+                                <tr key={ri} style={{ borderBottom: '1px solid #f1f5f9', background: ri%2===0?'white':'#fafafa' }}>
+                                  <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                                    <div style={{ fontWeight: 600, color: 'var(--primary-dark)' }}>{row.clause}</div>
+                                    <div style={{ fontSize: 11.5, whiteSpace: 'pre-line', lineHeight: 1.55, marginTop: 4 }}>{row.description}</div>
+                                    <select value={row.conformity||'N/A'} onChange={e=>setCL(name,ri,'conformity',e.target.value)}
+                                      style={{ marginTop: 6, padding: '4px 6px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', background: 'white' }}>
+                                      {CONFORMITY.map(c=><option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                  </td>
+                                  <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                                    <textarea value={row.finding||''}
+                                      onChange={e=>setCL(name,ri,'finding',e.target.value)}
+                                      onInput={e=>{ e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }}
+                                      ref={el=>{ if(el){ el.style.height='auto'; el.style.height=el.scrollHeight+'px'; } }}
+                                      rows={4}
+                                      placeholder="Finding / evidence / notes..."
+                                      style={{ padding: '8px 10px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', width: '100%', resize: 'none', overflow: 'hidden', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }} />
+                                  </td>
+                                </tr>
                               ))}
                             </tbody>
                           </table>
@@ -529,46 +524,41 @@ export function Stage2ReportBody({ data, set, clientInfo }) {
                           <div style={{ marginTop: 20, fontSize: 12.5, fontWeight: 800, color: 'var(--primary-dark)', background: 'var(--primary-50)', border: '1px solid var(--primary-100)', borderRadius: '8px 8px 0 0', padding: '10px 12px' }}>
                             Information Security Controls
                           </div>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, tableLayout: 'fixed' }}>
                             <thead>
                               <tr style={{ background: '#f8fafc' }}>
-                                {['Clause','Description','C/NC/O/OFI'].map(h => (
-                                  <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0' }}>{h}</th>
-                                ))}
+                                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0', width: '25%' }}>Clause / Description / C-NC-O-OFI</th>
+                                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0' }}>Finding / Evidence / Notes</th>
                               </tr>
                             </thead>
                             <tbody>
                               {INFO_SEC_CONTROLS.map(section => (
                                 <React.Fragment key={section.group}>
                                   <tr>
-                                    <td colSpan={3} style={{ padding: '7px 10px', textAlign: 'left', background: '#f1f5f9', color: '#475569', fontSize: 11, fontWeight: 800, letterSpacing: '.02em', borderBottom: '1px solid #e2e8f0' }}>{section.group}</td>
+                                    <td colSpan={2} style={{ padding: '7px 10px', textAlign: 'left', background: '#f1f5f9', color: '#475569', fontSize: 11, fontWeight: 800, letterSpacing: '.02em', borderBottom: '1px solid #e2e8f0' }}>{section.group}</td>
                                   </tr>
                                   {section.items.map(([no, text]) => {
                                     const cv = (iscChecklists[name] || {})[no] || {};
                                     return (
-                                      <React.Fragment key={no}>
-                                        <tr style={{ background: 'white' }}>
-                                          <td style={{ padding: '6px 10px', fontWeight: 600, color: 'var(--primary-dark)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{no}</td>
-                                          <td style={{ padding: '6px 10px', fontSize: 11.5, whiteSpace: 'pre-line', maxWidth: 340, verticalAlign: 'top' }}>{text}</td>
-                                          <td style={{ padding: '6px 8px', verticalAlign: 'top' }}>
-                                            <select value={cv.conformity || 'N/A'} onChange={e => setISC(name, no, 'conformity', e.target.value)}
-                                              style={{ padding: '4px 6px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', background: 'white' }}>
-                                              {CONFORMITY.map(c => <option key={c} value={c}>{c}</option>)}
-                                            </select>
-                                          </td>
-                                        </tr>
-                                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                          <td colSpan={3} style={{ padding: '0 10px 10px' }}>
-                                            <textarea value={cv.finding || ''}
-                                              onChange={e => setISC(name, no, 'finding', e.target.value)}
-                                              onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
-                                              ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
-                                              rows={2}
-                                              placeholder="Finding / evidence / notes..."
-                                              style={{ padding: '8px 10px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', width: '100%', resize: 'none', overflow: 'hidden', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }} />
-                                          </td>
-                                        </tr>
-                                      </React.Fragment>
+                                      <tr key={no} style={{ borderBottom: '1px solid #f1f5f9', background: 'white' }}>
+                                        <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                                          <div style={{ fontWeight: 600, color: 'var(--primary-dark)' }}>{no}</div>
+                                          <div style={{ fontSize: 11.5, whiteSpace: 'pre-line', lineHeight: 1.55, marginTop: 4 }}>{text}</div>
+                                          <select value={cv.conformity || 'N/A'} onChange={e => setISC(name, no, 'conformity', e.target.value)}
+                                            style={{ marginTop: 6, padding: '4px 6px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', background: 'white' }}>
+                                            {CONFORMITY.map(c => <option key={c} value={c}>{c}</option>)}
+                                          </select>
+                                        </td>
+                                        <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                                          <textarea value={cv.finding || ''}
+                                            onChange={e => setISC(name, no, 'finding', e.target.value)}
+                                            onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+                                            ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                                            rows={4}
+                                            placeholder="Finding / evidence / notes..."
+                                            style={{ padding: '8px 10px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', width: '100%', resize: 'none', overflow: 'hidden', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }} />
+                                        </td>
+                                      </tr>
                                     );
                                   })}
                                 </React.Fragment>

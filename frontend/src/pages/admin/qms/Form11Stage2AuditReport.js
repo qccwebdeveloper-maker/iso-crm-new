@@ -488,7 +488,7 @@ export function Stage2ReportBody({ data, set, clientInfo }) {
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, tableLayout: 'fixed' }}>
                             <thead>
                               <tr style={{ background: '#f8fafc' }}>
-                                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0', width: '45%' }}>Clause / Description / C-NC-O-OFI</th>
+                                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0', width: '25%' }}>Clause / Description / C-NC-O-OFI</th>
                                 <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0' }}>Finding / Evidence / Notes</th>
                               </tr>
                             </thead>
@@ -527,7 +527,7 @@ export function Stage2ReportBody({ data, set, clientInfo }) {
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, tableLayout: 'fixed' }}>
                             <thead>
                               <tr style={{ background: '#f8fafc' }}>
-                                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0', width: '45%' }}>Clause / Description / C-NC-O-OFI</th>
+                                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0', width: '25%' }}>Clause / Description / C-NC-O-OFI</th>
                                 <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1.5px solid #e2e8f0' }}>Finding / Evidence / Notes</th>
                               </tr>
                             </thead>

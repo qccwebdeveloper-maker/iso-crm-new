@@ -1662,6 +1662,10 @@ select.qms-inp { cursor: pointer; }
   .aud3-toolbar { padding: 10px 12px; }
 }
 
+/* AUD-F-03A/03B "Finding / Evidence / Notes" cells print a plain read-only mirror of the
+   textarea's text instead of the textarea itself — see the @media print rule below for why. */
+.aud3-print-finding { display: none; }
+
 /* ── Print ── */
 @media print {
   /* Zero @page margin so Chrome has no margin box to draw its own header/footer
@@ -1901,6 +1905,32 @@ select.qms-inp { cursor: pointer; }
      previous page's remaining space blank. `table tr` below already stops an individual
      row from splitting mid-row, which is the actual protection needed here. */
   .qms-form-row, .qms-field, table tr, .form-group, .qms-row { break-inside: avoid; }
+  /* Same backfire as .aud3-std above, one level down: AUD-F-03A/03B clause rows carry a
+     full paragraph of description text in one cell, so a single row can run taller than
+     the space left on a page. `break-inside: avoid` (from `table tr` above) then can't
+     keep the row whole either — it just pushes that one row to a fresh page, leaving the
+     rest of the previous page blank instead of the small before/after split you'd expect.
+     Override back to letting these specific rows split normally; losing the "don't split
+     mid-row" guarantee here is a smaller cost than a mostly-blank printed page. */
+  .aud3-body table tr { break-inside: auto; }
+  /* That still isn't enough on its own: a <textarea> is a replaced form control, and every
+     browser engine treats replaced elements as monolithic during print pagination — it can
+     never be fragmented across a page boundary, only moved whole to the next page. So even
+     with the row itself free to split, the tall "Finding / Evidence / Notes" textarea inside
+     it was still forcing the whole row to jump forward, leaving the same blank gap. Swap it
+     for a plain read-only mirror (ordinary flowing text, which *can* break across pages) when
+     printing, and hide the live textarea in that view. */
+  .aud3-body textarea { display: none !important; }
+  .aud3-print-finding {
+    display: block !important;
+    white-space: pre-wrap;
+    padding: 8px 10px;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #000;
+  }
   .qms-section-title { break-after: avoid; }
   /* Margins collapse to zero when a box lands at the very top of a printed page, which
      is why a section title starting a new page used to sit flush against the top edge.

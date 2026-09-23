@@ -3,6 +3,7 @@ import axios from 'axios';
 import QMSFormPage, { FormRow, FormField, FInput, FTextarea, FSelect, SectionTitle, DynamicTable, StandardChips } from './QMSFormPage';
 import useStandards, { clausesForStandards, deriveClientStandards } from './useStandards';
 import AuditTeamResponsibilities from './AuditTeamResponsibilities';
+import { KEY_DOCUMENTS_BY_STANDARD, keyDocumentFor } from './Form05Stage1AuditPlan';
 import { FiChevronRight } from 'react-icons/fi';
 
 /* Short code (e.g. "27001") pulled from a standard name for the accordion mark. */
@@ -40,7 +41,7 @@ export const DEFAULT = {
   auditLanguage: 'English',
   auditTeam: [{ ...EMPTY_TEAM }],
   // Audit schedule is kept separately per selected standard:
-  //   { [standardName]: [ { dayTime, clauses, auditorName }, ... ] }
+  //   { [standardName]: [ { dayTime, clauses, auditorName, activity }, ... ] }
   schedules: {},
 };
 
@@ -131,12 +132,38 @@ export function Stage2PlanBody({ data, set, clientInfo }) {
       if ((next[name] || []).length) return;
       const cls = clausesForStandards(byName, name);
       if (cls.length) {
-        next[name] = cls.map(c => ({ dayTime: '', clauses: `${c.no} ${c.text}`.trim(), auditorName: '' }));
+        next[name] = cls.map(c => ({ dayTime: '', clauses: `${c.no} ${c.text}`.trim(), auditorName: '', activity: '' }));
         changed = true;
       }
     });
     if (changed) set('schedules', next);
   }, [loading, stdNames.join('|')]); // eslint-disable-line
+
+  // Pre-fill each schedule row's "Activity / Key Documents / Records for
+  // Verification" cell with the standard's default key-documents list for that
+  // clause — same list AUD-F-05 (Stage 1) seeds, since Stage 1 and Stage 2 list
+  // identical clauses per standard. Only fills rows where the cell is still
+  // empty, so it shows by default without ever overwriting what a user typed.
+  useEffect(() => {
+    if (loading) return;
+    const next = { ...(data.schedules || {}) };
+    let changed = false;
+    stdNames.forEach(name => {
+      const docs = KEY_DOCUMENTS_BY_STANDARD[name];
+      if (!docs) return;
+      const rows = next[name] || [];
+      let rowsChanged = false;
+      const updated = rows.map(r => {
+        if (r.activity && r.activity.trim()) return r;
+        const doc = keyDocumentFor(docs, r.clauses);
+        if (!doc) return r;
+        rowsChanged = true;
+        return { ...r, activity: doc };
+      });
+      if (rowsChanged) { next[name] = updated; changed = true; }
+    });
+    if (changed) set('schedules', next);
+  }, [loading, stdNames.join('|'), data.schedules]); // eslint-disable-line
 
   const isOpen     = name => openMap[name] !== false; // default open
   const toggleOpen = name => set('scheduleOpen', { ...openMap, [name]: !isOpen(name) });
@@ -204,8 +231,9 @@ export function Stage2PlanBody({ data, set, clientInfo }) {
                   const meta = byName[name];
                   const cols = [
                     { key: 'dayTime',     label: 'Day & Time (From–To)', minWidth: 140, maxWidth: 150 },
-                    { key: 'clauses',     label: 'Clauses',              type: 'textarea', minWidth: 400 },
+                    { key: 'clauses',     label: 'Clauses',              type: 'textarea', minWidth: 320 },
                     { key: 'auditorName', label: 'Auditor Name',         minWidth: 120 },
+                    { key: 'activity',    label: 'Activity / Key Documents / Records for Verification', type: 'textarea', minWidth: 240 },
                   ];
                   return (
                     <section key={name} className={`aud3-std${open ? ' open' : ''}`}>
@@ -225,7 +253,7 @@ export function Stage2PlanBody({ data, set, clientInfo }) {
                           <DynamicTable
                             columns={cols}
                             rows={rows}
-                            onAdd={() => setScheduleFor(name, [...rows, { dayTime: '', clauses: '', auditorName: '' }])}
+                            onAdd={() => setScheduleFor(name, [...rows, { dayTime: '', clauses: '', auditorName: '', activity: '' }])}
                             onRemove={(ri) => setScheduleFor(name, rows.filter((_, i) => i !== ri))}
                             onMove={(from, to) => {
                               if (from === to || from == null || to == null) return;

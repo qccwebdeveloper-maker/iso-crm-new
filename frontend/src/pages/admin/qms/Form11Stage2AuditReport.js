@@ -511,6 +511,7 @@ export function Stage2ReportBody({ data, set, clientInfo }) {
                                       rows={4}
                                       placeholder="Finding / evidence / notes..."
                                       style={{ padding: '8px 10px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', width: '100%', resize: 'none', overflow: 'hidden', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }} />
+                                    <div className="aud3-print-finding">{row.finding || ''}</div>
                                   </td>
                                 </tr>
                               ))}
@@ -557,6 +558,7 @@ export function Stage2ReportBody({ data, set, clientInfo }) {
                                             rows={4}
                                             placeholder="Finding / evidence / notes..."
                                             style={{ padding: '8px 10px', border: '1.5px solid #e2e8f0', borderRadius: 6, fontSize: 12, outline: 'none', width: '100%', resize: 'none', overflow: 'hidden', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }} />
+                                          <div className="aud3-print-finding">{cv.finding || ''}</div>
                                         </td>
                                       </tr>
                                     );
